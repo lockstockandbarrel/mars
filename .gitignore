@@ -1,0 +1,4 @@
+build/*
+FODDER/
+man/
+docs/doxygen_out
