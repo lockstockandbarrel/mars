@@ -1,3 +1,5 @@
 # mars
 
-single-source program files
+o single-source program files
+
+o man-page collections for GPF packages
