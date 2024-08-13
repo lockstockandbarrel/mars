@@ -1,3 +1,4 @@
+ 
 !>>>>> ././src/M_intrinsics.f90
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
@@ -393,7 +394,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  abs(3fortran)', &
+'                               August 12, 2024                  abs(3fortran)', &
 '']
 
 shortname="abs"
@@ -569,7 +570,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                achar(3fortran)', &
+'                               August 12, 2024                achar(3fortran)', &
 '']
 
 shortname="achar"
@@ -669,7 +670,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 acos(3fortran)', &
+'                               August 12, 2024                 acos(3fortran)', &
 '']
 
 shortname="acos"
@@ -703,7 +704,7 @@ textblock=[character(len=256) :: &
 '  o  The returned value will be of the same type and kind as the argument.', &
 '', &
 'DESCRIPTION', &
-'  ACOSD(3) computes the arccosine of X in degrees(inverse of COSD(X)). For', &
+'  ACOSD(3) computes the arccosine of X in degrees (inverse of COSD(X)).  For', &
 '  example, ACOSD(-1.0) has the value 180.0 (approximately).', &
 '', &
 'OPTIONS', &
@@ -763,7 +764,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                acosd(3fortran)', &
+'                               August 12, 2024                acosd(3fortran)', &
 '']
 
 shortname="acosd"
@@ -844,7 +845,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                acosh(3fortran)', &
+'                               August 12, 2024                acosh(3fortran)', &
 '']
 
 shortname="acosh"
@@ -943,7 +944,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               acospi(3fortran)', &
+'                               August 12, 2024               acospi(3fortran)', &
 '']
 
 shortname="acospi"
@@ -1040,7 +1041,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              adjustl(3fortran)', &
+'                               August 12, 2024              adjustl(3fortran)', &
 '']
 
 shortname="adjustl"
@@ -1133,7 +1134,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              adjustr(3fortran)', &
+'                               August 12, 2024              adjustr(3fortran)', &
 '']
 
 shortname="adjustr"
@@ -1248,7 +1249,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                aimag(3fortran)', &
+'                               August 12, 2024                aimag(3fortran)', &
 '']
 
 shortname="aimag"
@@ -1348,7 +1349,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 aint(3fortran)', &
+'                               August 12, 2024                 aint(3fortran)', &
 '']
 
 shortname="aint"
@@ -1468,7 +1469,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  all(3fortran)', &
+'                               August 12, 2024                  all(3fortran)', &
 '']
 
 shortname="all"
@@ -1575,7 +1576,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            allocated(3fortran)', &
+'                               August 12, 2024            allocated(3fortran)', &
 '']
 
 shortname="allocated"
@@ -1701,7 +1702,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                anint(3fortran)', &
+'                               August 12, 2024                anint(3fortran)', &
 '']
 
 shortname="anint"
@@ -1867,7 +1868,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  any(3fortran)', &
+'                               August 12, 2024                  any(3fortran)', &
 '']
 
 shortname="any"
@@ -1989,7 +1990,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 asin(3fortran)', &
+'                               August 12, 2024                 asin(3fortran)', &
 '']
 
 shortname="asin"
@@ -2121,7 +2122,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                asind(3fortran)', &
+'                               August 12, 2024                asind(3fortran)', &
 '']
 
 shortname="asind"
@@ -2203,7 +2204,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                asinh(3fortran)', &
+'                               August 12, 2024                asinh(3fortran)', &
 '']
 
 shortname="asinh"
@@ -2341,7 +2342,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               asinpi(3fortran)', &
+'                               August 12, 2024               asinpi(3fortran)', &
 '']
 
 shortname="asinpi"
@@ -2459,7 +2460,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           associated(3fortran)', &
+'                               August 12, 2024           associated(3fortran)', &
 '']
 
 shortname="associated"
@@ -2647,7 +2648,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                atan2(3fortran)', &
+'                               August 12, 2024                atan2(3fortran)', &
 '']
 
 shortname="atan2"
@@ -2827,7 +2828,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               atan2d(3fortran)', &
+'                               August 12, 2024               atan2d(3fortran)', &
 '']
 
 shortname="atan2d"
@@ -2994,7 +2995,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              atan2pi(3fortran)', &
+'                               August 12, 2024              atan2pi(3fortran)', &
 '']
 
 shortname="atan2pi"
@@ -3088,7 +3089,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 atan(3fortran)', &
+'                               August 12, 2024                 atan(3fortran)', &
 '']
 
 shortname="atan"
@@ -3183,7 +3184,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                atand(3fortran)', &
+'                               August 12, 2024                atand(3fortran)', &
 '']
 
 shortname="atand"
@@ -3257,7 +3258,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                atanh(3fortran)', &
+'                               August 12, 2024                atanh(3fortran)', &
 '']
 
 shortname="atanh"
@@ -3273,7 +3274,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 'NAME', &
-'  **atanpi(3) - [MATHEMATICS:TRIGONOMETRIC] Circular Arctangent AKA inverse', &
+'  ATANPI(3) - [MATHEMATICS:TRIGONOMETRIC] Circular Arctangent AKA inverse', &
 '  tangent function', &
 '', &
 '', &
@@ -3287,7 +3288,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 'CHARACTERISTICS', &
-'  o  Y and X must both be_real_ and of the same KIND', &
+'  o  Y and X must both be real and of the same KIND', &
 '', &
 '  o  KIND can be any kind supported by the real type.', &
 '', &
@@ -3298,7 +3299,7 @@ textblock=[character(len=256) :: &
 '', &
 '  If Y appears, the result is the same as the result of ATAN2PI(Y,X). If Y', &
 '  does not appear, the result has a value equal to a processor-dependent', &
-'  approximation to the arc tangent of *x; it is expressed in half-revolutions', &
+'  approximation to the arc tangent of X; it is expressed in half-revolutions', &
 '  and lies in the range -0.5 <= ATANPI(X) <= 0.5.', &
 '', &
 '  Example. ATANPI(1.0) has the value 0.25 (approximately).', &
@@ -3352,7 +3353,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               atanpi(3fortran)', &
+'                               August 12, 2024               atanpi(3fortran)', &
 '']
 
 shortname="atanpi"
@@ -3429,7 +3430,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           atomic_add(3fortran)', &
+'                               August 12, 2024           atomic_add(3fortran)', &
 '']
 
 shortname="atomic_add"
@@ -3507,7 +3508,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           atomic_and(3fortran)', &
+'                               August 12, 2024           atomic_and(3fortran)', &
 '']
 
 shortname="atomic_and"
@@ -3577,7 +3578,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           atomic_cas(3fortran)', &
+'                               August 12, 2024           atomic_cas(3fortran)', &
 '']
 
 shortname="atomic_cas"
@@ -3653,7 +3654,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024        atomic_define(3fortran)', &
+'                               August 12, 2024        atomic_define(3fortran)', &
 '']
 
 shortname="atomic_define"
@@ -3724,7 +3725,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024     atomic_fetch_add(3fortran)', &
+'                               August 12, 2024     atomic_fetch_add(3fortran)', &
 '']
 
 shortname="atomic_fetch_add"
@@ -3796,7 +3797,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024     atomic_fetch_and(3fortran)', &
+'                               August 12, 2024     atomic_fetch_and(3fortran)', &
 '']
 
 shortname="atomic_fetch_and"
@@ -3868,7 +3869,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024      atomic_fetch_or(3fortran)', &
+'                               August 12, 2024      atomic_fetch_or(3fortran)', &
 '']
 
 shortname="atomic_fetch_or"
@@ -3940,7 +3941,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024     atomic_fetch_xor(3fortran)', &
+'                               August 12, 2024     atomic_fetch_xor(3fortran)', &
 '']
 
 shortname="atomic_fetch_xor"
@@ -4021,7 +4022,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            atomic_or(3fortran)', &
+'                               August 12, 2024            atomic_or(3fortran)', &
 '']
 
 shortname="atomic_or"
@@ -4105,7 +4106,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           atomic_ref(3fortran)', &
+'                               August 12, 2024           atomic_ref(3fortran)', &
 '']
 
 shortname="atomic_ref"
@@ -4184,7 +4185,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           atomic_xor(3fortran)', &
+'                               August 12, 2024           atomic_xor(3fortran)', &
 '']
 
 shortname="atomic_xor"
@@ -4318,7 +4319,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            backspace(7fortran)', &
+'                               August 12, 2024            backspace(7fortran)', &
 '']
 
 shortname="backspace"
@@ -4388,7 +4389,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            bessel_j0(3fortran)', &
+'                               August 12, 2024            bessel_j0(3fortran)', &
 '']
 
 shortname="bessel_j0"
@@ -4457,7 +4458,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            bessel_j1(3fortran)', &
+'                               August 12, 2024            bessel_j1(3fortran)', &
 '']
 
 shortname="bessel_j1"
@@ -4561,7 +4562,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            bessel_jn(3fortran)', &
+'                               August 12, 2024            bessel_jn(3fortran)', &
 '']
 
 shortname="bessel_jn"
@@ -4630,7 +4631,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            bessel_y0(3fortran)', &
+'                               August 12, 2024            bessel_y0(3fortran)', &
 '']
 
 shortname="bessel_y0"
@@ -4698,7 +4699,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            bessel_y1(3fortran)', &
+'                               August 12, 2024            bessel_y1(3fortran)', &
 '']
 
 shortname="bessel_y1"
@@ -4802,7 +4803,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            bessel_yn(3fortran)', &
+'                               August 12, 2024            bessel_yn(3fortran)', &
 '']
 
 shortname="bessel_yn"
@@ -4967,7 +4968,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  bge(3fortran)', &
+'                               August 12, 2024                  bge(3fortran)', &
 '']
 
 shortname="bge"
@@ -5079,7 +5080,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  bgt(3fortran)', &
+'                               August 12, 2024                  bgt(3fortran)', &
 '']
 
 shortname="bgt"
@@ -5172,7 +5173,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             bit_size(3fortran)', &
+'                               August 12, 2024             bit_size(3fortran)', &
 '']
 
 shortname="bit_size"
@@ -5273,7 +5274,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  ble(3fortran)', &
+'                               August 12, 2024                  ble(3fortran)', &
 '']
 
 shortname="ble"
@@ -5375,7 +5376,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                block(7fortran)', &
+'                               August 12, 2024                block(7fortran)', &
 '']
 
 shortname="block"
@@ -5470,7 +5471,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  blt(3fortran)', &
+'                               August 12, 2024                  blt(3fortran)', &
 '']
 
 shortname="blt"
@@ -5608,7 +5609,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                btest(3fortran)', &
+'                               August 12, 2024                btest(3fortran)', &
 '']
 
 shortname="btest"
@@ -5686,7 +5687,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024         c_associated(3fortran)', &
+'                               August 12, 2024         c_associated(3fortran)', &
 '']
 
 shortname="c_associated"
@@ -5930,7 +5931,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              ceiling(3fortran)', &
+'                               August 12, 2024              ceiling(3fortran)', &
 '']
 
 shortname="ceiling"
@@ -6006,7 +6007,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          c_f_pointer(3fortran)', &
+'                               August 12, 2024          c_f_pointer(3fortran)', &
 '']
 
 shortname="c_f_pointer"
@@ -6081,7 +6082,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024      c_f_procpointer(3fortran)', &
+'                               August 12, 2024      c_f_procpointer(3fortran)', &
 '']
 
 shortname="c_f_procpointer"
@@ -6155,7 +6156,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             c_funloc(3fortran)', &
+'                               August 12, 2024             c_funloc(3fortran)', &
 '']
 
 shortname="c_funloc"
@@ -6291,7 +6292,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 char(3fortran)', &
+'                               August 12, 2024                 char(3fortran)', &
 '']
 
 shortname="char"
@@ -6352,7 +6353,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                c_loc(3fortran)', &
+'                               August 12, 2024                c_loc(3fortran)', &
 '']
 
 shortname="c_loc"
@@ -6490,7 +6491,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                close(7fortran)', &
+'                               August 12, 2024                close(7fortran)', &
 '']
 
 shortname="close"
@@ -6547,7 +6548,7 @@ textblock=[character(len=256) :: &
 '', &
 '  this will not work for variables. So you cannot enter', &
 '', &
-'           z = (a, b)  ! NO ! (unless a and b are constants, not variables)', &
+'           z = (a, b) ! NO ! (unless a and b are constants, not variables)', &
 '', &
 '  so to construct a complex value using non-complex values you must use the', &
 '  CMPLX(3) function:', &
@@ -6762,7 +6763,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                cmplx(3fortran)', &
+'                               August 12, 2024                cmplx(3fortran)', &
 '']
 
 shortname="cmplx"
@@ -6830,7 +6831,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024         co_broadcast(3fortran)', &
+'                               August 12, 2024         co_broadcast(3fortran)', &
 '']
 
 shortname="co_broadcast"
@@ -6950,7 +6951,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               co_max(3fortran)', &
+'                               August 12, 2024               co_max(3fortran)', &
 '']
 
 shortname="co_max"
@@ -7019,7 +7020,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               co_min(3fortran)', &
+'                               August 12, 2024               co_min(3fortran)', &
 '']
 
 shortname="co_min"
@@ -7097,7 +7098,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 202command_argument_count(3fortran)', &
+'                               August 12, 202command_argument_count(3fortran)', &
 '']
 
 shortname="command_argument_count"
@@ -7185,7 +7186,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024     compiler_options(3fortran)', &
+'                               August 12, 2024     compiler_options(3fortran)', &
 '']
 
 shortname="compiler_options"
@@ -7257,7 +7258,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024     compiler_version(3fortran)', &
+'                               August 12, 2024     compiler_version(3fortran)', &
 '']
 
 shortname="compiler_version"
@@ -7388,7 +7389,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                conjg(3fortran)', &
+'                               August 12, 2024                conjg(3fortran)', &
 '']
 
 shortname="conjg"
@@ -7470,7 +7471,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             continue(7fortran)', &
+'                               August 12, 2024             continue(7fortran)', &
 '']
 
 shortname="continue"
@@ -7572,7 +7573,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            co_reduce(3fortran)', &
+'                               August 12, 2024            co_reduce(3fortran)', &
 '']
 
 shortname="co_reduce"
@@ -7666,7 +7667,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  cos(3fortran)', &
+'                               August 12, 2024                  cos(3fortran)', &
 '']
 
 shortname="cos"
@@ -7756,7 +7757,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 cosd(3fortran)', &
+'                               August 12, 2024                 cosd(3fortran)', &
 '']
 
 shortname="cosd"
@@ -7831,7 +7832,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 cosh(3fortran)', &
+'                               August 12, 2024                 cosh(3fortran)', &
 '']
 
 shortname="cosh"
@@ -7929,7 +7930,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                cospi(3fortran)', &
+'                               August 12, 2024                cospi(3fortran)', &
 '']
 
 shortname="cospi"
@@ -8006,7 +8007,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               co_sum(3fortran)', &
+'                               August 12, 2024               co_sum(3fortran)', &
 '']
 
 shortname="co_sum"
@@ -8297,7 +8298,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                count(3fortran)', &
+'                               August 12, 2024                count(3fortran)', &
 '']
 
 shortname="count"
@@ -8410,7 +8411,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             cpu_time(3fortran)', &
+'                               August 12, 2024             cpu_time(3fortran)', &
 '']
 
 shortname="cpu_time"
@@ -8548,7 +8549,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               cshift(3fortran)', &
+'                               August 12, 2024               cshift(3fortran)', &
 '']
 
 shortname="cshift"
@@ -8612,7 +8613,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             c_sizeof(3fortran)', &
+'                               August 12, 2024             c_sizeof(3fortran)', &
 '']
 
 shortname="c_sizeof"
@@ -8801,7 +8802,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024        date_and_time(3fortran)', &
+'                               August 12, 2024        date_and_time(3fortran)', &
 '']
 
 shortname="date_and_time"
@@ -8880,7 +8881,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 dble(3fortran)', &
+'                               August 12, 2024                 dble(3fortran)', &
 '']
 
 shortname="dble"
@@ -8955,7 +8956,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               digits(3fortran)', &
+'                               August 12, 2024               digits(3fortran)', &
 '']
 
 shortname="digits"
@@ -9066,7 +9067,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  dim(3fortran)', &
+'                               August 12, 2024                  dim(3fortran)', &
 '']
 
 shortname="dim"
@@ -9169,7 +9170,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          dot_product(3fortran)', &
+'                               August 12, 2024          dot_product(3fortran)', &
 '']
 
 shortname="dot_product"
@@ -9283,7 +9284,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                dprod(3fortran)', &
+'                               August 12, 2024                dprod(3fortran)', &
 '']
 
 shortname="dprod"
@@ -9435,7 +9436,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              dshiftl(3fortran)', &
+'                               August 12, 2024              dshiftl(3fortran)', &
 '']
 
 shortname="dshiftl"
@@ -9513,7 +9514,7 @@ textblock=[character(len=256) :: &
 '', &
 '  this has the same result as a negative circular shift', &
 '', &
-'          ishftc( i,   -shift ).', &
+'          ishftc( i,  -shift ).', &
 '', &
 '', &
 'OPTIONS', &
@@ -9590,7 +9591,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              dshiftr(3fortran)', &
+'                               August 12, 2024              dshiftr(3fortran)', &
 '']
 
 shortname="dshiftr"
@@ -9686,7 +9687,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              endfile(7fortran)', &
+'                               August 12, 2024              endfile(7fortran)', &
 '']
 
 shortname="endfile"
@@ -9819,7 +9820,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              eoshift(3fortran)', &
+'                               August 12, 2024              eoshift(3fortran)', &
 '']
 
 shortname="eoshift"
@@ -9843,7 +9844,7 @@ textblock=[character(len=256) :: &
 '', &
 '          real(kind=kind(x)) function epsilon(x)', &
 '', &
-'           real(kind=kind(x),intent(in)   :: x(..)', &
+'           real(kind=kind(x),intent(in) :: x(..)', &
 '', &
 '', &
 'CHARACTERISTICS', &
@@ -9856,7 +9857,7 @@ textblock=[character(len=256) :: &
 '  negligible number relative to 1 such that 1+ LITTLE_NUMBER is not equal to', &
 '  1; or more precisely', &
 '', &
-'        real( 1.0, kind(x)) + epsilon(x) /=  real( 1.0, kind(x))', &
+'        real( 1.0, kind(x)) + epsilon(x) /= real( 1.0, kind(x))', &
 '', &
 '  It may be thought of as the distance from 1.0 to the next largest floating', &
 '  point number.', &
@@ -9951,7 +9952,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              epsilon(3fortran)', &
+'                               August 12, 2024              epsilon(3fortran)', &
 '']
 
 shortname="epsilon"
@@ -10024,7 +10025,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  erf(3fortran)', &
+'                               August 12, 2024                  erf(3fortran)', &
 '']
 
 shortname="erf"
@@ -10112,7 +10113,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 erfc(3fortran)', &
+'                               August 12, 2024                 erfc(3fortran)', &
 '']
 
 shortname="erfc"
@@ -10194,7 +10195,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          erfc_scaled(3fortran)', &
+'                               August 12, 2024          erfc_scaled(3fortran)', &
 '']
 
 shortname="erfc_scaled"
@@ -10284,7 +10285,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          event_query(3fortran)', &
+'                               August 12, 2024          event_query(3fortran)', &
 '']
 
 shortname="event_query"
@@ -10418,7 +10419,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024 execute_command_line(3fortran)', &
+'                               August 12, 2024 execute_command_line(3fortran)', &
 '']
 
 shortname="execute_command_line"
@@ -10535,7 +10536,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  exp(3fortran)', &
+'                               August 12, 2024                  exp(3fortran)', &
 '']
 
 shortname="exp"
@@ -10617,7 +10618,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             exponent(3fortran)', &
+'                               August 12, 2024             exponent(3fortran)', &
 '']
 
 shortname="exponent"
@@ -10798,7 +10799,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024      extends_type_of(3fortran)', &
+'                               August 12, 2024      extends_type_of(3fortran)', &
 '']
 
 shortname="extends_type_of"
@@ -11091,7 +11092,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              findloc(3fortran)', &
+'                               August 12, 2024              findloc(3fortran)', &
 '']
 
 shortname="findloc"
@@ -11181,7 +11182,7 @@ textblock=[character(len=256) :: &
 '        print *,      [2.0,2.0-epsilon(0.0),2.0-2*epsilon(0.0)]', &
 '        print *,floor([2.0,2.0-epsilon(0.0),2.0-2*epsilon(0.0)])', &
 '', &
-'        ! A=Nan, Infinity or  <huge(0_KIND)-1 < A > huge(0_KIND) is undefined', &
+'        ! A=Nan, Infinity or huge(0_KIND)-1 < A > huge(0_KIND) is undefined', &
 '      end program demo_floor', &
 '', &
 '  Results:', &
@@ -11205,7 +11206,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                floor(3fortran)', &
+'                               August 12, 2024                floor(3fortran)', &
 '']
 
 shortname="floor"
@@ -11302,7 +11303,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                flush(7fortran)', &
+'                               August 12, 2024                flush(7fortran)', &
 '']
 
 shortname="flush"
@@ -11378,7 +11379,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             fraction(3fortran)', &
+'                               August 12, 2024             fraction(3fortran)', &
 '']
 
 shortname="fraction"
@@ -11533,7 +11534,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                gamma(3fortran)', &
+'                               August 12, 2024                gamma(3fortran)', &
 '']
 
 shortname="gamma"
@@ -11642,7 +11643,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          get_command(3fortran)', &
+'                               August 12, 2024          get_command(3fortran)', &
 '']
 
 shortname="get_command"
@@ -11782,7 +11783,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024 get_command_argument(3fortran)', &
+'                               August 12, 2024 get_command_argument(3fortran)', &
 '']
 
 shortname="get_command_argument"
@@ -11929,7 +11930,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2get_environment_variable(3fortran)', &
+'                               August 12, 2get_environment_variable(3fortran)', &
 '']
 
 shortname="get_environment_variable"
@@ -12048,7 +12049,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 huge(3fortran)', &
+'                               August 12, 2024                 huge(3fortran)', &
 '']
 
 shortname="huge"
@@ -12229,7 +12230,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                hypot(3fortran)', &
+'                               August 12, 2024                hypot(3fortran)', &
 '']
 
 shortname="hypot"
@@ -12351,7 +12352,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               iachar(3fortran)', &
+'                               August 12, 2024               iachar(3fortran)', &
 '']
 
 shortname="iachar"
@@ -12442,7 +12443,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 iall(3fortran)', &
+'                               August 12, 2024                 iall(3fortran)', &
 '']
 
 shortname="iall"
@@ -12533,7 +12534,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 iand(3fortran)', &
+'                               August 12, 2024                 iand(3fortran)', &
 '']
 
 shortname="iand"
@@ -12650,7 +12651,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 iany(3fortran)', &
+'                               August 12, 2024                 iany(3fortran)', &
 '']
 
 shortname="iany"
@@ -12756,7 +12757,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                ibclr(3fortran)', &
+'                               August 12, 2024                ibclr(3fortran)', &
 '']
 
 shortname="ibclr"
@@ -12865,7 +12866,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                ibits(3fortran)', &
+'                               August 12, 2024                ibits(3fortran)', &
 '']
 
 shortname="ibits"
@@ -12970,7 +12971,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                ibset(3fortran)', &
+'                               August 12, 2024                ibset(3fortran)', &
 '']
 
 shortname="ibset"
@@ -13075,7 +13076,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                ichar(3fortran)', &
+'                               August 12, 2024                ichar(3fortran)', &
 '']
 
 shortname="ichar"
@@ -13189,7 +13190,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 ieor(3fortran)', &
+'                               August 12, 2024                 ieor(3fortran)', &
 '']
 
 shortname="ieor"
@@ -13246,7 +13247,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          image_index(3fortran)', &
+'                               August 12, 2024          image_index(3fortran)', &
 '']
 
 shortname="image_index"
@@ -13527,7 +13528,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             implicit(7fortran)', &
+'                               August 12, 2024             implicit(7fortran)', &
 '']
 
 shortname="implicit"
@@ -13634,7 +13635,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                index(3fortran)', &
+'                               August 12, 2024                index(3fortran)', &
 '']
 
 shortname="index"
@@ -14104,7 +14105,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              inquire(7fortran)', &
+'                               August 12, 2024              inquire(7fortran)', &
 '']
 
 shortname="inquire"
@@ -14240,7 +14241,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  int(3fortran)', &
+'                               August 12, 2024                  int(3fortran)', &
 '']
 
 shortname="int"
@@ -14329,7 +14330,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  ior(3fortran)', &
+'                               August 12, 2024                  ior(3fortran)', &
 '']
 
 shortname="ior"
@@ -14425,7 +14426,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              iparity(3fortran)', &
+'                               August 12, 2024              iparity(3fortran)', &
 '']
 
 shortname="iparity"
@@ -14562,7 +14563,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024        is_contiguous(3fortran)', &
+'                               August 12, 2024        is_contiguous(3fortran)', &
 '']
 
 shortname="is_contiguous"
@@ -14665,7 +14666,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                ishft(3fortran)', &
+'                               August 12, 2024                ishft(3fortran)', &
 '']
 
 shortname="ishft"
@@ -14814,7 +14815,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               ishftc(3fortran)', &
+'                               August 12, 2024               ishftc(3fortran)', &
 '']
 
 shortname="ishftc"
@@ -14905,7 +14906,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024        is_iostat_end(3fortran)', &
+'                               August 12, 2024        is_iostat_end(3fortran)', &
 '']
 
 shortname="is_iostat_end"
@@ -15011,7 +15012,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024        is_iostat_eor(3fortran)', &
+'                               August 12, 2024        is_iostat_eor(3fortran)', &
 '']
 
 shortname="is_iostat_eor"
@@ -15101,7 +15102,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 kind(3fortran)', &
+'                               August 12, 2024                 kind(3fortran)', &
 '']
 
 shortname="kind"
@@ -15278,7 +15279,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               lbound(3fortran)', &
+'                               August 12, 2024               lbound(3fortran)', &
 '']
 
 shortname="lbound"
@@ -15330,7 +15331,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             lcobound(3fortran)', &
+'                               August 12, 2024             lcobound(3fortran)', &
 '']
 
 shortname="lcobound"
@@ -15423,7 +15424,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                leadz(3fortran)', &
+'                               August 12, 2024                leadz(3fortran)', &
 '']
 
 shortname="leadz"
@@ -15572,7 +15573,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  len(3fortran)', &
+'                               August 12, 2024                  len(3fortran)', &
 '']
 
 shortname="len"
@@ -15695,7 +15696,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             len_trim(3fortran)', &
+'                               August 12, 2024             len_trim(3fortran)', &
 '']
 
 shortname="len_trim"
@@ -15813,7 +15814,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  lge(3fortran)', &
+'                               August 12, 2024                  lge(3fortran)', &
 '']
 
 shortname="lge"
@@ -15932,7 +15933,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  lgt(3fortran)', &
+'                               August 12, 2024                  lgt(3fortran)', &
 '']
 
 shortname="lgt"
@@ -16075,7 +16076,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  lle(3fortran)', &
+'                               August 12, 2024                  lle(3fortran)', &
 '']
 
 shortname="lle"
@@ -16197,7 +16198,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  llt(3fortran)', &
+'                               August 12, 2024                  llt(3fortran)', &
 '']
 
 shortname="llt"
@@ -16341,7 +16342,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                log10(3fortran)', &
+'                               August 12, 2024                log10(3fortran)', &
 '']
 
 shortname="log10"
@@ -16486,7 +16487,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  log(3fortran)', &
+'                               August 12, 2024                  log(3fortran)', &
 '']
 
 shortname="log"
@@ -16556,7 +16557,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            log_gamma(3fortran)', &
+'                               August 12, 2024            log_gamma(3fortran)', &
 '']
 
 shortname="log_gamma"
@@ -16645,7 +16646,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              logical(3fortran)', &
+'                               August 12, 2024              logical(3fortran)', &
 '']
 
 shortname="logical"
@@ -16744,7 +16745,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                maskl(3fortran)', &
+'                               August 12, 2024                maskl(3fortran)', &
 '']
 
 shortname="maskl"
@@ -16860,7 +16861,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                maskr(3fortran)', &
+'                               August 12, 2024                maskr(3fortran)', &
 '']
 
 shortname="maskr"
@@ -17107,7 +17108,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               matmul(3fortran)', &
+'                               August 12, 2024               matmul(3fortran)', &
 '']
 
 shortname="matmul"
@@ -17134,7 +17135,6 @@ textblock=[character(len=256) :: &
 '           TYPE(kind=KIND,intent(in),optional :: a1', &
 '           TYPE(kind=KIND,intent(in),optional :: a2', &
 '           TYPE(kind=KIND,intent(in),optional :: a3', &
-'                     :', &
 '                     :', &
 '                     :', &
 '', &
@@ -17278,7 +17278,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  max(3fortran)', &
+'                               August 12, 2024                  max(3fortran)', &
 '']
 
 shortname="max"
@@ -17302,7 +17302,7 @@ textblock=[character(len=256) :: &
 '', &
 '          elemental integer function maxexponent(x)', &
 '', &
-'           real(kind=**),intent(in)   :: x', &
+'           real(kind=**),intent(in) :: x', &
 '', &
 '', &
 'CHARACTERISTICS', &
@@ -17350,7 +17350,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          maxexponent(3fortran)', &
+'                               August 12, 2024          maxexponent(3fortran)', &
 '']
 
 shortname="maxexponent"
@@ -17480,7 +17480,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               maxloc(3fortran)', &
+'                               August 12, 2024               maxloc(3fortran)', &
 '']
 
 shortname="maxloc"
@@ -17576,7 +17576,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               maxval(3fortran)', &
+'                               August 12, 2024               maxval(3fortran)', &
 '']
 
 shortname="maxval"
@@ -17763,7 +17763,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                merge(3fortran)', &
+'                               August 12, 2024                merge(3fortran)', &
 '']
 
 shortname="merge"
@@ -17900,7 +17900,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           merge_bits(3fortran)', &
+'                               August 12, 2024           merge_bits(3fortran)', &
 '']
 
 shortname="merge_bits"
@@ -17973,7 +17973,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  min(3fortran)', &
+'                               August 12, 2024                  min(3fortran)', &
 '']
 
 shortname="min"
@@ -18046,7 +18046,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          minexponent(3fortran)', &
+'                               August 12, 2024          minexponent(3fortran)', &
 '']
 
 shortname="minexponent"
@@ -18164,7 +18164,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               minloc(3fortran)', &
+'                               August 12, 2024               minloc(3fortran)', &
 '']
 
 shortname="minloc"
@@ -18327,7 +18327,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               minval(3fortran)', &
+'                               August 12, 2024               minval(3fortran)', &
 '']
 
 shortname="minval"
@@ -18462,7 +18462,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  mod(3fortran)', &
+'                               August 12, 2024                  mod(3fortran)', &
 '']
 
 shortname="mod"
@@ -18553,7 +18553,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               modulo(3fortran)', &
+'                               August 12, 2024               modulo(3fortran)', &
 '']
 
 shortname="modulo"
@@ -18668,7 +18668,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           move_alloc(3fortran)', &
+'                               August 12, 2024           move_alloc(3fortran)', &
 '']
 
 shortname="move_alloc"
@@ -18829,7 +18829,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               mvbits(3fortran)', &
+'                               August 12, 2024               mvbits(3fortran)', &
 '']
 
 shortname="mvbits"
@@ -19437,7 +19437,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             namelist(7fortran)', &
+'                               August 12, 2024             namelist(7fortran)', &
 '']
 
 shortname="namelist"
@@ -19536,7 +19536,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              nearest(3fortran)', &
+'                               August 12, 2024              nearest(3fortran)', &
 '']
 
 shortname="nearest"
@@ -19712,7 +19712,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             new_line(3fortran)', &
+'                               August 12, 2024             new_line(3fortran)', &
 '']
 
 shortname="new_line"
@@ -19871,7 +19871,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 nint(3fortran)', &
+'                               August 12, 2024                 nint(3fortran)', &
 '']
 
 shortname="nint"
@@ -20000,7 +20000,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                norm2(3fortran)', &
+'                               August 12, 2024                norm2(3fortran)', &
 '']
 
 shortname="norm2"
@@ -20098,7 +20098,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  not(3fortran)', &
+'                               August 12, 2024                  not(3fortran)', &
 '']
 
 shortname="not"
@@ -20233,7 +20233,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 null(3fortran)', &
+'                               August 12, 2024                 null(3fortran)', &
 '']
 
 shortname="null"
@@ -20326,7 +20326,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           num_images(3fortran)', &
+'                               August 12, 2024           num_images(3fortran)', &
 '']
 
 shortname="num_images"
@@ -20640,7 +20640,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 open(7fortran)', &
+'                               August 12, 2024                 open(7fortran)', &
 '']
 
 shortname="open"
@@ -20801,7 +20801,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024         out_of_range(3fortran)', &
+'                               August 12, 2024         out_of_range(3fortran)', &
 '']
 
 shortname="out_of_range"
@@ -20911,7 +20911,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 pack(3fortran)', &
+'                               August 12, 2024                 pack(3fortran)', &
 '']
 
 shortname="pack"
@@ -21027,7 +21027,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               parity(3fortran)', &
+'                               August 12, 2024               parity(3fortran)', &
 '']
 
 shortname="parity"
@@ -21120,7 +21120,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               popcnt(3fortran)', &
+'                               August 12, 2024               popcnt(3fortran)', &
 '']
 
 shortname="popcnt"
@@ -21219,7 +21219,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               poppar(3fortran)', &
+'                               August 12, 2024               poppar(3fortran)', &
 '']
 
 shortname="poppar"
@@ -21294,7 +21294,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            precision(3fortran)', &
+'                               August 12, 2024            precision(3fortran)', &
 '']
 
 shortname="precision"
@@ -21426,7 +21426,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              present(3fortran)', &
+'                               August 12, 2024              present(3fortran)', &
 '']
 
 shortname="present"
@@ -21531,7 +21531,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                print(7fortran)', &
+'                               August 12, 2024                print(7fortran)', &
 '']
 
 shortname="print"
@@ -21774,7 +21774,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              product(3fortran)', &
+'                               August 12, 2024              product(3fortran)', &
 '']
 
 shortname="product"
@@ -21853,7 +21853,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                radix(3fortran)', &
+'                               August 12, 2024                radix(3fortran)', &
 '']
 
 shortname="radix"
@@ -21927,7 +21927,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          random_init(3fortran)', &
+'                               August 12, 2024          random_init(3fortran)', &
 '']
 
 shortname="random_init"
@@ -22024,7 +22024,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024        random_number(3fortran)', &
+'                               August 12, 2024        random_number(3fortran)', &
 '']
 
 shortname="random_number"
@@ -22111,7 +22111,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024          random_seed(3fortran)', &
+'                               August 12, 2024          random_seed(3fortran)', &
 '']
 
 shortname="random_seed"
@@ -22199,7 +22199,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                range(3fortran)', &
+'                               August 12, 2024                range(3fortran)', &
 '']
 
 shortname="range"
@@ -22379,7 +22379,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 rank(3fortran)', &
+'                               August 12, 2024                 rank(3fortran)', &
 '']
 
 shortname="rank"
@@ -22449,7 +22449,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 read(7fortran)', &
+'                               August 12, 2024                 read(7fortran)', &
 '']
 
 shortname="read"
@@ -22566,7 +22566,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 real(3fortran)', &
+'                               August 12, 2024                 real(3fortran)', &
 '']
 
 shortname="real"
@@ -22776,7 +22776,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               reduce(3fortran)', &
+'                               August 12, 2024               reduce(3fortran)', &
 '']
 
 shortname="reduce"
@@ -22859,7 +22859,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               repeat(3fortran)', &
+'                               August 12, 2024               repeat(3fortran)', &
 '']
 
 shortname="repeat"
@@ -23083,7 +23083,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              reshape(3fortran)', &
+'                               August 12, 2024              reshape(3fortran)', &
 '']
 
 shortname="reshape"
@@ -23215,7 +23215,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               return(7fortran)', &
+'                               August 12, 2024               return(7fortran)', &
 '']
 
 shortname="return"
@@ -23319,7 +23319,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               rewind(7fortran)', &
+'                               August 12, 2024               rewind(7fortran)', &
 '']
 
 shortname="rewind"
@@ -23375,7 +23375,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            rrspacing(3fortran)', &
+'                               August 12, 2024            rrspacing(3fortran)', &
 '']
 
 shortname="rrspacing"
@@ -23517,7 +23517,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024         same_type_as(3fortran)', &
+'                               August 12, 2024         same_type_as(3fortran)', &
 '']
 
 shortname="same_type_as"
@@ -23626,7 +23626,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                scale(3fortran)', &
+'                               August 12, 2024                scale(3fortran)', &
 '']
 
 shortname="scale"
@@ -23732,7 +23732,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 scan(3fortran)', &
+'                               August 12, 2024                 scan(3fortran)', &
 '']
 
 shortname="scan"
@@ -23900,7 +23900,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024   selected_char_kind(3fortran)', &
+'                               August 12, 2024   selected_char_kind(3fortran)', &
 '']
 
 shortname="selected_char_kind"
@@ -23988,7 +23988,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024    selected_int_kind(3fortran)', &
+'                               August 12, 2024    selected_int_kind(3fortran)', &
 '']
 
 shortname="selected_int_kind"
@@ -24116,7 +24116,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024   selected_real_kind(3fortran)', &
+'                               August 12, 2024   selected_real_kind(3fortran)', &
 '']
 
 shortname="selected_real_kind"
@@ -24200,7 +24200,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024         set_exponent(3fortran)', &
+'                               August 12, 2024         set_exponent(3fortran)', &
 '']
 
 shortname="set_exponent"
@@ -24318,7 +24318,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                shape(3fortran)', &
+'                               August 12, 2024                shape(3fortran)', &
 '']
 
 shortname="shape"
@@ -24452,7 +24452,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               shifta(3fortran)', &
+'                               August 12, 2024               shifta(3fortran)', &
 '']
 
 shortname="shifta"
@@ -24589,7 +24589,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               shiftl(3fortran)', &
+'                               August 12, 2024               shiftl(3fortran)', &
 '']
 
 shortname="shiftl"
@@ -24728,7 +24728,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               shiftr(3fortran)', &
+'                               August 12, 2024               shiftr(3fortran)', &
 '']
 
 shortname="shiftr"
@@ -24826,7 +24826,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 sign(3fortran)', &
+'                               August 12, 2024                 sign(3fortran)', &
 '']
 
 shortname="sign"
@@ -24968,7 +24968,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  sin(3fortran)', &
+'                               August 12, 2024                  sin(3fortran)', &
 '']
 
 shortname="sin"
@@ -25107,7 +25107,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 sind(3fortran)', &
+'                               August 12, 2024                 sind(3fortran)', &
 '']
 
 shortname="sind"
@@ -25214,7 +25214,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 sinh(3fortran)', &
+'                               August 12, 2024                 sinh(3fortran)', &
 '']
 
 shortname="sinh"
@@ -25327,7 +25327,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                sinpi(3fortran)', &
+'                               August 12, 2024                sinpi(3fortran)', &
 '']
 
 shortname="sinpi"
@@ -25506,7 +25506,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 size(3fortran)', &
+'                               August 12, 2024                 size(3fortran)', &
 '']
 
 shortname="size"
@@ -25593,7 +25593,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024              spacing(3fortran)', &
+'                               August 12, 2024              spacing(3fortran)', &
 '']
 
 shortname="spacing"
@@ -25782,7 +25782,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               spread(3fortran)', &
+'                               August 12, 2024               spread(3fortran)', &
 '']
 
 shortname="spread"
@@ -25895,7 +25895,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 sqrt(3fortran)', &
+'                               August 12, 2024                 sqrt(3fortran)', &
 '']
 
 shortname="sqrt"
@@ -26017,7 +26017,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 stop(7fortran)', &
+'                               August 12, 2024                 stop(7fortran)', &
 '']
 
 shortname="stop"
@@ -26128,7 +26128,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024         storage_size(3fortran)', &
+'                               August 12, 2024         storage_size(3fortran)', &
 '']
 
 shortname="storage_size"
@@ -26354,7 +26354,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  sum(3fortran)', &
+'                               August 12, 2024                  sum(3fortran)', &
 '']
 
 shortname="sum"
@@ -26519,7 +26519,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024         system_clock(3fortran)', &
+'                               August 12, 2024         system_clock(3fortran)', &
 '']
 
 shortname="system_clock"
@@ -26587,7 +26587,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                  tan(3fortran)', &
+'                               August 12, 2024                  tan(3fortran)', &
 '']
 
 shortname="tan"
@@ -26653,7 +26653,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 tand(3fortran)', &
+'                               August 12, 2024                 tand(3fortran)', &
 '']
 
 shortname="tand"
@@ -26732,7 +26732,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 tanh(3fortran)', &
+'                               August 12, 2024                 tanh(3fortran)', &
 '']
 
 shortname="tanh"
@@ -26817,7 +26817,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                tanpi(3fortran)', &
+'                               August 12, 2024                tanpi(3fortran)', &
 '']
 
 shortname="tanpi"
@@ -26909,7 +26909,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024           this_image(3fortran)', &
+'                               August 12, 2024           this_image(3fortran)', &
 '']
 
 shortname="this_image"
@@ -26984,7 +26984,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 tiny(3fortran)', &
+'                               August 12, 2024                 tiny(3fortran)', &
 '']
 
 shortname="tiny"
@@ -27092,7 +27092,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               trailz(3fortran)', &
+'                               August 12, 2024               trailz(3fortran)', &
 '']
 
 shortname="trailz"
@@ -27225,7 +27225,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             transfer(3fortran)', &
+'                               August 12, 2024             transfer(3fortran)', &
 '']
 
 shortname="transfer"
@@ -27341,7 +27341,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024            transpose(3fortran)', &
+'                               August 12, 2024            transpose(3fortran)', &
 '']
 
 shortname="transpose"
@@ -27449,7 +27449,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 trim(3fortran)', &
+'                               August 12, 2024                 trim(3fortran)', &
 '']
 
 shortname="trim"
@@ -27633,7 +27633,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               ubound(3fortran)', &
+'                               August 12, 2024               ubound(3fortran)', &
 '']
 
 shortname="ubound"
@@ -27683,7 +27683,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024             ucobound(3fortran)', &
+'                               August 12, 2024             ucobound(3fortran)', &
 '']
 
 shortname="ucobound"
@@ -27849,7 +27849,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               unpack(3fortran)', &
+'                               August 12, 2024               unpack(3fortran)', &
 '']
 
 shortname="unpack"
@@ -28237,7 +28237,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024               verify(3fortran)', &
+'                               August 12, 2024               verify(3fortran)', &
 '']
 
 shortname="verify"
@@ -28321,7 +28321,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                 wait(7fortran)', &
+'                               August 12, 2024                 wait(7fortran)', &
 '']
 
 shortname="wait"
@@ -28346,7 +28346,7 @@ textblock=[character(len=256) :: &
 '', &
 '', &
 '', &
-'                               August 11, 2024                write(7fortran)', &
+'                               August 12, 2024                write(7fortran)', &
 '']
 
 shortname="write"
@@ -28711,6 +28711,8 @@ character(len=:),allocatable,save :: G_PREFIX
 ! try out response files
 ! CLI_RESPONSE_FILE is left public for backward compatibility, but should be set via "set_mode('response_file')
 logical,save,public               :: CLI_RESPONSE_FILE=.false. ! allow @name abbreviations
+logical,save,public               :: CLI_AUTO_RESPONSE_FILE=.false. ! allow @name abbreviations but call @$0 automatically
+logical,save,public               :: CLI_AUTO_QUIET=.false.
 logical,save                      :: G_OPTIONS_ONLY            ! process response file only looking for options for get_subcommand()
 logical,save                      :: G_RESPONSE                ! allow @name abbreviations
 character(len=:),allocatable,save :: G_RESPONSE_IGNORED
@@ -29448,6 +29450,10 @@ character(len=:),allocatable                      :: debug_mode
    end select
 
    G_response=CLI_RESPONSE_FILE
+   if(CLI_AUTO_RESPONSE_FILE)then
+      CLI_AUTO_QUIET=.true.
+      G_response=.true.
+   endif
 
    G_options_only=.false.
    G_passed_in=''
@@ -30532,8 +30538,10 @@ integer                                  :: lines_processed
    call find_and_read_response_file(basename(get_name(),keep_suffix=.false.))
    if(lines_processed /= 0)return
 
-   write(*,gen)'<ERROR> response name ['//trim(name)//'] not found'
-   stop 1
+   if(.not.CLI_AUTO_QUIET)then
+      write(*,gen)'<ERROR> response name ['//trim(name)//'] not found'
+      stop 1
+   endif
 contains
 !===================================================================================================================================
 subroutine find_and_read_response_file(rname)
@@ -30668,7 +30676,14 @@ character(len=:),allocatable :: temp
       enddo INFINITE
 end subroutine process_response
 !===================================================================================================================================
-subroutine show_response_file()  ! copy response file to stdout
+subroutine show_response_file(quiet)  ! copy response file to stdout
+logical,intent(in),optional :: quiet
+logical                     :: quiet_local
+   if(present(quiet))then
+      quiet_local=quiet
+   else
+      quiet_local=.false.
+   endif
    G_RESPONSE_PREFIX=get_env('CLI_RESPONSE_PREFIX','@')
    line=''
    INFINITE: do
@@ -30677,7 +30692,9 @@ subroutine show_response_file()  ! copy response file to stdout
          backspace(lun,iostat=ios)
          exit INFINITE
       elseif(ios /= 0)then
-         write(*,gen)'<ERROR>*show_response_file*:'//trim(message)
+         if(quiet_local)then
+            write(*,gen)'<ERROR>*show_response_file*:'//trim(message)
+         endif
          exit INFINITE
       endif
       line=clipends(line)
@@ -30946,7 +30963,11 @@ logical                      :: next_mandatory
    pointer=0
    lastkeyword=' '
    G_keyword_single_letter=.true.
-   i=1
+   if(CLI_AUTO_RESPONSE_FILE)then
+      i=0  ! cause get_next_argument to return a response macro name
+   else
+      i=1
+   endif
    current_argument=''
    GET_ARGS: do while (get_next_argument()) ! insert and replace entries
       if(G_DEBUG)write(*,gen)'<DEBUG>CMD_ARGS_TO_DICTIONARY:WHILE:CURRENT_ARGUMENT=',current_argument
@@ -31099,6 +31120,7 @@ logical                      :: next_mandatory
          lastkeyword=''
          next_mandatory=.false.
       endif
+      if(CLI_AUTO_QUIET)CLI_AUTO_QUIET=.false.
    enddo GET_ARGS
    if(lastkeyword /= '')then
       call ifnull()
@@ -31137,6 +31159,13 @@ integer :: iequal
       hadequal=.false.
       get_next_argument=.true.
       ilength=len(current_argument)
+      return
+   endif
+
+   if(i == 0)then ! auto_response_file is true and first call to here
+      get_next_argument=.true.
+      current_argument=G_RESPONSE_PREFIX//basename(get_name(),keep_suffix=.false.)
+      i=i+1
       return
    endif
 
@@ -34156,7 +34185,7 @@ end subroutine locate_key
 !===================================================================================================================================
 !>
 !!##NAME
-!!    set_mode(3f) - [ARGUMENTS:M_CLI2] turn on optional modes
+!!    set_mode(3f) - [ARGUMENTS:M_CLI2] turn on optional modes+
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
@@ -34175,6 +34204,10 @@ end subroutine locate_key
 !!    The following values are allowed:
 !!
 !!    o  response_file - enable use of response file
+!!
+!!    o  auto_response_file - enable use of response file
+!!       but also act as if @$0 was entered on the command line
+!!       where $0 is the basename of the file being executed
 !!
 !!    o  ignorelongcase - ignore case in long key names. So the user
 !!       does not have to remember if the option is --CurtMode or --curtmode
@@ -34262,6 +34295,7 @@ character(len=:),allocatable  :: debug_mode
 
    select case(lower(key))
    case('response_file','response file'); CLI_RESPONSE_FILE=local_mode
+   case('auto_response_file','auto response file'); CLI_AUTO_RESPONSE_FILE=local_mode
    case('debug');                         G_DEBUG=local_mode
    case('ignorecase','ignorelongcase');   G_IGNORELONGCASE=local_mode
    case('ignoreallcase');   G_IGNOREALLCASE=local_mode
@@ -49872,24 +49906,30 @@ end module M_attr
 !>>>>> app/fpm-man.f90
 program fman
 use M_intrinsics, only : help_intrinsics
-use M_CLI2,       only : set_args, sget, lget, specified, topics=>unnamed
+use M_CLI2,       only : set_args, sget, iget, lget, specified, topics=>unnamed
+use M_CLI2,       only : set_mode
 use M_match,      only : getpat, match, regex_pattern
 use M_match,      only : YES, ERR
 use M_strings,    only : lower, indent, atleast
 use M_attr,       only : attr
 implicit none
-type(regex_pattern)          :: p, start_p, end_p
-character(len=:),allocatable :: help_text(:), version_text(:)
+type(regex_pattern)            :: p, start_p, end_p
+character(len=:),allocatable   :: help_text(:), version_text(:)
 character(len=256),allocatable :: manual(:),section(:)
-character(len=:),allocatable :: regex, start, end
-character(len=:),allocatable :: query
-integer                      :: i, j, k
-logical                      :: topic
-logical                      :: prefix, ignorecase, demo, color
+character(len=:),allocatable   :: regex, start, end
+character(len=:),allocatable   :: query
+integer                        :: i, j, k
+integer                        :: ilines
+integer                        :: lines
+logical                        :: topic
+logical                        :: prefix, ignorecase, demo, color
+character(len=80)              :: paws
     ! process command line
     call setup()
-    call set_args(' --regex:e " " --ignorecase:i F --topic_only:t F --demo:d F --color:c -query:Q " " &
-    & -start:S " " -end:E "^[A-Z][A-Z_ ]*$" --prefixoff:O F',&
+    call set_mode('auto_response_file',.true.)
+    call set_mode('lastonly')
+    call set_args(' --regex:e " " --ignorecase:i F --topic_only:t F --demo:d F --color:c --query:Q " " &
+    & -start:S " " --end:E "^[A-Z][A-Z_ ]*$" --prefixoff:O F --lines:l 0',&
     & help_text,version_text)
     regex=sget('regex')
     start=sget('start')
@@ -49899,6 +49939,7 @@ logical                      :: prefix, ignorecase, demo, color
     demo=lget('demo')
     color=lget('color')
     query=sget('query')
+    lines=iget('lines')
 
     ! if -t then just show topic names and exit
     if(topic)then
@@ -49986,7 +50027,9 @@ logical                      :: prefix, ignorecase, demo, color
        stop 1
     else
        ! display what was found
-       do i=1,size(manual)
+       ilines=0
+       i=1
+       INFINITE: do
           if(regex.ne.'')then
              select case(ignorecase)
              case(.true.)
@@ -50001,7 +50044,27 @@ logical                      :: prefix, ignorecase, demo, color
           else
              write(*,'(g0)')trim(manual(i))
           endif
-       enddo
+          if(lines.gt.0)then
+             if(ilines.eq.lines-1)then
+                write(*,'(a)',advance='no')'continue...'
+                read(*,'(a)')paws
+                select case(paws(1:1))
+                case('b'); i=max(0,i-2*lines) ! back
+                case('t'); i=1                ! top
+                case('q'); exit INFINITE      ! quit
+                case(' ')
+                case default
+                   write(*,'(a)')'(b)ack one page'
+                   write(*,'(a)')'(t)op '
+                   write(*,'(a)')'(q)uit '
+                end select
+                ilines=0
+             endif
+             ilines=ilines+1
+          endif
+       i=i+1
+       if(i.gt.size(manual))exit INFINITE
+       enddo INFINITE
     endif
 contains
 
@@ -50171,6 +50234,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '                    set colors. Does not work with all terminal emulators or   ',&
 '                    terminals. Must use the -r switch with less(1) for less(1) ',&
 '                    to display colors.                                         ',&
+'  --lines N,-l N    pause every N lines                                        ',&
 '  --help            Display this help and exit                                 ',&
 '  --version         Output version information and exit                        ',&
 '                                                                               ',&
