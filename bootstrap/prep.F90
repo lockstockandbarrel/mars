@@ -33830,7 +33830,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 "MACRO STRING EXPANSION AND TEXT REPLAY:                                         ",&
 "   > Unless at least one variable name is defined no ${NAME} expansion occurs.  ",&
 "  $SET varname string                                                           ",&
-"  $$UNSET variable_name[;...]                                                   ",&
+"  $UNSET variable_name[;...]                                                    ",&
 "  $IMPORT envname[;...]                                                         ",&
 "   > $set author  William Shakespeare                                           ",&
 "   > $import HOME                                                               ",&

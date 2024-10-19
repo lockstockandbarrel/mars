@@ -10790,7 +10790,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '    The options are                                                             ',&
 '                                                                                ',&
 '    -old FILENAME                                                               ',&
-'         name of file containing template values                                ',&
+'        :name of file containing template values                                ',&
 '                                                                                ',&
 '    -new FILENAME                                                               ',&
 '         name of file containing new values                                     ',&
