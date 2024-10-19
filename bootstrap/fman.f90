@@ -1,3 +1,107 @@
+
+!>>>>> M_get_env.f90
+module M_get_env
+private
+public get_env
+interface get_env
+   module procedure get_env_integer
+   module procedure get_env_real
+   module procedure get_env_double
+   module procedure get_env_character
+end interface get_env
+contains
+function get_env_character(NAME,DEFAULT) result(VALUE)
+implicit none
+character(len=*),intent(in)          :: NAME
+character(len=*),intent(in),optional :: DEFAULT
+character(len=:),allocatable         :: VALUE
+integer                              :: howbig
+integer                              :: stat
+integer                              :: length
+        ! get length required to hold value
+        length=0
+        if(NAME.ne.'')then
+           call get_environment_variable(NAME, length=howbig,status=stat,trim_name=.true.)
+           select case (stat)
+           case (1)
+               !*!print *, NAME, " is not defined in the environment. Strange..."
+               VALUE=''
+           case (2)
+               !*!print *, "This processor doesn't support environment variables. Boooh!"
+               VALUE=''
+           case default
+               ! make string to hold value of sufficient size
+               allocate(character(len=max(howbig,1)) :: VALUE)
+               ! get value
+               call get_environment_variable(NAME,VALUE,status=stat,trim_name=.true.)
+               if(stat.ne.0)VALUE=''
+           end select
+        else
+           VALUE=''
+        endif
+        if(VALUE.eq.''.and.present(DEFAULT))VALUE=DEFAULT
+end function get_env_character
+
+function get_env_real(NAME,DEFAULT) result(VALUE)
+character(len=*),intent(in)   :: NAME
+real,intent(in)               :: DEFAULT
+real                          :: VALUE
+character(len=:),allocatable  :: STRING
+integer                       :: iostat
+character(len=255)            :: iomsg, fmt
+   STRING=get_env_character(NAME,'')
+   if(STRING.eq.'')then
+      VALUE=DEFAULT
+   else
+      write(fmt,'(*(g0))')'(g',max(1,len(string)),')'
+      string=string//' '
+      read(STRING,fmt,iostat=iostat,iomsg=iomsg)value
+      if(iostat.ne.0)then
+         value=-huge(0.0)
+      endif
+   endif
+end function get_env_real
+
+function get_env_double(NAME,DEFAULT) result(VALUE)
+character(len=*),intent(in)   :: NAME
+doubleprecision,intent(in)    :: DEFAULT
+doubleprecision               :: VALUE
+character(len=:),allocatable  :: STRING
+integer                       :: iostat
+character(len=255)            :: iomsg, fmt
+   STRING=get_env_character(NAME,'')
+   if(STRING.eq.'')then
+      VALUE=DEFAULT
+   else
+      write(fmt,'(*(g0))')'(g',max(1,len(string)),')'
+      string=string//' '
+      read(STRING,fmt,iostat=iostat,iomsg=iomsg)value
+      if(iostat.ne.0)then
+         value=-huge(0.0d0)
+      endif
+   endif
+end function get_env_double
+
+function get_env_integer(NAME,DEFAULT) result(VALUE)
+character(len=*),intent(in)   :: NAME
+integer,intent(in)            :: DEFAULT
+integer                       :: VALUE
+character(len=:),allocatable  :: STRING
+integer                       :: iostat
+character(len=255)            :: iomsg, fmt
+   STRING=get_env_character(NAME,'')
+   if(STRING.eq.'')then
+      VALUE=DEFAULT
+   else
+      write(fmt,'(*(g0))')'(i',max(1,len(string)),')'
+      string=string//' '
+      read(STRING,fmt,iostat=iostat,iomsg=iomsg)value
+      if(iostat.ne.0)then
+         value=-huge(0)
+      endif
+   endif
+end function get_env_integer
+end module M_get_env
 !>>>>> ././src/M_intrinsics.f90
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
@@ -52894,12 +52998,12 @@ end subroutine print_generic
 
 end function msg_one
 end module M_attr
-
 !>>>>> app/fpm-man.f90
 program fman
 use M_intrinsics, only : help_intrinsics
 use M_CLI2,       only : set_args, sget, iget, lget, specified, topics=>unnamed
 use M_CLI2,       only : set_mode
+use M_get_env,    only : get_env
 use M_match,      only : getpat, match, regex_pattern
 use M_match,      only : YES, ERR
 use M_strings,    only : lower, indent, atleast
@@ -52932,6 +53036,9 @@ character(len=80)              :: paws
     color=lget('color')
     query=sget('query')
     lines=iget('lines')
+    if(lines.le.0)then
+       lines=get_env('LINES',0)
+    endif
 
     ! if -t then just show topic names and exit
     if(topic)then
