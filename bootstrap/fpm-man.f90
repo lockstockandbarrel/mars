@@ -1,4 +1,3 @@
-
 !>>>>> M_get_env.f90
 module M_get_env
 private
@@ -1524,26 +1523,26 @@ textblock=[character(len=256) :: &
 '        ! is everything true?', &
 '        bool = all([ T,T,T ])', &
 '        print *, ''are all values true?'', bool', &
-'        bool = all([ T,F,T ])', &
-'        print *, ''are all values true now?'', bool', &
-'', &
-'       ! compare matrices, even by a dimension', &
-'        ARRAYS: block', &
-'        integer :: a(2,3), b(2,3)', &
-'         ! set everything to one except one value in b', &
-'         a = 1', &
-'         b = 1', &
-'         b(2,2) = 2', &
-'         ! now compare those two arrays', &
-'         print *,''entire array :'', all(a ==  b )', &
-'         print *,''compare columns:'', all(a ==        b, dim=1)', &
-'         print *,''compare rows:'', all(a ==  b, dim=2)', &
-'       end block ARRAYS', &
-'', &
-'      end program demo_all', &
-'', &
-'  Results:', &
-'', &
+'        bool = all([ T,F,T ])                                                   ', &
+'        print *, ''are all values true now?'', bool                             ', &
+'                                                                                ', &
+'       ! compare matrices, even by a dimension                                  ', &
+'        ARRAYS: block                                                           ', &
+'        integer :: a(2,3), b(2,3)                                               ', &
+'         ! set everything to one except one value in b                          ', &
+'         a = 1                                                                  ', &
+'         b = 1                                                                  ', &
+'         b(2,2) = 2                                                             ', &
+'         ! now compare those two arrays                                         ', &
+'         print *,''entire array :'', all(a ==  b )                              ', &
+'         print *,''compare columns:'', all(a ==        b, dim=1)                ', &
+'         print *,''compare rows:'', all(a ==  b, dim=2)                         ', &
+'       end block ARRAYS                                                         ', &
+'                                                                                ', &
+'      end program demo_all                                                      ', &
+'                                                                                ', &
+'  Results:                                                                      ', &
+'                                                                                ', &
 '       >  T', &
 '       >  F', &
 '       >  entire array : F', &
@@ -17979,7 +17978,7 @@ textblock=[character(len=256) :: &
 '  o  STRING_B : string to compare to STRING_A', &
 '', &
 'RESULT', &
-'  Returns .true. if string_a <= string_b, and .false. otherwise, based on the', &
+'  Returns .true. if string_a < string_b, and .false. otherwise, based on the', &
 '  ASCII collating sequence.', &
 '', &
 '  If both input arguments are null strings, .false. is always returned.', &
@@ -53014,13 +53013,16 @@ character(len=:),allocatable   :: help_text(:), version_text(:)
 character(len=256),allocatable :: manual(:),section(:)
 character(len=:),allocatable   :: regex, start, end
 character(len=:),allocatable   :: query
-integer                        :: i, j, k
+integer                        :: i, j, k, m
 integer                        :: ilines
 integer                        :: lines
+integer                        :: iostat
+logical                        :: number
 logical                        :: topic
 logical                        :: prefix, ignorecase, demo, color
 character(len=80)              :: paws
     ! process command line
+    number=.false.
     call setup()
     call set_mode('auto_response_file',.true.)
     call set_mode('lastonly')
@@ -53133,29 +53135,63 @@ character(len=80)              :: paws
              select case(ignorecase)
              case(.true.)
                 if(match(lower(trim(manual(i)))//char(10), p%pat) .eq. YES) then
-                  write(*,'(g0)')trim(manual(i))
+		  if(number)then
+                     write(*,'(i0.6,1x,g0)')i,trim(manual(i))
+		  else
+                     write(*,'(g0)')trim(manual(i))
+		  endif
                 endif
              case(.false.)
                 if (match(trim(manual(i))//char(10), p%pat) .eq. YES) then
-                  write(*,'(g0)')trim(manual(i))
+		  if(number)then
+                     write(*,'(i0.6,1x,g0)')i,trim(manual(i))
+		  else
+                     write(*,'(g0)')trim(manual(i))
+		  endif
                 endif
              end select
           else
-             write(*,'(g0)')trim(manual(i))
+		  if(number)then
+                     write(*,'(i0.6,1x,g0)')i,trim(manual(i))
+		  else
+                     write(*,'(g0)')trim(manual(i))
+		  endif
           endif
           if(lines.gt.0)then
              if(ilines.eq.lines-1)then
                 write(*,'(a)',advance='no')'continue...'
                 read(*,'(a)')paws
                 select case(paws(1:1))
-                case('b'); i=max(0,i-2*lines) ! back
+                case('b'); i=max(0,i-2*lines+2) ! back
+                case('u'); i=max(0,i-2*lines+lines/2) ! up
+                case('d'); i=max(0,i-1*lines+lines/2) ! down
+                case('y'); i=max(0,i-1*lines+2) ! up one line
+		           i=i+len_trim(paws)-1
+                case('e'); i=max(0,i-1*lines-0) ! down one line
+		           i=i-len_trim(paws)+1
                 case('t'); i=1                ! top
+                case('n'); number=.not.number;i=max(0,i-1*lines-1)
                 case('q'); exit INFINITE      ! quit
+                case('0':'9'); read(paws,'(i80)',iostat=iostat)m
+	                       i=merge(m,i,iostat.eq.0)
+			       i=min(size(manual)-1*lines+2,i)
+			       i=max(1,i)
+			       i=i-1
                 case(' ')
                 case default
                    write(*,'(a)')'(b)ack one page'
+                   write(*,'(a)')'(u)p 1/2 page'
+                   write(*,'(a)')'(d)own 1/2 page'
+                   write(*,'(a)')'(e) up 1 line, eeeeee... '
+                   write(*,'(a)')'(y) down 1 line, yyyyyy...'
+                   write(*,'(a)')'(n)umbers toggle'
+                   write(*,'(a)')'(p)refix toggle'
                    write(*,'(a)')'(t)op '
+                   write(*,'(a)')'(0-9)* go to Nth line'
                    write(*,'(a)')'(q)uit '
+                   write(*,'(a)',advance='no')'continue...'
+                   read(*,'(a)')paws
+                   i=max(0,i-2*lines+2) ! back
                 end select
                 ilines=0
              endif
