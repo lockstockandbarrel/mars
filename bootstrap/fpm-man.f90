@@ -37371,7 +37371,7 @@ character(len=:),allocatable  :: debug_mode
    case('strict');                        G_STRICT=local_mode
    case('lastonly');                      G_APPEND=.not.local_mode
    case default
-      call journal('*set_mode* unknown key name ',key)
+      call journal('*set_mode* unknown key name ['//lower(key)//']')
    end select
 
    if(G_DEBUG)write(*,gen)'<DEBUG>SET_MODE:END'
