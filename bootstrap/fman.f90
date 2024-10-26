@@ -58716,7 +58716,6 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                                          exit
                                       endif
                                    enddo
-                                   write(*,*)'GOT HERE A:',m,direction,m-direction,search_end
                                    if(m-direction.eq.search_end)then
                                       i=irestore
                                    endif
@@ -58787,6 +58786,10 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              iinf=0
                              remember='f'
                              cycle ANOTHER
+                  case('!',':'); i=max(0,i-1)  ! comment
+                             iinf=0
+                             remember='f'
+                             cycle ANOTHER
                   case('g'); ! goto from top
                              paws=paws(2:)
                              if(paws.eq.'')then
@@ -58808,11 +58811,11 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                   case('#'); number=.not.number
                              i=max(0,i-1*lines-1)
                              iinf=0
-                             remember=paws
+                             remember='f'
                   case('i'); ignorecase=.not.ignorecase
                              i=max(0,i-1*lines-1)
                              iinf=0
-                             remember=paws
+                             remember='f'
                   case('q','Q'); exit INFINITE      ! quit
                   case('0':'9')
                              iinf=0;
@@ -58839,14 +58842,14 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              call load_manual()
                              if(color)manual=crayons(manual)
                              iinf=0
-                             remember=paws
+                             remember='f'
                   case('P'); i=i-1                     ! developer: toggle prefix mode
                              i=max(0,i-1*lines+2)
                              prefix=.not.prefix
                              call load_manual()
                              if(color)manual=crayons(manual)
                              iinf=0
-                             remember=paws
+                             remember='f'
                   case('c','C'); i=i-1                      ! developer: display or set colors
                              i=max(0,i-1*lines+2)
                              iinf=0
@@ -58855,7 +58858,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                                 call load_manual()
                                 if(color)manual=crayons(manual)
                                 i=0
-                                remember=paws
+                                remember='f'
                              elseif(adjustl(paws(2:)).eq.'?')then ! show colors
                                 write(stdout,nml=fman_colors,iostat=iostat,iomsg=iomsg,delim='quote')
                                 flush(stdout,iostat=iostat)
