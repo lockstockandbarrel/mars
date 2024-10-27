@@ -58661,7 +58661,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                ANOTHER: do
                   write(stdout,gen,advance='no')'[',i,']:'
                   read(stdin,'(a)',iostat=iostat)paws
-		  if(iostat.ne.0)exit INFINITE
+                  if(iostat.ne.0)exit INFINITE
                   if(paws.eq.'')paws=remember
                   select case(paws(1:1))
                   case('b');
@@ -58670,7 +58670,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              else
                                 i=max(0,i-2*lines+2) ! back
                              endif
-                             i=i-(len_trim(paws)-1)*lines 
+                             i=i-(len_trim(paws)-1)*lines
                              iinf=0
                              remember=paws
                   case('u');
@@ -58680,7 +58680,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                                 i=max(0,i-2*lines+lines/2+2) ! up
                              endif
                              i=i-(len_trim(paws)-1)*lines/2 ! up
-			     i=max(0,i)
+                             i=max(0,i)
                              iinf=0
                              remember=paws
                   case('d'); i=max(0,i-1*lines+len_trim(paws)*lines/2) ! down
@@ -58715,8 +58715,8 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              if(regex.ne.' ')then
                                 if (getpat(merge(lower(regex),regex,ignorecase), p%pat) .eq. ERR) then
                                    write(stdout,'(a)')'*fman* Illegal regex pattern.'
-				   i=irestore
-				   paws='r'
+                                   i=irestore
+                                   paws='r'
                                 else
                                    do m=i,search_end,direction
                                       if(ignorecase)then
@@ -58731,7 +58731,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                                    enddo
                                    if(m-direction.eq.search_end)then
                                       i=irestore
-				      paws='r'
+                                      paws='r'
                                    endif
                                 endif
                              endif
@@ -58842,7 +58842,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                   case(' ')
                              if(paws(2:).ne.' ')then
                                 call execute_command_line(paws(2:))
-			     endif
+                             endif
                              iinf=0
                              remember='f'
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -58937,7 +58937,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                         & ' |SEARCH:     | /RE | search for expression| ?RE  | backward search           | ', &
                         & ' |            | n   | repeat last search   | N    | repeat last search upward | ', &
                         & ' +------------+-----+----------------------+------+---------------------------+ ', &
-                        & ' |SYSTEM;     | s F | save to filename     | xcmd | execute system_command    | ', &
+                        & ' |SYSTEM:     | s F | save to filename     | xcmd | execute system_command    | ', &
                         & ' +------------+-----+----------------------+------+---------------------------+ ', &
                         & ' |OPTIONS:    | #   | toggle line numbers  | lNNN | change lines per page     | ', &
                         & ' |            | i   | toggle search by case| c    | toggle color mode         | ', &
