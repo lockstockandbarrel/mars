@@ -1209,7 +1209,7 @@ textblock=[character(len=256) :: &
 '       > value= (3.0000000000000000,4.0000000000000000)', &
 '       > imaginary part= 4.0000000000000000 or 4.0000000000000000', &
 '       >', &
-'       > (1.00000000,2.00000000) (0.500000000,1.00000000) (2.00000000,4.00000000)', &
+'       > (1.0000000,2.0000000) (0.50000000,1.0000000) (2.0000000,4.0000000)', &
 '       > (-11.0000000,-2.00000000)', &
 '       >', &
 '       >  2.00000000       1.00000000       4.00000000      -2.00000000', &
@@ -7913,7 +7913,7 @@ textblock=[character(len=256) :: &
 '', &
 '  But try to never split constants or lexical words!', &
 '', &
-'         character(len=*), parameter :: str1=''my first str'', str2=''my second str''', &
+'        character(len=*),parameter :: str1=''my first str'', str2=''my second str''', &
 '', &
 '  could be written as', &
 '', &
@@ -7994,7 +7994,7 @@ textblock=[character(len=256) :: &
 '  Therefore the following is equivalent in fixed and free-format parsing:', &
 '', &
 '       >12345 continue', &
-'       >      character(len=*), parameter :: string1="hello world", string2="hel&', &
+'       >      character(len=*),parameter :: string1="hello world", string2="hel&', &
 '       >     &lo world"', &
 '', &
 '  Obviously, this is not compatible with extended length fixed-format source', &
@@ -10526,11 +10526,11 @@ textblock=[character(len=256) :: &
 '        i=int(b"00000000000000000000000000011111")', &
 '        j=int(b"11111111111111111111111111100000")', &
 '        ! appended together ( i//j )', &
-'        ! 0000000000000000000000000001111111111111111111111111111111100000', &
+'        ! 0000000000000000000000000001111111111111111111111111111111100000',&
 '        ! shifted right SHIFT values dropping off shifted values', &
-'        !      00000000000000000000000000011111111111111111111111111111111', &
+'        !      00000000000000000000000000011111111111111111111111111111111',&
 '        ! keep enough rightmost bits to fill the kind', &
-'        !                                 11111111111111111111111111111111', &
+'        !                                 11111111111111111111111111111111',&
 '        ! so the result should be all 1s bits ...', &
 '', &
 '         write(*,''(*(g0))'')''I='',i,'' J='',j,'' SHIFT='',shift', &
@@ -17311,13 +17311,13 @@ textblock=[character(len=256) :: &
 '', &
 '  Results:', &
 '', &
-'       > LEADING ZERO BITS=  0 OF VALUE 11111111111111111111111101101010 AKA -150', &
-'       > LEADING ZERO BITS=  0 OF VALUE 11111111111111111111111110011100 AKA -100', &
-'       > LEADING ZERO BITS=  0 OF VALUE 11111111111111111111111111001110 AKA -50', &
-'       > LEADING ZERO BITS= 32 OF VALUE 00000000000000000000000000000000 AKA 0', &
-'       > LEADING ZERO BITS= 26 OF VALUE 00000000000000000000000000110010 AKA 50', &
-'       > LEADING ZERO BITS= 25 OF VALUE 00000000000000000000000001100100 AKA 100', &
-'       > LEADING ZERO BITS= 24 OF VALUE 00000000000000000000000010010110 AKA 150', &
+'   > LEADING ZERO BITS=0 OF VALUE 11111111111111111111111101101010 AKA -150',&
+'   > LEADING ZERO BITS=0 OF VALUE 11111111111111111111111110011100 AKA -100',&
+'   > LEADING ZERO BITS=0 OF VALUE 11111111111111111111111111001110 AKA -50',&
+'   > LEADING ZERO BITS=32 OF VALUE 00000000000000000000000000000000 AKA 0',&
+'   > LEADING ZERO BITS=26 OF VALUE 00000000000000000000000000110010 AKA 50',&
+'   > LEADING ZERO BITS=25 OF VALUE 00000000000000000000000001100100 AKA 100',&
+'   > LEADING ZERO BITS=24 OF VALUE 00000000000000000000000010010110 AKA 150',&
 '', &
 '', &
 'STANDARD', &
@@ -24718,9 +24718,9 @@ textblock=[character(len=256) :: &
 '', &
 '  Results:', &
 '', &
-'       > 1.00000000      2.00000000', &
-'       > 4.0000000000000000      5.0000000000000000', &
-'       > 1.7976931348623157E+308  1.7976931348623157E+308  1.7976931348623157E+30', &
+'    > 1.00000000      2.00000000', &
+'    > 4.0000000000000000      5.0000000000000000', &
+'    > 1.7976931348623157E+308 1.7976931348623157E+308 1.7976931348623157E+30',&
 '', &
 '', &
 'STANDARD', &
