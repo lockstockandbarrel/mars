@@ -1,4 +1,3 @@
- 
 !>>>>> build/dependencies/M_CLI2/src/M_CLI2.F90
 !VERSION 1.0 20200115
 !VERSION 2.0 20200802
@@ -5710,8 +5709,7 @@ end module M_CLI2
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_strings/src/M_strings.F90
 !>
 !!##NAME
@@ -18083,8 +18081,7 @@ end function atoi_int64
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 end module M_strings
- 
- 
+
 !>>>>> build/dependencies/M_io/src/M_io.F90
 !===================================================================================================================================
 MODULE M_io
@@ -21773,7 +21770,6 @@ doubleprecision function s2v(chars,ierr,onerr)
 
 !character(len=*),parameter::ident_43="@(#)M_strings::s2v(3f): returns doubleprecision number from string"
 
-
 character(len=*),intent(in)  :: chars
 integer,optional             :: ierr
 doubleprecision              :: valu
@@ -23153,8 +23149,6 @@ end module m_io
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
 !>>>>> app/fpm-license.f90
 program license
 use, intrinsic :: iso_fortran_env, only: stderr=>ERROR_UNIT, stdout=>OUTPUT_UNIT, stdin=>INPUT_UNIT
@@ -33251,11 +33245,11 @@ end subroutine codeit
 !===================================================================================================================================
 subroutine setup()
 help=[ CHARACTER(LEN=128) :: &
-'NAME',&
-'   fpm-licenses(1f) - [FPM:LICENSES] write out common licenses as text files',&
-'   (LICENSE:MIT)                                                            ',&
-'                                                                            ',&
-'SYNOPSIS                                                                    ',&
+'NAME                                                                              ',&
+'   fpm-licenses(1f) - [FPM:LICENSES] write out common licenses as text files      ',&
+'   (LICENSE:MIT)                                                                  ',&
+'                                                                                  ',&
+'SYNOPSIS                                                                          ',&
 '    fpm-licenses [spdx_tagname(s)][--all][--fortran][--verbose][--config FILENAME]',&
 '                                                                                  ',&
 '    fpm-licenses --file FILENAME [--config FILENAME]                              ',&
@@ -33263,12 +33257,10 @@ help=[ CHARACTER(LEN=128) :: &
 '    fpm-licenses --help|--version                                                 ',&
 '                                                                                  ',&
 'DESCRIPTION                                                                       ',&
-'   fpm projects often require or preferably contain a LICENSE.txt file.           ',&
-'   Some programs want to contain a subroutine that can be called to show          ',&
-'   the license.                                                                   ',&
+'   fpm projects preferably contain (or require) a LICENSE.txt file.               ',&
 '                                                                                  ',&
-'   Sometimes instead of a text file a subroutine is preferred for displaying      ',&
-'   the license directory from the program.                                        ',&
+'   Alternatively, some programs want to contain a subroutine that can be called   ',&
+'   to show the license directly from the program.                                 ',&
 '                                                                                  ',&
 '   Typically the output requires editing to insert specific names,dates           ',&
 '   and organizations as appropriate.                                              ',&
@@ -33382,4 +33374,3 @@ version=[ CHARACTER(LEN=128) :: &
 '']
 end subroutine setup
 end program license
- 
