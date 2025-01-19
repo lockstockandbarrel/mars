@@ -3,7 +3,6 @@
 #undef linux
 #undef unix
 !>>>>> ././src/fpm_backend_console.f90
-
 !># Build Backend Console
 !> This module provides a lightweight implementation for printing to the console
 !> and updating previously-printed console lines. It used by `[[fpm_backend_output]]`
@@ -119,7 +118,6 @@ end subroutine console_update_line
 end module fpm_backend_console
 
 !>>>>> ././src/fpm_strings.f90
-
 !> This module defines general procedures for **string operations** for both CHARACTER and
 !! TYPE(STRING_T) variables
 !
@@ -317,6 +315,7 @@ function f_string(c_string)
 
 end function f_string
 
+
 !> return Fortran character variable when given a null-terminated c_ptr
 function f_string_cptr(cptr) result(s)
     type(c_ptr), intent(in), value :: cptr
@@ -366,6 +365,7 @@ pure function fnv_1a_char(input, seed) result(hash)
 
 end function fnv_1a_char
 
+
 !> Hash a string_t array of default kind
 pure function fnv_1a_string_t(input, seed) result(hash)
     type(string_t), intent(in) :: input(:)
@@ -381,6 +381,7 @@ pure function fnv_1a_string_t(input, seed) result(hash)
     end do
 
 end function fnv_1a_string_t
+
 
 !>Author: John S. Urban
 !!License: Public Domain
@@ -1291,6 +1292,7 @@ logical function is_valid_module_name(module_name,package_name,custom_prefix,enf
     type(string_t), intent(in) :: custom_prefix
     logical       , intent(in) :: enforce_module_names
 
+
     !> Basic check: check the name is Fortran-compliant
     valid = is_fortran_name(module_name%s); if (.not.valid) return
 
@@ -1334,6 +1336,7 @@ logical function is_valid_module_prefix(module_prefix) result(valid)
     endif
 
 end function is_valid_module_prefix
+
 
 type(string_t) function module_prefix_template(project_name,custom_prefix) result(prefix)
     type(string_t), intent(in) :: project_name
@@ -1409,6 +1412,7 @@ logical function has_valid_custom_prefix(module_name,custom_prefix) result(valid
     end if
 
 end function has_valid_custom_prefix
+
 
 !> Check that a module name is prefixed with the default package prefix:
 !> 1) It must be a valid FORTRAN name (<=63 chars, begin with letter, "_" is only allowed non-alphanumeric)
@@ -1732,8 +1736,8 @@ end function dilate
 
 end module fpm_strings
 
-!>>>>> build/dependencies/toml-f/src/tomlf/constants.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/constants.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -1770,6 +1774,7 @@ module tomlf_constants
    !> Long length for integers
    integer, public, parameter :: tf_i8 = selected_int_kind(18)
 
+
    !> Default character kind
    integer, public, parameter :: tfc = selected_char_kind('DEFAULT')
 
@@ -1781,6 +1786,7 @@ module tomlf_constants
 
    !> Default output channel
    integer, public, parameter :: tfout = output_unit
+
 
    !> Possible escape characters in TOML
    type :: enum_escape
@@ -1814,6 +1820,7 @@ module tomlf_constants
    !> Actual enumerator with TOML escape characters
    type(enum_escape), public, parameter :: toml_escape = enum_escape()
 
+
    !> Possible kinds of TOML values in key-value pairs
    type :: enum_type
 
@@ -1839,6 +1846,7 @@ module tomlf_constants
 
    !> Actual enumerator with TOML value types
    type(enum_type), public, parameter :: toml_type = enum_type()
+
 
    !> Single quotes denote literal strings
    character(kind=tfc, len=*), public, parameter :: TOML_SQUOTE = "'"
@@ -1875,8 +1883,8 @@ module tomlf_constants
 
 end module tomlf_constants
 
-!>>>>> build/dependencies/toml-f/src/tomlf/version.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/version.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -1898,6 +1906,7 @@ module tomlf_version
    public :: get_tomlf_version
    public :: tomlf_version_string, tomlf_version_compact
 
+
    !> String representation of the TOML-Fortran version
    character(len=*), parameter :: tomlf_version_string = "0.4.2"
 
@@ -1914,7 +1923,9 @@ module tomlf_version
    integer, parameter :: tomlf_version_compact = &
       & tomlf_major*10000 + tomlf_minor*100 + tomlf_patch
 
+
 contains
+
 
 !> Getter function to retrieve TOML-Fortran version
 subroutine get_tomlf_version(major, minor, patch, string)
@@ -1946,10 +1957,11 @@ subroutine get_tomlf_version(major, minor, patch, string)
 
 end subroutine get_tomlf_version
 
+
 end module tomlf_version
 
-!>>>>> build/dependencies/toml-f/src/tomlf/de/token.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/de/token.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -1969,6 +1981,7 @@ module tomlf_de_token
    private
 
    public :: toml_token, stringify, token_kind, resize
+
 
    !> Possible token kinds
    type :: enum_token
@@ -2112,8 +2125,8 @@ end function stringify
 
 end module tomlf_de_token
 
-!>>>>> build/dependencies/M_CLI2/src/M_CLI2.F90
 
+!>>>>> build/dependencies/M_CLI2/src/M_CLI2.F90
 !VERSION 1.0 20200115
 !VERSION 2.0 20200802
 !VERSION 3.0 20201021  LONG:SHORT syntax
@@ -4387,8 +4400,8 @@ function join_path(a1,a2,a3,a4,a5) result(path)
    if (present(a5)) path = path // filesep // trim(a5)
    path=adjustl(path//'   ')
    ! clean up duplicate adjacent separators
-   path=path(1:2)//replace_str(path(3:),filesep//filesep,filesep) ! some systems allow filepath starting with // or \   path=trim(path)
-
+   path=path(1:2)//replace_str(path(3:),filesep//filesep,filesep) ! some systems allow filepath starting with // or \\
+   path=trim(path)
 end function join_path
 !===================================================================================================================================
 function get_name() result(name)
@@ -7914,8 +7927,8 @@ end module M_CLI2
 !===================================================================================================================================
 !===================================================================================================================================
 
-!>>>>> build/dependencies/fortran-regex/src/regex.f90
 
+!>>>>> build/dependencies/fortran-regex/src/regex.f90
 ! *************************************************************************************************
 !                                    ____  ___________________  __
 !                                   / __ \/ ____/ ____/ ____/ |/ /
@@ -8033,6 +8046,7 @@ module regex_module
     interface regex_token
         module procedure pat_from_char
     end interface regex_token
+
 
     contains
 
@@ -8591,6 +8605,7 @@ module regex_module
        index = re_matchp(string, pattern, length, .false.)
     end function re_matchp_noback
 
+
     integer function re_matchp(string, pattern, length, back) result(index)
        type(regex_pattern), intent(in) :: pattern
        character(len=*,kind=RCK), intent(in) :: string
@@ -8640,6 +8655,7 @@ module regex_module
        end if
 
     end function re_matchp
+
 
    ! Iterative matching
    recursive logical function matchpattern(pattern, text, matchlength) result(match)
@@ -8696,10 +8712,13 @@ module regex_module
 
    end function matchpattern
 
+
+
+
 end module regex_module
 
-!>>>>> build/dependencies/jonquil/src/jonquil/version.f90
 
+!>>>>> build/dependencies/jonquil/src/jonquil/version.f90
 ! This file is part of jonquil.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -8721,6 +8740,7 @@ module jonquil_version
    public :: get_jonquil_version
    public :: jonquil_version_string, jonquil_version_compact
 
+
    !> String representation of the jonquil version
    character(len=*), parameter :: jonquil_version_string = "0.4.0"
 
@@ -8737,7 +8757,9 @@ module jonquil_version
    integer, parameter :: jonquil_version_compact = &
       & jonquil_major*10000 + jonquil_minor*100 + jonquil_patch
 
+
 contains
+
 
 !> Getter function to retrieve jonquil version
 subroutine get_jonquil_version(major, minor, patch, string)
@@ -8769,10 +8791,11 @@ subroutine get_jonquil_version(major, minor, patch, string)
 
 end subroutine get_jonquil_version
 
+
 end module jonquil_version
 
-!>>>>> build/dependencies/fortran-shlex/src/shlex_module.f90
 
+!>>>>> build/dependencies/fortran-shlex/src/shlex_module.f90
 ! *************************************************************************************************
 !                                   _____ __  ____    _______  __
 !                                  / ___// / / / /   / ____/ |/ /
@@ -8860,6 +8883,7 @@ module shlex_module
         character(kind=SCK,len=:), allocatable :: string
 
     end type shlex_token
+
 
     type, public :: shlex_lexer
 
@@ -9207,8 +9231,9 @@ module shlex_module
 
 end module shlex_module
 
-!>>>>> ././src/fpm/error.f90
 
+
+!>>>>> ././src/fpm/error.f90
 !> Implementation of basic error handling.
 module fpm_error
     use,intrinsic :: iso_fortran_env, only : stdin=>input_unit, stdout=>output_unit, stderr=>error_unit
@@ -9221,6 +9246,7 @@ module fpm_error
     public :: file_parse_error
     public :: bad_name_error
     public :: fpm_stop
+
 
     !> Data type defining an error
     type :: error_t
@@ -9283,6 +9309,7 @@ contains
 
     end function bad_name_error
 
+
     !> Error created when a file is missing or not found
     subroutine file_not_found_error(error, file_name)
 
@@ -9296,6 +9323,7 @@ contains
         error%message = "'"//file_name//"' could not be found, check if the file exists"
 
     end subroutine file_not_found_error
+
 
     !> Error created when file parsing fails
     subroutine file_parse_error(error, file_name, message, line_num, &
@@ -9390,8 +9418,8 @@ contains
 
 end module fpm_error
 
-!>>>>> build/dependencies/toml-f/src/tomlf/datetime.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/datetime.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -9414,6 +9442,7 @@ module tomlf_datetime
    public :: toml_datetime, toml_time, toml_date, to_string, has_date, has_time
    public :: operator(==)
 
+
    !> TOML time value (HH:MM:SS.sssssZ...)
    type :: toml_time
       integer :: hour = -1
@@ -9427,6 +9456,7 @@ module tomlf_datetime
       module procedure :: new_toml_time
    end interface toml_time
 
+
    !> TOML date value (YYYY-MM-DD)
    type :: toml_date
       integer :: year = -1
@@ -9434,11 +9464,13 @@ module tomlf_datetime
       integer :: day = -1
    end type
 
+
    !> TOML datatime value type
    type :: toml_datetime
       type(toml_date) :: date
       type(toml_time) :: time
    end type
+
 
    !> Create a new TOML datetime value
    interface toml_datetime
@@ -9446,15 +9478,19 @@ module tomlf_datetime
       module procedure :: new_datetime_from_string
    end interface toml_datetime
 
+
    interface operator(==)
       module procedure :: compare_datetime
    end interface operator(==)
+
 
    interface to_string
       module procedure :: to_string_datetime
    end interface to_string
 
+
 contains
+
 
 pure function new_datetime(year, month, day, hour, minute, second, msecond, zone) &
       & result(datetime)
@@ -9486,6 +9522,7 @@ pure function new_datetime(year, month, day, hour, minute, second, msecond, zone
       end if
    end if
 end function new_datetime
+
 
 pure function new_datetime_from_string(string) result(datetime)
    character(len=*), intent(in) :: string
@@ -9575,6 +9612,7 @@ pure function new_datetime_from_string(string) result(datetime)
 
 end function new_datetime_from_string
 
+
 pure function to_string_datetime(datetime) result(str)
    type(toml_datetime), intent(in) :: datetime
    character(kind=tfc, len=:), allocatable :: str
@@ -9626,6 +9664,7 @@ pure function to_string_time(time) result(str)
    if (allocated(time%zone)) str = str // trim(time%zone)
 end function to_string_time
 
+
 pure function has_date(datetime)
    class(toml_datetime), intent(in) :: datetime
    logical :: has_date
@@ -9641,6 +9680,7 @@ pure function has_time(datetime)
       & (datetime%time%minute >= 0) .and. &
       & (datetime%time%second >= 0)
 end function has_time
+
 
 !> Constructor for toml_time type, necessary due to PGI bug in NVHPC 20.7 and 20.9
 elemental function new_toml_time(hour, minute, second, msec, zone) &
@@ -9658,6 +9698,7 @@ elemental function new_toml_time(hour, minute, second, msec, zone) &
    if (present(zone)) self%zone = zone
 end function new_toml_time
 
+
 pure function compare_datetime(lhs, rhs) result(match)
    type(toml_datetime), intent(in) :: lhs
    type(toml_datetime), intent(in) :: rhs
@@ -9674,6 +9715,7 @@ pure function compare_datetime(lhs, rhs) result(match)
    end if
 end function compare_datetime
 
+
 pure function compare_date(lhs, rhs) result(match)
    type(toml_date), intent(in) :: lhs
    type(toml_date), intent(in) :: rhs
@@ -9681,6 +9723,7 @@ pure function compare_date(lhs, rhs) result(match)
 
    match = lhs%year == rhs%year .and. lhs%month == rhs%month .and. lhs%day == rhs%day
 end function compare_date
+
 
 pure function compare_time(lhs, rhs) result(match)
    type(toml_time), intent(in) :: lhs
@@ -9700,10 +9743,11 @@ pure function compare_time(lhs, rhs) result(match)
    end if
 end function compare_time
 
+
 end module tomlf_datetime
 
-!>>>>> build/dependencies/toml-f/src/tomlf/error.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/error.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -9724,6 +9768,7 @@ module tomlf_error
    private
 
    public :: toml_stat, toml_error, make_error
+
 
    !> Possible TOML-Fortran error codes
    type :: enum_stat
@@ -9753,6 +9798,7 @@ module tomlf_error
    !> Actual enumerator for return states
    type(enum_stat), parameter :: toml_stat = enum_stat()
 
+
    !> Error message produced by TOML-Fortran
    type :: toml_error
 
@@ -9763,6 +9809,7 @@ module tomlf_error
       character(kind=tfc, len=:), allocatable :: message
 
    end type toml_error
+
 
 contains
 
@@ -9786,8 +9833,8 @@ end subroutine make_error
 
 end module tomlf_error
 
-!>>>>> build/dependencies/toml-f/src/tomlf/utils/io.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/utils/io.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -9808,6 +9855,7 @@ module tomlf_utils_io
    private
 
    public :: read_whole_file, read_whole_line
+
 
 contains
 
@@ -9878,8 +9926,8 @@ end subroutine read_whole_line
 
 end module tomlf_utils_io
 
-!>>>>> ././src/fpm_environment.f90
 
+!>>>>> ././src/fpm_environment.f90
 !> This module contains procedures that interact with the programming environment.
 !!
 !! * [get_os_type] -- Determine the OS type
@@ -9899,6 +9947,7 @@ module fpm_environment
     public :: delete_env
     public :: get_command_arguments_quoted
     public :: separator
+
 
                         public :: OS_NAME
     integer, parameter, public :: OS_UNKNOWN = 0
@@ -10265,9 +10314,9 @@ logical function set_env(name,value,overwrite)
    call f2cs(value,c_value)
 
    !> Call setenv
-
+#ifndef FPM_BOOTSTRAP
    cerr = c_setenv(c_name,c_value,cover)
-
+#endif
    set_env = cerr==0_c_int
 
 end function set_env
@@ -10296,9 +10345,9 @@ logical function delete_env(name) result(success)
    call f2cs(name,c_name)
 
    !> Call setenv
-
+#ifndef FPM_BOOTSTRAP
    cerr = c_unsetenv(c_name)
-
+#endif
    success = cerr==0_c_int
 
 end function delete_env
@@ -10320,8 +10369,8 @@ end subroutine f2cs
 
 end module fpm_environment
 
-!>>>>> ././src/fpm/versioning.f90
 
+!>>>>> ././src/fpm/versioning.f90
 !> Implementation of versioning data for comparing packages
 module fpm_versioning
     use fpm_error, only : error_t, syntax_error
@@ -10332,6 +10381,7 @@ module fpm_versioning
 
     public :: version_t, new_version
     public :: regex_version_from_text
+
 
     type :: version_t
         private
@@ -10368,15 +10418,19 @@ module fpm_versioning
 
     end type version_t
 
+
     !> Arbitrary internal limit of the version parser
     integer, parameter :: max_limit = 3
+
 
     interface new_version
         module procedure :: new_version_from_string
         module procedure :: new_version_from_int
     end interface new_version
 
+
 contains
+
 
     !> Create a new version from a string
     subroutine new_version_from_int(self, num)
@@ -10390,6 +10444,7 @@ contains
         self%num = num
 
     end subroutine new_version_from_int
+
 
     !> Create a new version from a string
     subroutine new_version_from_string(self, string, error)
@@ -10440,6 +10495,7 @@ contains
         call new_version(self, num(:nn))
 
     end subroutine new_version_from_string
+
 
     !> Tokenize a version string
     subroutine next(string, istart, iend, is_number, error)
@@ -10507,6 +10563,7 @@ contains
 
     end subroutine next
 
+
     !> Create an error on an invalid token, provide some visual context as well
     subroutine token_error(error, string, istart, iend, message)
 
@@ -10532,6 +10589,7 @@ contains
             & "  |" // repeat('-', istart) // repeat('^', iend - istart + 1)
 
     end subroutine token_error
+
 
     pure function s(self) result(string)
 
@@ -10561,6 +10619,7 @@ contains
 
     end function s
 
+
     !> Check to version numbers for equality
     elemental function equals(lhs, rhs) result(is_equal)
 
@@ -10580,6 +10639,7 @@ contains
 
     end function equals
 
+
     !> Check two versions for inequality
     elemental function not_equals(lhs, rhs) result(not_equal)
 
@@ -10598,6 +10658,7 @@ contains
         end if
 
     end function not_equals
+
 
     !> Relative comparison of two versions
     elemental function greater(lhs, rhs) result(is_greater)
@@ -10630,6 +10691,7 @@ contains
 
     end function greater
 
+
     !> Relative comparison of two versions
     elemental function less(lhs, rhs) result(is_less)
 
@@ -10645,6 +10707,7 @@ contains
         is_less = rhs > lhs
 
     end function less
+
 
     !> Relative comparison of two versions
     elemental function greater_equals(lhs, rhs) result(is_greater_equal)
@@ -10662,6 +10725,7 @@ contains
 
     end function greater_equals
 
+
     !> Relative comparison of two versions
     elemental function less_equals(lhs, rhs) result(is_less_equal)
 
@@ -10677,6 +10741,7 @@ contains
         is_less_equal = .not. (lhs > rhs)
 
     end function less_equals
+
 
     !> Try to match first version against second version
     elemental function match(lhs, rhs)
@@ -10749,8 +10814,8 @@ contains
 
 end module fpm_versioning
 
-!>>>>> build/dependencies/toml-f/src/tomlf/utils.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/utils.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -10775,6 +10840,7 @@ module tomlf_utils
    public :: to_string
    public :: read_whole_file, read_whole_line
 
+
    interface to_string
       module procedure :: to_string_i1
       module procedure :: to_string_i2
@@ -10783,7 +10849,9 @@ module tomlf_utils
       module procedure :: to_string_r8
    end interface to_string
 
+
 contains
+
 
 !> Escape all special characters in a TOML string
 subroutine toml_escape_string(raw, escaped, multiline)
@@ -10825,6 +10893,7 @@ subroutine toml_escape_string(raw, escaped, multiline)
 
 end subroutine toml_escape_string
 
+
 !> Represent an integer as character sequence.
 pure function to_string_i1(val) result(string)
    integer, parameter :: ik = tf_i1
@@ -10861,6 +10930,7 @@ pure function to_string_i1(val) result(string)
 
    string = buffer(pos:)
 end function to_string_i1
+
 
 !> Represent an integer as character sequence.
 pure function to_string_i2(val) result(string)
@@ -10899,6 +10969,7 @@ pure function to_string_i2(val) result(string)
    string = buffer(pos:)
 end function to_string_i2
 
+
 !> Represent an integer as character sequence.
 pure function to_string_i4(val) result(string)
    integer, parameter :: ik = tf_i4
@@ -10935,6 +11006,7 @@ pure function to_string_i4(val) result(string)
 
    string = buffer(pos:)
 end function to_string_i4
+
 
 !> Represent an integer as character sequence.
 pure function to_string_i8(val) result(string)
@@ -11005,8 +11077,8 @@ end function to_string_r8
 
 end module tomlf_utils
 
-!>>>>> build/dependencies/toml-f/src/tomlf/de/abc.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/de/abc.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -11030,6 +11102,7 @@ module tomlf_de_abc
 
    public :: abstract_lexer
 
+
    !> Abstract base class for TOML lexers.
    type, abstract :: abstract_lexer
    contains
@@ -11051,6 +11124,7 @@ module tomlf_de_abc
       !> Get information about the source
       procedure(get_info), deferred :: get_info
    end type abstract_lexer
+
 
    abstract interface
       !> Advance the lexer to the next token.
@@ -11132,8 +11206,8 @@ module tomlf_de_abc
 
 end module tomlf_de_abc
 
-!>>>>> ././src/fpm_filesystem.F90
 
+!>>>>> ././src/fpm_filesystem.F90
 !> This module contains general routines for interacting with the file system
 !!
 module fpm_filesystem
@@ -11153,6 +11227,7 @@ module fpm_filesystem
             filewrite, warnwrite, parent_dir, is_hidden_file, read_lines, read_lines_expanded, which, run, &
             os_delete_dir, is_absolute_path, get_home, execute_and_read_output, get_dos_path
 
+#ifndef FPM_BOOTSTRAP
     interface
         function c_opendir(dir) result(r) bind(c, name="c_opendir")
             import c_char, c_ptr
@@ -11184,6 +11259,7 @@ module fpm_filesystem
             integer(kind=c_int) :: r
         end function c_is_dir
     end interface
+#endif
 
     character(*), parameter :: eol = new_line('a')    !! End of line
 
@@ -11219,6 +11295,7 @@ function basename(path,suffix) result (base)
     endif
 
 end function basename
+
 
 !> Canonicalize path for comparison
 !! * Handles path string redundancies
@@ -11320,6 +11397,7 @@ contains
     end subroutine next
 end function canon_path
 
+
 !> Extract dirname from path
 function dirname(path) result (dir)
     character(*), intent(in) :: path
@@ -11337,6 +11415,7 @@ function parent_dir(path) result (dir)
     dir = path(1:scan(path,'/\',back=.true.)-1)
 
 end function parent_dir
+
 
 !> test if a name matches an existing directory path
 logical function is_dir(dir)
@@ -11419,6 +11498,7 @@ function join_path(a1,a2,a3,a4,a5) result(path)
     end if
 
 end function join_path
+
 
 !> Determine number or rows in a file given a LUN
 integer function number_of_rows(s) result(nrows)
@@ -11524,6 +11604,7 @@ subroutine mkdir(dir, echo)
     end if
 end subroutine mkdir
 
+#ifndef FPM_BOOTSTRAP
 !> Get file & directory names in directory `dir` using iso_c_binding.
 !!
 !!  - File/directory names return are relative to cwd, ie. preprended with `dir`
@@ -11610,14 +11691,85 @@ recursive subroutine list_files(dir, files, recurse)
     end if
 end subroutine list_files
 
+#else
+!> Get file & directory names in directory `dir`.
+!!
+!!  - File/directory names return are relative to cwd, ie. preprended with `dir`
+!!  - Includes files starting with `.` except current directory and parent directory
+!!
+recursive subroutine list_files(dir, files, recurse)
+    character(len=*), intent(in) :: dir
+    type(string_t), allocatable, intent(out) :: files(:)
+    logical, intent(in), optional :: recurse
+
+    integer :: stat, fh, i
+    character(:), allocatable :: temp_file
+    type(string_t), allocatable :: dir_files(:)
+    type(string_t), allocatable :: sub_dir_files(:)
+
+    if (.not. is_dir(dir)) then
+        allocate (files(0))
+        return
+    end if
+
+    allocate (temp_file, source=get_temp_filename())
+
+    select case (get_os_type())
+        case (OS_UNKNOWN, OS_LINUX, OS_MACOS, OS_CYGWIN, OS_SOLARIS, OS_FREEBSD, OS_OPENBSD)
+            call run('ls -A ' // dir , &
+                    & redirect=temp_file, exitstat=stat,echo=.false.,verbose=.false.)
+        case (OS_WINDOWS)
+            call run('dir /b ' // windows_path(dir), &
+                    & redirect=temp_file, exitstat=stat,echo=.false.,verbose=.false.)
+    end select
+
+    if (stat /= 0) then
+        call fpm_stop(2,'*list_files*:directory listing failed')
+    end if
+
+    files = read_lines(temp_file)
+    call delete_file(temp_file)
+
+    do i=1,size(files)
+        files(i)%s = join_path(dir,files(i)%s)
+    end do
+
+    if (present(recurse)) then
+        if (recurse) then
+
+            allocate(sub_dir_files(0))
+
+            do i=1,size(files)
+                if (is_dir(files(i)%s)) then
+
+                    call list_files(files(i)%s, dir_files, recurse=.true.)
+                    sub_dir_files = [sub_dir_files, dir_files]
+
+                end if
+            end do
+
+            files = [files, sub_dir_files]
+
+        end if
+    end if
+
+end subroutine list_files
+
+#endif
+
+
 !> test if pathname already exists
 logical function exists(filename) result(r)
     character(len=*), intent(in) :: filename
     inquire(file=filename, exist=r)
 
     !> Directories are not files for the Intel compilers. If so, also use this compiler-dependent extension
+#if defined(__INTEL_COMPILER)
+    if (.not.r) inquire(directory=filename, exist=r)
+#endif
 
 end function
+
 
 !> Get a unused temporary filename
 !!  Calls posix 'tempnam' - not recommended, but
@@ -11658,6 +11810,7 @@ function get_temp_filename() result(tempfile)
 
 end function get_temp_filename
 
+
 !> Replace file system separators for windows
 function windows_path(path) result(winpath)
 
@@ -11675,6 +11828,7 @@ function windows_path(path) result(winpath)
     end do
 
 end function windows_path
+
 
 !> Replace file system separators for unix
 function unix_path(path) result(nixpath)
@@ -11796,6 +11950,7 @@ subroutine getline(unit, line, iostat, iomsg)
     iostat = stat
 
 end subroutine getline
+
 
 !> delete a file by filename
 subroutine delete_file(file)
@@ -12312,8 +12467,8 @@ end subroutine os_delete_dir
 
 end module fpm_filesystem
 
-!>>>>> ././src/fpm/fpm_release.F90
 
+!>>>>> ././src/fpm/fpm_release.F90
 !># Release parameters
 !> Module fpm_release contains public constants storing this build's unique version IDs
 module fpm_release
@@ -12333,14 +12488,25 @@ module fpm_release
         type(error_t), allocatable :: error
 
 ! Fallback to last known version in case of undefined macro
+#ifndef FPM_RELEASE_VERSION
+#  define FPM_RELEASE_VERSION 0.10.1
+#endif
 
 ! Accept solution from https://stackoverflow.com/questions/31649691/stringify-macro-with-gnu-gfortran
 ! which provides the "easiest" way to pass a macro to a string in Fortran complying with both
 ! gfortran's "traditional" cpp and the standard cpp syntaxes
+#ifdef __GFORTRAN__ /* traditional-cpp stringification */
+#  define STRINGIFY_START(X) "&
+#  define STRINGIFY_END(X) &X"
+#else               /* default stringification */
+#  define STRINGIFY_(X) #X
+#  define STRINGIFY_START(X) &
+#  define STRINGIFY_END(X) STRINGIFY_(X)
+#endif
 
         character (len=:), allocatable :: ver_string
-        ver_string = "&
-        &0.10.1"
+        ver_string = STRINGIFY_START(FPM_RELEASE_VERSION)
+        STRINGIFY_END(FPM_RELEASE_VERSION)
 
         call new_version(fpm_version,ver_string,error)
 
@@ -12350,8 +12516,8 @@ module fpm_release
 
 end module fpm_release
 
-!>>>>> build/dependencies/toml-f/src/tomlf/terminal.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/terminal.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -12415,6 +12581,7 @@ module tomlf_terminal
 
    public :: toml_terminal
    public :: ansi_code, escape, operator(+), operator(//)
+
 
    !> Char length for integers
    integer, parameter :: i1 = selected_int_kind(2)
@@ -12490,6 +12657,7 @@ module tomlf_terminal
       bg_bright_magenta = ansi_code(bg=105_i1), &
       bg_bright_cyan = ansi_code(bg=106_i1), &
       bg_bright_white = ansi_code(bg=107_i1)
+
 
    !> Terminal wrapper to handle color escape sequences, must be initialized with
    !> color support to provide colorful output. Default and uninitialized instances
@@ -12621,6 +12789,7 @@ pure function add(lval, rval) result(code)
    code%bg = merge(rval%bg, lval%bg, rval%bg >= 0)
 end function add
 
+
 !> Concatenate an escape code with a string and turn it into an actual escape sequence
 pure function concat_left(lval, code) result(str)
    !> String to add the escape code to
@@ -12644,6 +12813,7 @@ pure function concat_right(code, rval) result(str)
 
    str = escape(code) // rval
 end function concat_right
+
 
 !> Transform a color code into an actual ANSI escape sequence
 pure function escape(code) result(str)
@@ -12675,8 +12845,8 @@ end function anycolor
 
 end module tomlf_terminal
 
-!>>>>> build/dependencies/toml-f/src/tomlf/type/value.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/type/value.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -12698,6 +12868,7 @@ module tomlf_type_value
    private
 
    public :: toml_value, toml_visitor, toml_key
+
 
    !> Abstract base value for TOML data types
    type, abstract :: toml_value
@@ -12724,6 +12895,7 @@ module tomlf_type_value
 
    end type toml_value
 
+
    !> Abstract visitor for TOML values
    type, abstract :: toml_visitor
    contains
@@ -12732,6 +12904,7 @@ module tomlf_type_value
       procedure(visit), deferred :: visit
 
    end type toml_visitor
+
 
    !> Thin wrapper around the deferred-size character intrinisc
    type :: toml_key
@@ -12743,6 +12916,7 @@ module tomlf_type_value
       integer :: origin = 0
 
    end type toml_key
+
 
    abstract interface
       !> Accept a visitor to transverse the data structure
@@ -12767,7 +12941,9 @@ module tomlf_type_value
 
    end interface
 
+
 contains
+
 
 !> Accept a visitor to transverse the data structure
 recursive subroutine accept(self, visitor)
@@ -12781,6 +12957,7 @@ recursive subroutine accept(self, visitor)
    call visitor%visit(self)
 
 end subroutine accept
+
 
 !> Get escaped key to TOML value
 subroutine get_key(self, key)
@@ -12801,6 +12978,7 @@ subroutine get_key(self, key)
 
 end subroutine get_key
 
+
 !> Compare raw key of TOML value to input key
 pure function match_key(self, key) result(match)
 
@@ -12820,10 +12998,11 @@ pure function match_key(self, key) result(match)
 
 end function match_key
 
+
 end module tomlf_type_value
 
-!>>>>> build/dependencies/jonquil/src/jonquil/lexer.f90
 
+!>>>>> build/dependencies/jonquil/src/jonquil/lexer.f90
 ! This file is part of jonquil.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -13308,8 +13487,8 @@ end subroutine extract_datetime
 
 end module jonquil_lexer
 
-!>>>>> ././src/fpm_os.F90
 
+!>>>>> ././src/fpm_os.F90
 module fpm_os
     use, intrinsic :: iso_c_binding, only: c_char, c_int, c_null_char, c_ptr, c_associated
     use fpm_filesystem, only: exists, join_path, get_home
@@ -13323,22 +13502,30 @@ module fpm_os
 
     integer(c_int), parameter :: buffersize = 1000_c_int
 
+#ifndef _WIN32
     character(len=*), parameter :: pwd_env = "PWD"
+#else
+    character(len=*), parameter :: pwd_env = "CD"
+#endif
 
     interface
         function chdir_(path) result(stat) &
-
+#ifndef _WIN32
             bind(C, name="chdir")
-
+#else
+            bind(C, name="_chdir")
+#endif
             import :: c_char, c_int
             character(kind=c_char, len=1), intent(in) :: path(*)
             integer(c_int) :: stat
         end function chdir_
 
         function getcwd_(buf, bufsize) result(path) &
-
+#ifndef _WIN32
             bind(C, name="getcwd")
-
+#else
+            bind(C, name="_getcwd")
+#endif
             import :: c_char, c_int, c_ptr
             character(kind=c_char, len=1), intent(in) :: buf(*)
             integer(c_int), value, intent(in) :: bufsize
@@ -13465,7 +13652,9 @@ contains
 
         allocate (cpath(buffersize))
 
+#ifndef FPM_BOOTSTRAP
         ptr = c_realpath(appended_path, cpath, buffersize)
+#endif
 
         if (c_associated(ptr)) then
             call c_f_character(cpath, real_path)
@@ -13483,6 +13672,10 @@ contains
         type(error_t), allocatable, intent(out) :: error
 
         character(len=:), allocatable :: home
+
+#ifdef FPM_BOOTSTRAP
+        call get_absolute_path_by_cd(path, absolute_path, error); return
+#endif
 
         if (len_trim(path) < 1) then
             call fatal_error(error, 'Path cannot be empty'); return
@@ -13555,8 +13748,8 @@ contains
 
 end module fpm_os
 
-!>>>>> ././src/fpm_pkg_config.f90
 
+!>>>>> ././src/fpm_pkg_config.f90
 !># The fpm interface to pkg-config
 !>
 !> This module contains wrapper functions to interface with a pkg-config installation.
@@ -13640,6 +13833,7 @@ logical function pkgcfg_has_package(name) result(success)
     success = cmdok .and. exitcode==0
 
 end function pkgcfg_has_package
+
 
 !> Get package libraries from pkg-config
 function pkgcfg_get_libs(package,error) result(libraries)
@@ -13811,6 +14005,7 @@ function pkgcfg_get_build_flags(name,allow_system,error) result(flags)
         return
     end if
 
+
 end function pkgcfg_get_build_flags
 
 !> Simple call to execute_command_line involving one mpi* wrapper
@@ -13825,6 +14020,7 @@ subroutine run_wrapper(wrapper,args,verbose,exitcode,cmd_success,screen_output)
     logical :: echo_local
     character(:), allocatable :: redirect_str,command,redirect,line
     integer :: iunit,iarg,stat,cmdstat
+
 
     if(present(verbose))then
        echo_local=verbose
@@ -13903,8 +14099,8 @@ end subroutine run_wrapper
 
 end module fpm_pkg_config
 
-!>>>>> ././src/fpm/installer.f90
 
+!>>>>> ././src/fpm/installer.f90
 !> Implementation of an installer object.
 !>
 !> The installer provides a way to install objects to their respective directories
@@ -14221,8 +14417,8 @@ contains
 
 end module fpm_installer
 
-!>>>>> build/dependencies/toml-f/src/tomlf/diagnostic.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/diagnostic.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -14245,12 +14441,14 @@ module tomlf_diagnostic
    public :: render
    public :: toml_diagnostic, toml_label
 
+
    interface render
       module procedure render_diagnostic
       module procedure render_text
       module procedure render_text_with_label
       module procedure render_text_with_labels
    end interface render
+
 
    !> Enumerator for diagnostic levels
    type :: level_enum
@@ -14263,6 +14461,7 @@ module tomlf_diagnostic
 
    !> Actual enumerator values
    type(level_enum), parameter, public :: toml_level = level_enum()
+
 
    type toml_label
       !> Level of message
@@ -14281,6 +14480,7 @@ module tomlf_diagnostic
       module procedure new_label
    end interface toml_label
 
+
    !> Definition of diagnostic message
    type :: toml_diagnostic
       !> Level of message
@@ -14297,13 +14497,16 @@ module tomlf_diagnostic
       module procedure new_diagnostic
    end interface toml_diagnostic
 
+
    type :: line_token
       integer :: first, last
    end type line_token
 
    character(len=*), parameter :: nl = new_line('a')
 
+
 contains
+
 
 pure function new_label(level, first, last, text, primary) result(new)
    integer, intent(in) :: level
@@ -14323,6 +14526,7 @@ pure function new_label(level, first, last, text, primary) result(new)
    end if
 end function new_label
 
+
 !> Create new diagnostic message
 pure function new_diagnostic(level, message, source, label) result(new)
    !> Level of message
@@ -14340,6 +14544,7 @@ pure function new_diagnostic(level, message, source, label) result(new)
    if (present(source)) new%source = source
    if (present(label)) new%label = label
 end function new_diagnostic
+
 
 pure function line_tokens(input) result(token)
    character(len=*), intent(in) :: input
@@ -14672,10 +14877,11 @@ pure function to_string(val, width) result(string)
    end if
 end function to_string
 
+
 end module tomlf_diagnostic
 
-!>>>>> build/dependencies/toml-f/src/tomlf/structure/list.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/structure/list.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -14697,6 +14903,7 @@ module tomlf_structure_list
    private
 
    public :: toml_list_structure
+
 
    !> Ordered data structure, allows iterations
    type, abstract :: toml_list_structure
@@ -14722,6 +14929,7 @@ module tomlf_structure_list
 
    end type toml_list_structure
 
+
    abstract interface
       !> Get number of TOML values in the structure
       pure function get_len(self) result(length)
@@ -14733,6 +14941,7 @@ module tomlf_structure_list
          !> Current length of the ordered structure
          integer :: length
       end function get_len
+
 
       !> Get TOML value at a given index
       subroutine get(self, idx, ptr)
@@ -14748,6 +14957,7 @@ module tomlf_structure_list
          class(toml_value), pointer, intent(out) :: ptr
       end subroutine get
 
+
       !> Push back a TOML value to the structure
       subroutine push_back(self, val)
          import :: toml_list_structure, toml_value
@@ -14759,6 +14969,7 @@ module tomlf_structure_list
          class(toml_value), allocatable, intent(inout) :: val
 
       end subroutine push_back
+
 
       !> Remove the first element from the data structure
       subroutine shift(self, val)
@@ -14772,6 +14983,7 @@ module tomlf_structure_list
 
       end subroutine shift
 
+
       !> Remove the last element from the data structure
       subroutine pop(self, val)
          import :: toml_list_structure, toml_value
@@ -14783,6 +14995,7 @@ module tomlf_structure_list
          class(toml_value), allocatable, intent(out) :: val
 
       end subroutine pop
+
 
       !> Delete TOML value at a given key
       subroutine delete(self, key)
@@ -14796,6 +15009,7 @@ module tomlf_structure_list
 
       end subroutine delete
 
+
       !> Deconstructor for data structure
       subroutine destroy(self)
          import :: toml_list_structure
@@ -14807,10 +15021,11 @@ module tomlf_structure_list
 
    end interface
 
+
 end module tomlf_structure_list
 
-!>>>>> build/dependencies/toml-f/src/tomlf/structure/map.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/structure/map.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -14832,6 +15047,7 @@ module tomlf_structure_map
    private
 
    public :: toml_map_structure
+
 
    !> Abstract data structure
    type, abstract :: toml_map_structure
@@ -14857,6 +15073,7 @@ module tomlf_structure_map
 
    end type toml_map_structure
 
+
    abstract interface
       !> Get TOML value at a given key
       subroutine get(self, key, ptr)
@@ -14872,6 +15089,7 @@ module tomlf_structure_map
          class(toml_value), pointer, intent(out) :: ptr
       end subroutine get
 
+
       !> Push back a TOML value to the structure
       subroutine push_back(self, val)
          import :: toml_map_structure, toml_value
@@ -14884,6 +15102,7 @@ module tomlf_structure_map
 
       end subroutine push_back
 
+
       !> Get list of all keys in the structure
       subroutine get_keys(self, list)
          import :: toml_map_structure, toml_key
@@ -14895,6 +15114,7 @@ module tomlf_structure_map
          type(toml_key), allocatable, intent(out) :: list(:)
 
       end subroutine get_keys
+
 
       !> Remove TOML value at a given key and return it
       subroutine pop(self, key, val)
@@ -14911,6 +15131,7 @@ module tomlf_structure_map
 
       end subroutine pop
 
+
       !> Delete TOML value at a given key
       subroutine delete(self, key)
          import :: toml_map_structure, toml_value, tfc
@@ -14923,6 +15144,7 @@ module tomlf_structure_map
 
       end subroutine delete
 
+
       !> Deconstructor for data structure
       subroutine destroy(self)
          import :: toml_map_structure
@@ -14934,10 +15156,11 @@ module tomlf_structure_map
 
    end interface
 
+
 end module tomlf_structure_map
 
-!>>>>> build/dependencies/toml-f/src/tomlf/structure/node.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/structure/node.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -14962,6 +15185,7 @@ module tomlf_structure_node
 
    public :: toml_node, resize
 
+
    !> Wrapped TOML value to generate pointer list
    type :: toml_node
 
@@ -14970,10 +15194,13 @@ module tomlf_structure_node
 
    end type toml_node
 
+
    !> Initial storage capacity of the datastructure
    integer, parameter :: initial_size = 16
 
+
 contains
+
 
 !> Change size of the TOML value list
 subroutine resize(list, n)
@@ -14986,6 +15213,7 @@ subroutine resize(list, n)
 
    type(toml_node), allocatable, target :: tmp(:)
    integer :: i
+
 
    if (allocated(list)) then
       call move_alloc(list, tmp)
@@ -15013,8 +15241,8 @@ end subroutine resize
 
 end module tomlf_structure_node
 
-!>>>>> build/dependencies/toml-f/src/tomlf/type/keyval.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/type/keyval.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -15037,6 +15265,7 @@ module tomlf_type_keyval
    private
 
    public :: toml_keyval, new_keyval, new
+
 
    !> Generic TOML value
    type, abstract :: generic_value
@@ -15066,6 +15295,8 @@ module tomlf_type_keyval
    type, extends(generic_value) :: string_value
       character(:, tfc), allocatable :: raw
    end type string_value
+
+
 
    !> TOML key-value pair
    type, extends(toml_value) :: toml_keyval
@@ -15102,12 +15333,15 @@ module tomlf_type_keyval
 
    end type toml_keyval
 
+
    !> Overloaded constructor for TOML values
    interface new
       module procedure :: new_keyval
    end interface
 
+
 contains
+
 
 !> Constructor to create a new TOML key-value pair
 subroutine new_keyval(self)
@@ -15118,6 +15352,7 @@ subroutine new_keyval(self)
    associate(self => self); end associate
 
 end subroutine new_keyval
+
 
 !> Deconstructor to cleanup allocations (optional)
 subroutine destroy(self)
@@ -15135,6 +15370,7 @@ subroutine destroy(self)
 
 end subroutine destroy
 
+
 !> Obtain real value from TOML key-value pair
 subroutine get_float(self, val)
 
@@ -15146,6 +15382,7 @@ subroutine get_float(self, val)
 
    val => cast_float(self%val)
 end subroutine get_float
+
 
 !> Obtain integer value from TOML key-value pair
 subroutine get_integer(self, val)
@@ -15159,6 +15396,7 @@ subroutine get_integer(self, val)
    val => cast_integer(self%val)
 end subroutine get_integer
 
+
 !> Obtain boolean value from TOML key-value pair
 subroutine get_boolean(self, val)
 
@@ -15170,6 +15408,7 @@ subroutine get_boolean(self, val)
 
    val => cast_boolean(self%val)
 end subroutine get_boolean
+
 
 !> Obtain datetime value from TOML key-value pair
 subroutine get_datetime(self, val)
@@ -15183,6 +15422,7 @@ subroutine get_datetime(self, val)
    val => cast_datetime(self%val)
 end subroutine get_datetime
 
+
 !> Obtain datetime value from TOML key-value pair
 subroutine get_string(self, val)
 
@@ -15194,6 +15434,7 @@ subroutine get_string(self, val)
 
    val => cast_string(self%val)
 end subroutine get_string
+
 
 !> Obtain real value from TOML key-value pair
 subroutine set_float(self, val)
@@ -15211,6 +15452,7 @@ subroutine set_float(self, val)
    call move_alloc(tmp, self%val)
 end subroutine set_float
 
+
 !> Obtain integer value from TOML key-value pair
 subroutine set_integer(self, val)
 
@@ -15226,6 +15468,7 @@ subroutine set_integer(self, val)
    tmp%raw = val
    call move_alloc(tmp, self%val)
 end subroutine set_integer
+
 
 !> Obtain boolean value from TOML key-value pair
 subroutine set_boolean(self, val)
@@ -15243,6 +15486,7 @@ subroutine set_boolean(self, val)
    call move_alloc(tmp, self%val)
 end subroutine set_boolean
 
+
 !> Obtain datetime value from TOML key-value pair
 subroutine set_datetime(self, val)
 
@@ -15259,6 +15503,7 @@ subroutine set_datetime(self, val)
    call move_alloc(tmp, self%val)
 end subroutine set_datetime
 
+
 !> Obtain datetime value from TOML key-value pair
 subroutine set_string(self, val)
 
@@ -15274,6 +15519,7 @@ subroutine set_string(self, val)
    tmp%raw = val
    call move_alloc(tmp, self%val)
 end subroutine set_string
+
 
 !> Get the type of the value stored in the key-value pair
 pure function get_type(self) result(value_type)
@@ -15299,6 +15545,7 @@ pure function get_type(self) result(value_type)
       value_type = toml_type%string
    end select
 end function get_type
+
 
 function cast_float(val) result(ptr)
    class(generic_value), intent(in), target :: val
@@ -15357,8 +15604,8 @@ end function cast_string
 
 end module tomlf_type_keyval
 
-!>>>>> build/dependencies/toml-f/src/tomlf/utils/sort.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/utils/sort.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -15380,10 +15627,12 @@ module tomlf_utils_sort
 
    public :: sort, compare_less
 
+
    !> Create overloaded interface for export
    interface sort
       module procedure :: sort_keys
    end interface
+
 
    abstract interface
       !> Define order relation between two TOML keys
@@ -15398,7 +15647,9 @@ module tomlf_utils_sort
       end function compare_less
    end interface
 
+
 contains
+
 
    !> Entry point for sorting algorithm
    pure subroutine sort_keys(list, idx, compare)
@@ -15439,6 +15690,7 @@ contains
 
    end subroutine sort_keys
 
+
    !> Actual quick sort implementation
    pure recursive subroutine quicksort(list, idx, low, high, less)
       type(toml_key), intent(inout) :: list(:)
@@ -15468,6 +15720,7 @@ contains
 
    end subroutine quicksort
 
+
    !> Swap two integer values
    pure subroutine swap(lhs, rhs)
       integer, intent(inout) :: lhs
@@ -15481,6 +15734,7 @@ contains
 
    end subroutine swap
 
+
    !> Default comparison between two TOML keys
    pure function compare_keys_less(lhs, rhs) result(less)
       type(toml_key), intent (in) :: lhs
@@ -15491,10 +15745,11 @@ contains
 
    end function compare_keys_less
 
+
 end module tomlf_utils_sort
 
-!>>>>> ././src/fpm_command_line.f90
 
+!>>>>> ././src/fpm_command_line.f90
 !># Definition of the command line interface
 !>
 !> This module uses [M_CLI2](https://github.com/urbanjost/M_CLI2) to define
@@ -15656,6 +15911,7 @@ character(len=20),parameter :: manual(*)=[ character(len=20) ::&
 character(len=:), allocatable :: val_runner, val_compiler, val_flag, val_cflag, val_cxxflag, val_ldflag, &
     val_profile, val_runner_args, val_dump
 
+
 !   '12345678901234567890123456789012345678901234567890123456789012345678901234567890',&
 character(len=80), parameter :: help_text_build_common(*) = [character(len=80) ::      &
     ' --profile PROF    Selects the compilation profile for the build.               ',&
@@ -15694,6 +15950,7 @@ character(len=80), parameter :: help_text_flag(*) = [character(len=80) :: &
     ' --link-flag LDFLAGS  select arguments passed to the linker for the build. The  ',&
     '                   default value is set by the FPM_LDFLAGS environment variable.'&
     ]
+
 
 character(len=80), parameter :: help_text_environment(*) = [character(len=80) :: &
     'ENVIRONMENT VARIABLES',&
@@ -15813,6 +16070,7 @@ contains
             else
                 names=[character(len=len(names)) :: ]
             endif
+
 
             if(specified('target') )then
                call split(sget('target'),tnames,delimiters=' ,:')
@@ -15939,6 +16197,7 @@ contains
                 & '        numbers, underscores, or hyphens, and start with a letter.']
                 call fpm_stop(4,' ')
             endif
+
 
             allocate(fpm_new_settings :: cmd_settings)
             if (any( specified([character(len=10) :: 'src','lib','app','test','example','bare'])) &
@@ -16172,6 +16431,7 @@ contains
             call get_char_arg(export_settings%dump_manifest, 'manifest')
             call get_char_arg(export_settings%dump_dependencies, 'dependencies')
             call move_alloc(export_settings, cmd_settings)
+
 
         case('clean')
             call set_args(common_args // &
@@ -17016,6 +17276,7 @@ contains
       if (len_trim(var) == 0) deallocate(var)
     end subroutine get_char_arg
 
+
     !> Get an environment variable for fpm, this routine ensures that every variable
     !> used by fpm is prefixed with FPM_.
     function get_fpm_env(env, default) result(val)
@@ -17027,6 +17288,7 @@ contains
 
       val = get_env(fpm_prefix//env, default)
     end function get_fpm_env
+
 
     !> Build a full runner command (executable + command-line arguments)
     function runner_command(cmd) result(run_cmd)
@@ -17064,10 +17326,11 @@ contains
 
     end function name_ID
 
+
 end module fpm_command_line
 
-!>>>>> build/dependencies/toml-f/src/tomlf/de/context.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/de/context.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -17223,8 +17486,8 @@ end function report2
 
 end module tomlf_de_context
 
-!>>>>> build/dependencies/toml-f/src/tomlf/structure/array_list.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/structure/array_list.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -17251,6 +17514,7 @@ module tomlf_structure_array_list
    private
 
    public :: toml_array_list, new_array_list
+
 
    !> Stores TOML values in a list of pointers
    type, extends(toml_list_structure) :: toml_array_list
@@ -17283,10 +17547,13 @@ module tomlf_structure_array_list
 
    end type toml_array_list
 
+
    !> Initial storage capacity of the datastructure
    integer, parameter :: initial_size = 16
 
+
 contains
+
 
 !> Constructor for the storage data structure
 subroutine new_array_list(self, n)
@@ -17306,6 +17573,7 @@ subroutine new_array_list(self, n)
 
 end subroutine new_array_list
 
+
 !> Get number of TOML values in the structure
 pure function get_len(self) result(length)
 
@@ -17318,6 +17586,7 @@ pure function get_len(self) result(length)
    length = self%n
 
 end function get_len
+
 
 !> Get TOML value at a given index
 subroutine get(self, idx, ptr)
@@ -17340,6 +17609,7 @@ subroutine get(self, idx, ptr)
    end if
 
 end subroutine get
+
 
 !> Push back a TOML value to the structure
 subroutine push_back(self, val)
@@ -17366,6 +17636,7 @@ subroutine push_back(self, val)
 
 end subroutine push_back
 
+
 !> Remove the first element from the data structure
 subroutine shift(self, val)
 
@@ -17387,6 +17658,7 @@ subroutine shift(self, val)
 
 end subroutine shift
 
+
 !> Remove the last element from the data structure
 subroutine pop(self, val)
 
@@ -17402,6 +17674,7 @@ subroutine pop(self, val)
    end if
 
 end subroutine pop
+
 
 !> Deconstructor for data structure
 subroutine destroy(self)
@@ -17422,10 +17695,11 @@ subroutine destroy(self)
 
 end subroutine destroy
 
+
 end module tomlf_structure_array_list
 
-!>>>>> build/dependencies/toml-f/src/tomlf/structure/ordered_map.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/structure/ordered_map.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -17452,6 +17726,7 @@ module tomlf_structure_ordered_map
    private
 
    public :: toml_ordered_map, new_ordered_map
+
 
    !> Stores TOML values in a list of pointers
    type, extends(toml_map_structure) :: toml_ordered_map
@@ -17484,10 +17759,13 @@ module tomlf_structure_ordered_map
 
    end type toml_ordered_map
 
+
    !> Initial storage capacity of the datastructure
    integer, parameter :: initial_size = 16
 
+
 contains
+
 
 !> Constructor for the storage data structure
 subroutine new_ordered_map(self, n)
@@ -17506,6 +17784,7 @@ subroutine new_ordered_map(self, n)
    end if
 
 end subroutine new_ordered_map
+
 
 !> Get TOML value at a given key
 subroutine get(self, key, ptr)
@@ -17534,6 +17813,7 @@ subroutine get(self, key, ptr)
 
 end subroutine get
 
+
 !> Push back a TOML value to the structure
 subroutine push_back(self, val)
 
@@ -17559,6 +17839,7 @@ subroutine push_back(self, val)
 
 end subroutine push_back
 
+
 !> Get list of all keys in the structure
 subroutine get_keys(self, list)
 
@@ -17582,6 +17863,7 @@ subroutine get_keys(self, list)
    end do
 
 end subroutine get_keys
+
 
 !> Remove TOML value at a given key and return it
 subroutine pop(self, key, val)
@@ -17617,6 +17899,7 @@ subroutine pop(self, key, val)
 
 end subroutine pop
 
+
 !> Delete TOML value at a given key
 subroutine delete(self, key)
 
@@ -17634,6 +17917,7 @@ subroutine delete(self, key)
    end if
 
 end subroutine delete
+
 
 !> Deconstructor for data structure
 subroutine destroy(self)
@@ -17654,10 +17938,11 @@ subroutine destroy(self)
 
 end subroutine destroy
 
+
 end module tomlf_structure_ordered_map
 
-!>>>>> build/dependencies/toml-f/src/tomlf/structure.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/structure.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -17694,7 +17979,9 @@ module tomlf_structure
    public :: toml_list_structure, toml_map_structure
    public :: new_list_structure, new_map_structure
 
+
 contains
+
 
 !> Constructor for the ordered storage data structure
 subroutine new_list_structure(self)
@@ -17712,6 +17999,7 @@ subroutine new_list_structure(self)
 
 end subroutine new_list_structure
 
+
 !> Constructor for the storage data structure
 subroutine new_map_structure(self)
 
@@ -17728,10 +18016,11 @@ subroutine new_map_structure(self)
 
 end subroutine new_map_structure
 
+
 end module tomlf_structure
 
-!>>>>> build/dependencies/toml-f/src/tomlf/de/lexer.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/de/lexer.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -17774,6 +18063,7 @@ module tomlf_de_lexer
 
    public :: toml_lexer, new_lexer_from_file, new_lexer_from_unit, new_lexer_from_string
    public :: toml_token, stringify, token_kind
+
 
    !> Possible characters encountered in a lexeme
    type :: enum_char
@@ -17840,6 +18130,7 @@ module tomlf_de_lexer
    interface resize
       module procedure :: resize_scope
    end interface
+
 
    !> Tokenizer for TOML documents.
    type, extends(abstract_lexer) :: toml_lexer
@@ -17954,6 +18245,7 @@ subroutine new_lexer_from_string(lexer, string)
    lexer%chunk(:length) = string
    call resize(lexer%stack)
 end subroutine new_lexer_from_string
+
 
 !> Advance the lexer to the next token.
 subroutine next(lexer, token)
@@ -18451,6 +18743,7 @@ subroutine next_integer(lexer, token)
       end select
    end if
 
+
    do while(pos <= len(lexer%chunk))
       ch = peek(lexer, pos)
       if (ch == "_") then
@@ -18690,6 +18983,7 @@ pure function valid_date(string) result(valid)
    valid = day >= 1 .and. day <= mday
 end function valid_date
 
+
 !> Validate a string as time
 function valid_time(string) result(valid)
    !> Input string, 8 characters
@@ -18730,6 +19024,7 @@ function valid_time(string) result(valid)
       & .and. hour >= 0 .and. hour < 24
 end function valid_time
 
+
 !> Validate a string as timezone
 function valid_local(string) result(valid)
    !> Input string, 6 characters
@@ -18761,6 +19056,7 @@ function valid_local(string) result(valid)
    valid = minute >= 0 .and. minute < 60 &
       & .and. hour >= 0 .and. hour < 24
 end function valid_local
+
 
 !> Show current character
 elemental function peek(lexer, pos) result(ch)
@@ -19118,6 +19414,7 @@ subroutine extract_datetime(lexer, token, val)
    val = toml_datetime(lexer%chunk(token%first:token%last))
 end subroutine extract_datetime
 
+
 !> Push a new scope onto the lexer stack and record the token
 pure subroutine push_back(lexer, scope, token)
    type(toml_lexer), intent(inout) :: lexer
@@ -19150,6 +19447,7 @@ pure function view_scope(lexer) result(scope)
       scope = lexer_scope%table
    end if
 end function view_scope
+
 
 !> Reallocate list of scopes
 pure subroutine resize_scope(var, n)
@@ -19185,6 +19483,7 @@ pure subroutine resize_scope(var, n)
 
 end subroutine resize_scope
 
+
 !> Extract information about the source
 subroutine get_info(lexer, meta, output)
    !> Instance of the lexer
@@ -19202,6 +19501,7 @@ subroutine get_info(lexer, meta, output)
    end select
 end subroutine get_info
 
+
 function hex_to_int(hex) result(val)
    character(*, tfc), intent(in) :: hex
    integer(tfi) :: val
@@ -19217,6 +19517,7 @@ function hex_to_int(hex) result(val)
    end do
 end function hex_to_int
 
+
 function verify_ucs(escape) result(valid)
    character(*, tfc), intent(in) :: escape
    logical :: valid
@@ -19228,6 +19529,7 @@ function verify_ucs(escape) result(valid)
       & .and. (code < int(z"d800", tfi) .or. code > int(z"dfff", tfi)) &
       & .and. (code < int(z"fffe", tfi) .or. code > int(z"ffff", tfi))
 end function verify_ucs
+
 
 function convert_ucs(escape) result(str)
    character(*, tfc), intent(in) :: escape
@@ -19272,10 +19574,11 @@ function convert_ucs(escape) result(str)
    end select
 end function convert_ucs
 
+
 end module tomlf_de_lexer
 
-!>>>>> build/dependencies/toml-f/src/tomlf/type/array.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/type/array.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -19298,6 +19601,7 @@ module tomlf_type_array
    private
 
    public :: toml_array, new_array, new, initialized, len
+
 
    !> TOML array
    type, extends(toml_value) :: toml_array
@@ -19327,27 +19631,33 @@ module tomlf_type_array
 
    end type toml_array
 
+
    !> Create standard constructor
    interface toml_array
       module procedure :: new_array_func
    end interface toml_array
+
 
    !> Overloaded constructor for TOML values
    interface new
       module procedure :: new_array
    end interface
 
+
    !> Overload len function
    interface len
       module procedure :: get_len
    end interface
+
 
    !> Check whether data structure is initialized properly
    interface initialized
       module procedure :: array_initialized
    end interface initialized
 
+
 contains
+
 
 !> Constructor to create a new TOML array and allocate the internal storage
 subroutine new_array(self)
@@ -19359,6 +19669,7 @@ subroutine new_array(self)
 
 end subroutine new_array
 
+
 !> Default constructor for TOML array type
 function new_array_func() result(self)
 
@@ -19368,6 +19679,7 @@ function new_array_func() result(self)
    call new_array(self)
 
 end function new_array_func
+
 
 !> Check whether data structure is initialized properly
 pure function array_initialized(self) result(okay)
@@ -19381,6 +19693,7 @@ pure function array_initialized(self) result(okay)
    okay = allocated(self%list)
 end function array_initialized
 
+
 !> Get number of TOML values in the array
 pure function get_len(self) result(length)
 
@@ -19393,6 +19706,7 @@ pure function get_len(self) result(length)
    length = self%list%get_len()
 
 end function get_len
+
 
 !> Get the TOML value at the respective index
 subroutine get(self, idx, ptr)
@@ -19409,6 +19723,7 @@ subroutine get(self, idx, ptr)
    call self%list%get(idx, ptr)
 
 end subroutine get
+
 
 !> Push back a TOML value to the array
 subroutine push_back(self, val, stat)
@@ -19433,6 +19748,7 @@ subroutine push_back(self, val, stat)
 
 end subroutine push_back
 
+
 !> Remove the first element from the data structure
 subroutine shift(self, val)
 
@@ -19446,6 +19762,7 @@ subroutine shift(self, val)
 
 end subroutine shift
 
+
 !> Remove the last element from the data structure
 subroutine pop(self, val)
 
@@ -19458,6 +19775,7 @@ subroutine pop(self, val)
    call self%list%pop(val)
 
 end subroutine pop
+
 
 !> Deconstructor to cleanup allocations (optional)
 subroutine destroy(self)
@@ -19476,10 +19794,11 @@ subroutine destroy(self)
 
 end subroutine destroy
 
+
 end module tomlf_type_array
 
-!>>>>> build/dependencies/toml-f/src/tomlf/type/table.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/type/table.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -19506,6 +19825,7 @@ module tomlf_type_table
    private
 
    public :: toml_table, new_table, new, initialized
+
 
    !> TOML table
    type, extends(toml_value) :: toml_table
@@ -19544,22 +19864,27 @@ module tomlf_type_table
 
    end type toml_table
 
+
    !> Create standard constructor
    interface toml_table
       module procedure :: new_table_func
    end interface toml_table
+
 
    !> Overloaded constructor for TOML values
    interface new
       module procedure :: new_table
    end interface
 
+
    !> Check whether data structure is initialized properly
    interface initialized
       module procedure :: table_initialized
    end interface initialized
 
+
 contains
+
 
 !> Constructor to create a new TOML table and allocate the internal storage
 subroutine new_table(self)
@@ -19571,6 +19896,7 @@ subroutine new_table(self)
 
 end subroutine new_table
 
+
 !> Default constructor for TOML table type
 function new_table_func() result(self)
 
@@ -19580,6 +19906,7 @@ function new_table_func() result(self)
    call new_table(self)
 
 end function new_table_func
+
 
 !> Check whether data structure is initialized properly
 pure function table_initialized(self) result(okay)
@@ -19592,6 +19919,7 @@ pure function table_initialized(self) result(okay)
 
    okay = allocated(self%map)
 end function table_initialized
+
 
 !> Get the TOML value associated with the respective key
 subroutine get(self, key, ptr)
@@ -19609,6 +19937,7 @@ subroutine get(self, key, ptr)
 
 end subroutine get
 
+
 !> Get list of all keys in this table
 subroutine get_keys(self, list)
 
@@ -19621,6 +19950,7 @@ subroutine get_keys(self, list)
    call self%map%get_keys(list)
 
 end subroutine get_keys
+
 
 !> Check if a key is present in the table
 function has_key(self, key) result(found)
@@ -19641,6 +19971,7 @@ function has_key(self, key) result(found)
    found = associated(ptr)
 
 end function has_key
+
 
 !> Push back a TOML value to the table
 subroutine push_back(self, val, stat)
@@ -19678,6 +20009,7 @@ subroutine push_back(self, val, stat)
 
 end subroutine push_back
 
+
 !> Remove TOML value at a given key and return it
 subroutine pop(self, key, val)
 
@@ -19694,6 +20026,7 @@ subroutine pop(self, key, val)
 
 end subroutine pop
 
+
 !> Delete TOML value at a given key
 subroutine delete(self, key)
 
@@ -19706,6 +20039,7 @@ subroutine delete(self, key)
    call self%map%delete(key)
 
 end subroutine delete
+
 
 !> Deconstructor to cleanup allocations (optional)
 subroutine destroy(self)
@@ -19724,10 +20058,11 @@ subroutine destroy(self)
 
 end subroutine destroy
 
+
 end module tomlf_type_table
 
-!>>>>> build/dependencies/toml-f/src/tomlf/type.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/type.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -19773,12 +20108,14 @@ module tomlf_type
    public :: is_array_of_tables
    public :: cast_to_table, cast_to_array, cast_to_keyval
 
+
    !> Interface to build new tables
    interface add_table
       module procedure :: add_table_to_table
       module procedure :: add_table_to_table_key
       module procedure :: add_table_to_array
    end interface add_table
+
 
    !> Interface to build new arrays
    interface add_array
@@ -19787,6 +20124,7 @@ module tomlf_type
       module procedure :: add_array_to_array
    end interface add_array
 
+
    !> Interface to build new key-value pairs
    interface add_keyval
       module procedure :: add_keyval_to_table
@@ -19794,7 +20132,9 @@ module tomlf_type
       module procedure :: add_keyval_to_array
    end interface add_keyval
 
+
 contains
+
 
 !> Create a new TOML table inside an existing table
 subroutine add_table_to_table(table, key, ptr, stat)
@@ -19845,6 +20185,7 @@ subroutine add_table_to_table(table, key, ptr, stat)
 
 end subroutine add_table_to_table
 
+
 !> Create a new TOML table inside an existing table
 subroutine add_table_to_table_key(table, key, ptr, stat)
 
@@ -19863,6 +20204,7 @@ subroutine add_table_to_table_key(table, key, ptr, stat)
    call add_table(table, key%key, ptr, stat)
    if (associated(ptr)) ptr%origin = key%origin
 end subroutine add_table_to_table_key
+
 
 !> Create a new TOML array inside an existing table
 subroutine add_array_to_table(table, key, ptr, stat)
@@ -19913,6 +20255,7 @@ subroutine add_array_to_table(table, key, ptr, stat)
 
 end subroutine add_array_to_table
 
+
 !> Create a new TOML array inside an existing table
 subroutine add_array_to_table_key(table, key, ptr, stat)
 
@@ -19931,6 +20274,7 @@ subroutine add_array_to_table_key(table, key, ptr, stat)
    call add_array(table, key%key, ptr, stat)
    if (associated(ptr)) ptr%origin = key%origin
 end subroutine add_array_to_table_key
+
 
 !> Create a new key-value pair inside an existing table
 subroutine add_keyval_to_table(table, key, ptr, stat)
@@ -19981,6 +20325,7 @@ subroutine add_keyval_to_table(table, key, ptr, stat)
 
 end subroutine add_keyval_to_table
 
+
 !> Create a new key-value pair inside an existing table
 subroutine add_keyval_to_table_key(table, key, ptr, stat)
 
@@ -19999,6 +20344,7 @@ subroutine add_keyval_to_table_key(table, key, ptr, stat)
    call add_keyval(table, key%key, ptr, stat)
    if (associated(ptr)) ptr%origin = key%origin
 end subroutine add_keyval_to_table_key
+
 
 !> Create a new TOML table inside an existing array
 subroutine add_table_to_array(array, ptr, stat)
@@ -20044,6 +20390,7 @@ subroutine add_table_to_array(array, ptr, stat)
    if (present(stat)) stat = istat
 
 end subroutine add_table_to_array
+
 
 !> Create a new TOML array inside an existing array
 subroutine add_array_to_array(array, ptr, stat)
@@ -20091,6 +20438,7 @@ subroutine add_array_to_array(array, ptr, stat)
 
 end subroutine add_array_to_array
 
+
 !> Create a new key-value pair inside an existing array
 subroutine add_keyval_to_array(array, ptr, stat)
 
@@ -20136,6 +20484,7 @@ subroutine add_keyval_to_array(array, ptr, stat)
 
 end subroutine add_keyval_to_array
 
+
 !> Wrapped constructor to create a new TOML table on an abstract TOML value
 subroutine new_table_(self)
 
@@ -20149,6 +20498,7 @@ subroutine new_table_(self)
    call move_alloc(val, self)
 
 end subroutine new_table_
+
 
 !> Wrapped constructor to create a new TOML array on an abstract TOML value
 subroutine new_array_(self)
@@ -20164,6 +20514,7 @@ subroutine new_array_(self)
 
 end subroutine new_array_
 
+
 !> Wrapped constructor to create a new TOML array on an abstract TOML value
 subroutine new_keyval_(self)
 
@@ -20178,6 +20529,7 @@ subroutine new_keyval_(self)
 
 end subroutine new_keyval_
 
+
 !> Determine if array contains only tables
 function is_array_of_tables(array) result(only_tables)
 
@@ -20189,6 +20541,7 @@ function is_array_of_tables(array) result(only_tables)
 
    class(toml_value), pointer :: ptr
    integer :: i, n
+
 
    n = len(array)
    only_tables = n > 0
@@ -20205,6 +20558,7 @@ function is_array_of_tables(array) result(only_tables)
    end do
 
 end function is_array_of_tables
+
 
 !> Cast an abstract TOML value to a TOML array
 function cast_to_array(ptr) result(array)
@@ -20248,10 +20602,11 @@ function cast_to_keyval(ptr) result(kval)
    end select
 end function cast_to_keyval
 
+
 end module tomlf_type
 
-!>>>>> build/dependencies/toml-f/src/tomlf/ser.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/ser.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -20279,6 +20634,7 @@ module tomlf_ser
    public :: toml_serializer, new_serializer, new
    public :: toml_dump, toml_dumps, toml_serialize
 
+
    interface toml_dumps
       module procedure :: toml_dump_to_string
    end interface toml_dumps
@@ -20288,6 +20644,7 @@ module tomlf_ser
       module procedure :: toml_dump_to_unit
    end interface toml_dump
 
+
    !> Configuration for JSON serializer
    type :: toml_ser_config
 
@@ -20295,6 +20652,7 @@ module tomlf_ser
       character(len=:), allocatable :: indent
 
    end type toml_ser_config
+
 
    !> TOML serializer to produduce a TOML document from a datastructure
    type, extends(toml_visitor) :: toml_serializer
@@ -20325,20 +20683,25 @@ module tomlf_ser
 
    end type toml_serializer
 
+
    !> Create standard constructor
    interface toml_serializer
       module procedure :: new_serializer_func
    end interface toml_serializer
+
 
    !> Overloaded constructor for TOML serializers
    interface new
       module procedure :: new_serializer
    end interface
 
+
    !> Initial size of the key path stack
    integer, parameter :: initial_size = 8
 
+
 contains
+
 
 !> Serialize a JSON value to a string and return it.
 !>
@@ -20362,6 +20725,7 @@ function toml_serialize(val, config) result(string)
    end if
 end function toml_serialize
 
+
 !> Create a string representing the JSON value
 subroutine toml_dump_to_string(val, string, error, config)
 
@@ -20383,6 +20747,7 @@ subroutine toml_dump_to_string(val, string, error, config)
    call val%accept(ser)
    string = ser%output
 end subroutine toml_dump_to_string
+
 
 !> Write string representation of JSON value to a connected formatted unit
 subroutine toml_dump_to_unit(val, io, error, config)
@@ -20411,6 +20776,7 @@ subroutine toml_dump_to_unit(val, io, error, config)
       return
    end if
 end subroutine toml_dump_to_unit
+
 
 !> Write string representation of JSON value to a file
 subroutine toml_dump_to_file(val, filename, error, config)
@@ -20443,6 +20809,7 @@ subroutine toml_dump_to_file(val, filename, error, config)
    end if
 end subroutine toml_dump_to_file
 
+
 !> Constructor to create new serializer instance
 subroutine new_serializer(self, config)
 
@@ -20456,6 +20823,7 @@ subroutine new_serializer(self, config)
    if (present(config)) self%config = config
 end subroutine new_serializer
 
+
 !> Default constructor for TOML serializer
 function new_serializer_func(config) result(self)
 
@@ -20467,6 +20835,7 @@ function new_serializer_func(config) result(self)
 
    call new_serializer(self, config)
 end function new_serializer_func
+
 
 !> Visit a TOML value
 recursive subroutine visit(self, val)
@@ -20487,6 +20856,7 @@ recursive subroutine visit(self, val)
    end select
 
 end subroutine visit
+
 
 !> Visit a TOML key-value pair
 subroutine visit_keyval(visitor, keyval)
@@ -20537,6 +20907,7 @@ subroutine visit_keyval(visitor, keyval)
    end if
 
 end subroutine visit_keyval
+
 
 !> Visit a TOML array
 recursive subroutine visit_array(visitor, array)
@@ -20611,6 +20982,7 @@ recursive subroutine visit_array(visitor, array)
    if (visitor%inline_array) visitor%output = visitor%output // " ]"
 
 end subroutine visit_array
+
 
 !> Visit a TOML table
 recursive subroutine visit_table(visitor, table)
@@ -20730,6 +21102,7 @@ recursive subroutine visit_table(visitor, table)
 
 end subroutine visit_table
 
+
 !> Change size of the stack
 subroutine resize(stack, n)
 
@@ -20767,10 +21140,11 @@ subroutine resize(stack, n)
 
 end subroutine resize
 
+
 end module tomlf_ser
 
-!>>>>> build/dependencies/toml-f/src/tomlf/build/keyval.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/build/keyval.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -20803,6 +21177,7 @@ module tomlf_build_keyval
 
    public :: get_value, set_value
 
+
    !> Setter functions to manipulate TOML values
    interface set_value
       module procedure :: set_value_float_sp
@@ -20815,6 +21190,7 @@ module tomlf_build_keyval
       module procedure :: set_value_datetime
       module procedure :: set_value_string
    end interface set_value
+
 
    !> Getter functions to manipulate TOML values
    interface get_value
@@ -20829,10 +21205,13 @@ module tomlf_build_keyval
       module procedure :: get_value_string
    end interface get_value
 
+
    !> Length for the static character variables
    integer, parameter :: buffersize = 128
 
+
 contains
+
 
 !> Retrieve TOML value as single precision float (might lose accuracy)
 subroutine get_value_float_sp(self, val, stat, origin)
@@ -20875,6 +21254,7 @@ subroutine get_value_float_sp(self, val, stat, origin)
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_float_sp
 
+
 !> Retrieve TOML value as double precision float
 subroutine get_value_float_dp(self, val, stat, origin)
 
@@ -20916,6 +21296,7 @@ subroutine get_value_float_dp(self, val, stat, origin)
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_float_dp
 
+
 !> Retrieve TOML value as one byte integer (might loose precision)
 subroutine get_value_integer_i1(self, val, stat, origin)
 
@@ -20949,6 +21330,7 @@ subroutine get_value_integer_i1(self, val, stat, origin)
    if (present(stat)) stat = info
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_integer_i1
+
 
 !> Retrieve TOML value as two byte integer (might loose precision)
 subroutine get_value_integer_i2(self, val, stat, origin)
@@ -20984,6 +21366,7 @@ subroutine get_value_integer_i2(self, val, stat, origin)
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_integer_i2
 
+
 !> Retrieve TOML value as four byte integer (might loose precision)
 subroutine get_value_integer_i4(self, val, stat, origin)
 
@@ -21018,6 +21401,7 @@ subroutine get_value_integer_i4(self, val, stat, origin)
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_integer_i4
 
+
 !> Retrieve TOML value as eight byte integer
 subroutine get_value_integer_i8(self, val, stat, origin)
 
@@ -21047,6 +21431,7 @@ subroutine get_value_integer_i8(self, val, stat, origin)
    if (present(stat)) stat = info
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_integer_i8
+
 
 !> Retrieve TOML value as logical
 subroutine get_value_bool(self, val, stat, origin)
@@ -21078,6 +21463,7 @@ subroutine get_value_bool(self, val, stat, origin)
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_bool
 
+
 !> Retrieve TOML value as datetime
 subroutine get_value_datetime(self, val, stat, origin)
 
@@ -21107,6 +21493,7 @@ subroutine get_value_datetime(self, val, stat, origin)
    if (present(stat)) stat = info
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_datetime
+
 
 !> Retrieve TOML value as deferred-length character
 subroutine get_value_string(self, val, stat, origin)
@@ -21138,6 +21525,7 @@ subroutine get_value_string(self, val, stat, origin)
    if (present(origin)) origin = self%origin_value
 end subroutine get_value_string
 
+
 !> Set TOML value to single precision float
 subroutine set_value_float_sp(self, val, stat, origin)
 
@@ -21159,6 +21547,7 @@ subroutine set_value_float_sp(self, val, stat, origin)
    self%origin_value = 0
    if (present(origin)) origin = self%origin
 end subroutine set_value_float_sp
+
 
 !> Set TOML value to double precision float
 subroutine set_value_float_dp(self, val, stat, origin)
@@ -21182,6 +21571,7 @@ subroutine set_value_float_dp(self, val, stat, origin)
    if (present(origin)) origin = self%origin
 end subroutine set_value_float_dp
 
+
 !> Set TOML value to one byte integer
 subroutine set_value_integer_i1(self, val, stat, origin)
 
@@ -21203,6 +21593,7 @@ subroutine set_value_integer_i1(self, val, stat, origin)
    self%origin_value = 0
    if (present(origin)) origin = self%origin
 end subroutine set_value_integer_i1
+
 
 !> Set TOML value to two byte integer
 subroutine set_value_integer_i2(self, val, stat, origin)
@@ -21226,6 +21617,7 @@ subroutine set_value_integer_i2(self, val, stat, origin)
    if (present(origin)) origin = self%origin
 end subroutine set_value_integer_i2
 
+
 !> Set TOML value to four byte integer
 subroutine set_value_integer_i4(self, val, stat, origin)
 
@@ -21247,6 +21639,7 @@ subroutine set_value_integer_i4(self, val, stat, origin)
    self%origin_value = 0
    if (present(origin)) origin = self%origin
 end subroutine set_value_integer_i4
+
 
 !> Set TOML value to eight byte integer
 subroutine set_value_integer_i8(self, val, stat, origin)
@@ -21270,6 +21663,7 @@ subroutine set_value_integer_i8(self, val, stat, origin)
    if (present(origin)) origin = self%origin
 end subroutine set_value_integer_i8
 
+
 !> Set TOML value to logical
 subroutine set_value_bool(self, val, stat, origin)
 
@@ -21291,6 +21685,7 @@ subroutine set_value_bool(self, val, stat, origin)
    self%origin_value = 0
    if (present(origin)) origin = self%origin
 end subroutine set_value_bool
+
 
 !> Set TOML value to datetime
 subroutine set_value_datetime(self, val, stat, origin)
@@ -21314,6 +21709,7 @@ subroutine set_value_datetime(self, val, stat, origin)
    if (present(origin)) origin = self%origin
 end subroutine set_value_datetime
 
+
 !> Set TOML value to deferred-length character
 subroutine set_value_string(self, val, stat, origin)
 
@@ -21336,10 +21732,11 @@ subroutine set_value_string(self, val, stat, origin)
    if (present(origin)) origin = self%origin
 end subroutine set_value_string
 
+
 end module tomlf_build_keyval
 
-!>>>>> build/dependencies/toml-f/src/tomlf/build/merge.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/build/merge.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -21365,6 +21762,7 @@ module tomlf_build_merge
 
    public :: merge_table, merge_array, merge_policy, toml_merge_config
 
+
    !> Possible merge policies
    type :: enum_policy
 
@@ -21380,6 +21778,7 @@ module tomlf_build_merge
 
    !> Actual enumerator for merging data structures
    type(enum_policy), parameter :: merge_policy = enum_policy()
+
 
    !> Configuration for merging data structures
    type :: toml_merge_config
@@ -21399,7 +21798,9 @@ module tomlf_build_merge
       module procedure :: new_merge_config
    end interface toml_merge_config
 
+
 contains
+
 
 !> Create a new merge configuration
 pure function new_merge_config(table, array, keyval) result(config)
@@ -21437,6 +21838,7 @@ contains
    end subroutine set_enum
 
 end function new_merge_config
+
 
 !> Merge TOML tables by appending their values
 recursive subroutine merge_table(lhs, rhs, config)
@@ -21522,6 +21924,7 @@ recursive subroutine merge_table(lhs, rhs, config)
 
 end subroutine merge_table
 
+
 !> Append values from one TOML array to another
 recursive subroutine merge_array(lhs, rhs)
 
@@ -21546,10 +21949,11 @@ recursive subroutine merge_array(lhs, rhs)
 
 end subroutine merge_array
 
+
 end module tomlf_build_merge
 
-!>>>>> build/dependencies/toml-f/src/tomlf/de/parser.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/de/parser.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -21579,6 +21983,7 @@ module tomlf_de_parser
    private
 
    public :: toml_parser, toml_parser_config, parse
+
 
    !> Configuration of the TOML parser
    type :: toml_parser_config
@@ -21695,6 +22100,7 @@ subroutine parse_root(parser, lexer)
    end do
 end subroutine parse_root
 
+
 !> Parse a table or array of tables header
 subroutine parse_table_header(parser, lexer)
    !> Instance of the parser
@@ -21712,6 +22118,7 @@ subroutine parse_table_header(parser, lexer)
    integer :: top
    type(toml_key), allocatable :: stack(:)
    type(toml_token), allocatable :: leading_whitespace, trailing_whitespace
+
 
    call consume(parser, lexer, token_kind%lbracket)
    if (allocated(parser%diagnostic)) return
@@ -22410,8 +22817,8 @@ end subroutine get_table
 
 end module tomlf_de_parser
 
-!>>>>> build/dependencies/jonquil/src/jonquil/ser.f90
 
+!>>>>> build/dependencies/jonquil/src/jonquil/ser.f90
 ! This file is part of jonquil.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -22439,6 +22846,7 @@ module jonquil_ser
    public :: json_serializer, json_ser_config
    public :: json_dumps, json_dump, json_serialize
 
+
    interface json_dumps
       module procedure :: json_dump_to_string
    end interface json_dumps
@@ -22447,6 +22855,7 @@ module jonquil_ser
       module procedure :: json_dump_to_file
       module procedure :: json_dump_to_unit
    end interface json_dump
+
 
    !> Configuration for JSON serializer
    type :: json_ser_config
@@ -22464,6 +22873,7 @@ module jonquil_ser
       character(len=:), allocatable :: indent
 
    end type json_ser_config
+
 
    !> Serializer to produduce a JSON document from a TOML datastructure
    type, extends(toml_visitor) :: json_serializer
@@ -22484,7 +22894,9 @@ module jonquil_ser
 
    end type json_serializer
 
+
 contains
+
 
 !> Serialize a JSON value to a string and return it.
 !>
@@ -22506,6 +22918,7 @@ function json_serialize(val, config) result(string)
       error stop error%message
    end if
 end function json_serialize
+
 
 !> Create a string representing the JSON value
 subroutine json_dump_to_string(val, string, error, config)
@@ -22529,6 +22942,7 @@ subroutine json_dump_to_string(val, string, error, config)
    call val%accept(ser)
    string = ser%output
 end subroutine json_dump_to_string
+
 
 !> Write string representation of JSON value to a connected formatted unit
 subroutine json_dump_to_unit(val, io, error, config)
@@ -22557,6 +22971,7 @@ subroutine json_dump_to_unit(val, io, error, config)
       return
    end if
 end subroutine json_dump_to_unit
+
 
 !> Write string representation of JSON value to a file
 subroutine json_dump_to_file(val, filename, error, config)
@@ -22589,6 +23004,7 @@ subroutine json_dump_to_file(val, filename, error, config)
    end if
 end subroutine json_dump_to_file
 
+
 !> Visit a TOML value
 subroutine visit(self, val)
 
@@ -22610,6 +23026,7 @@ subroutine visit(self, val)
    end select
 
 end subroutine visit
+
 
 !> Visit a TOML key-value pair
 subroutine visit_keyval(visitor, keyval)
@@ -22691,6 +23108,7 @@ subroutine visit_keyval(visitor, keyval)
 
 end subroutine visit_keyval
 
+
 !> Visit a TOML array
 subroutine visit_array(visitor, array)
 
@@ -22724,6 +23142,7 @@ subroutine visit_array(visitor, array)
    visitor%output = visitor%output // "]"
 
 end subroutine visit_array
+
 
 !> Visit a TOML table
 subroutine visit_table(visitor, table)
@@ -22769,6 +23188,7 @@ subroutine visit_table(visitor, table)
 
 end subroutine visit_table
 
+
 !> Produce indentations for emitted JSON documents
 subroutine indent(self)
 
@@ -22785,6 +23205,7 @@ subroutine indent(self)
    end if
 
 end subroutine indent
+
 
 !> Transform a TOML raw value to a JSON compatible escaped string
 subroutine escape_string(raw, escaped)
@@ -22813,10 +23234,11 @@ subroutine escape_string(raw, escaped)
 
 end subroutine escape_string
 
+
 end module jonquil_ser
 
-!>>>>> build/dependencies/toml-f/src/tomlf/de.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/de.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -22847,6 +23269,7 @@ module tomlf_de
    public :: toml_load, toml_loads
    public :: toml_context, toml_parser_config, toml_level
 
+
    !> Parse a TOML document.
    !>
    !> This interface is deprecated in favor of [[toml_load]] and [[toml_loads]]
@@ -22866,7 +23289,9 @@ module tomlf_de
       module procedure :: toml_load_string
    end interface toml_loads
 
+
 contains
+
 
 !> Parse a TOML input from a given IO unit.
 !>
@@ -22964,8 +23389,8 @@ end subroutine toml_load_string
 
 end module tomlf_de
 
-!>>>>> build/dependencies/toml-f/src/tomlf/build/array.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/build/array.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -23016,6 +23441,7 @@ module tomlf_build_array
 
    public :: get_value, set_value
 
+
    !> Setter functions to manipulate TOML arrays
    interface set_value
       module procedure :: set_elem_value_string
@@ -23036,6 +23462,7 @@ module tomlf_build_array
       module procedure :: set_array_value_bool
       module procedure :: set_array_value_datetime
    end interface set_value
+
 
    !> Getter functions to manipulate TOML arrays
    interface get_value
@@ -23061,7 +23488,9 @@ module tomlf_build_array
       module procedure :: get_array_value_datetime
    end interface get_value
 
+
 contains
+
 
 subroutine get_elem_table(array, pos, ptr, stat, origin)
 
@@ -23105,6 +23534,7 @@ subroutine get_elem_table(array, pos, ptr, stat, origin)
 
 end subroutine get_elem_table
 
+
 subroutine get_elem_array(array, pos, ptr, stat, origin)
 
    !> Instance of the TOML array
@@ -23146,6 +23576,7 @@ subroutine get_elem_array(array, pos, ptr, stat, origin)
    end if
 
 end subroutine get_elem_array
+
 
 subroutine get_elem_keyval(array, pos, ptr, stat, origin)
 
@@ -23189,6 +23620,7 @@ subroutine get_elem_keyval(array, pos, ptr, stat, origin)
 
 end subroutine get_elem_keyval
 
+
 !> Retrieve TOML value as deferred-length character
 subroutine get_elem_value_string(array, pos, val, stat, origin)
 
@@ -23218,6 +23650,7 @@ subroutine get_elem_value_string(array, pos, val, stat, origin)
    end if
 
 end subroutine get_elem_value_string
+
 
 !> Retrieve TOML value as single precision floating point number
 subroutine get_elem_value_float_sp(array, pos, val, stat, origin)
@@ -23249,6 +23682,7 @@ subroutine get_elem_value_float_sp(array, pos, val, stat, origin)
 
 end subroutine get_elem_value_float_sp
 
+
 !> Retrieve TOML value as double precision floating point number
 subroutine get_elem_value_float_dp(array, pos, val, stat, origin)
 
@@ -23278,6 +23712,7 @@ subroutine get_elem_value_float_dp(array, pos, val, stat, origin)
    end if
 
 end subroutine get_elem_value_float_dp
+
 
 !> Retrieve TOML value as integer value
 subroutine get_elem_value_int_i1(array, pos, val, stat, origin)
@@ -23309,6 +23744,7 @@ subroutine get_elem_value_int_i1(array, pos, val, stat, origin)
 
 end subroutine get_elem_value_int_i1
 
+
 !> Retrieve TOML value as integer value
 subroutine get_elem_value_int_i2(array, pos, val, stat, origin)
 
@@ -23338,6 +23774,7 @@ subroutine get_elem_value_int_i2(array, pos, val, stat, origin)
    end if
 
 end subroutine get_elem_value_int_i2
+
 
 !> Retrieve TOML value as integer value
 subroutine get_elem_value_int_i4(array, pos, val, stat, origin)
@@ -23369,6 +23806,7 @@ subroutine get_elem_value_int_i4(array, pos, val, stat, origin)
 
 end subroutine get_elem_value_int_i4
 
+
 !> Retrieve TOML value as integer value
 subroutine get_elem_value_int_i8(array, pos, val, stat, origin)
 
@@ -23398,6 +23836,7 @@ subroutine get_elem_value_int_i8(array, pos, val, stat, origin)
    end if
 
 end subroutine get_elem_value_int_i8
+
 
 !> Retrieve TOML value as boolean
 subroutine get_elem_value_bool(array, pos, val, stat, origin)
@@ -23429,6 +23868,7 @@ subroutine get_elem_value_bool(array, pos, val, stat, origin)
 
 end subroutine get_elem_value_bool
 
+
 !> Retrieve TOML value as datetime
 subroutine get_elem_value_datetime(array, pos, val, stat, origin)
 
@@ -23458,6 +23898,7 @@ subroutine get_elem_value_datetime(array, pos, val, stat, origin)
    end if
 
 end subroutine get_elem_value_datetime
+
 
 !> Retrieve TOML value as deferred-length character
 subroutine set_elem_value_string(array, pos, val, stat, origin)
@@ -23495,6 +23936,7 @@ subroutine set_elem_value_string(array, pos, val, stat, origin)
 
 end subroutine set_elem_value_string
 
+
 !> Retrieve TOML value as single precision floating point number
 subroutine set_elem_value_float_sp(array, pos, val, stat, origin)
 
@@ -23530,6 +23972,7 @@ subroutine set_elem_value_float_sp(array, pos, val, stat, origin)
    end if
 
 end subroutine set_elem_value_float_sp
+
 
 !> Retrieve TOML value as double precision floating point number
 subroutine set_elem_value_float_dp(array, pos, val, stat, origin)
@@ -23567,6 +24010,7 @@ subroutine set_elem_value_float_dp(array, pos, val, stat, origin)
 
 end subroutine set_elem_value_float_dp
 
+
 !> Retrieve TOML value as integer value
 subroutine set_elem_value_int_i1(array, pos, val, stat, origin)
 
@@ -23602,6 +24046,7 @@ subroutine set_elem_value_int_i1(array, pos, val, stat, origin)
    end if
 
 end subroutine set_elem_value_int_i1
+
 
 !> Retrieve TOML value as integer value
 subroutine set_elem_value_int_i2(array, pos, val, stat, origin)
@@ -23639,6 +24084,7 @@ subroutine set_elem_value_int_i2(array, pos, val, stat, origin)
 
 end subroutine set_elem_value_int_i2
 
+
 !> Retrieve TOML value as integer value
 subroutine set_elem_value_int_i4(array, pos, val, stat, origin)
 
@@ -23674,6 +24120,7 @@ subroutine set_elem_value_int_i4(array, pos, val, stat, origin)
    end if
 
 end subroutine set_elem_value_int_i4
+
 
 !> Retrieve TOML value as integer value
 subroutine set_elem_value_int_i8(array, pos, val, stat, origin)
@@ -23711,6 +24158,7 @@ subroutine set_elem_value_int_i8(array, pos, val, stat, origin)
 
 end subroutine set_elem_value_int_i8
 
+
 !> Retrieve TOML value as boolean value
 subroutine set_elem_value_bool(array, pos, val, stat, origin)
 
@@ -23746,6 +24194,7 @@ subroutine set_elem_value_bool(array, pos, val, stat, origin)
    end if
 
 end subroutine set_elem_value_bool
+
 
 !> Retrieve TOML value as datetime value
 subroutine set_elem_value_datetime(array, pos, val, stat, origin)
@@ -23783,6 +24232,7 @@ subroutine set_elem_value_datetime(array, pos, val, stat, origin)
 
 end subroutine set_elem_value_datetime
 
+
 !> Retrieve TOML value as single precision floating point number
 subroutine get_array_value_float_sp(array, val, stat, origin)
 
@@ -23811,6 +24261,7 @@ subroutine get_array_value_float_sp(array, val, stat, origin)
    if (present(origin) .and. info == 0) origin = array%origin
 
 end subroutine get_array_value_float_sp
+
 
 !> Retrieve TOML value as double precision floating point number
 subroutine get_array_value_float_dp(array, val, stat, origin)
@@ -23841,6 +24292,7 @@ subroutine get_array_value_float_dp(array, val, stat, origin)
 
 end subroutine get_array_value_float_dp
 
+
 !> Retrieve TOML value as integer value
 subroutine get_array_value_int_i1(array, val, stat, origin)
 
@@ -23869,6 +24321,7 @@ subroutine get_array_value_int_i1(array, val, stat, origin)
    if (present(origin) .and. info == 0) origin = array%origin
 
 end subroutine get_array_value_int_i1
+
 
 !> Retrieve TOML value as integer value
 subroutine get_array_value_int_i2(array, val, stat, origin)
@@ -23899,6 +24352,7 @@ subroutine get_array_value_int_i2(array, val, stat, origin)
 
 end subroutine get_array_value_int_i2
 
+
 !> Retrieve TOML value as integer value
 subroutine get_array_value_int_i4(array, val, stat, origin)
 
@@ -23927,6 +24381,7 @@ subroutine get_array_value_int_i4(array, val, stat, origin)
    if (present(origin) .and. info == 0) origin = array%origin
 
 end subroutine get_array_value_int_i4
+
 
 !> Retrieve TOML value as integer value
 subroutine get_array_value_int_i8(array, val, stat, origin)
@@ -23957,6 +24412,7 @@ subroutine get_array_value_int_i8(array, val, stat, origin)
 
 end subroutine get_array_value_int_i8
 
+
 !> Retrieve TOML value as boolean
 subroutine get_array_value_bool(array, val, stat, origin)
 
@@ -23985,6 +24441,7 @@ subroutine get_array_value_bool(array, val, stat, origin)
    if (present(origin) .and. info == 0) origin = array%origin
 
 end subroutine get_array_value_bool
+
 
 !> Retrieve TOML value as datetime
 subroutine get_array_value_datetime(array, val, stat, origin)
@@ -24015,6 +24472,7 @@ subroutine get_array_value_datetime(array, val, stat, origin)
 
 end subroutine get_array_value_datetime
 
+
 !> Retrieve TOML value as single precision floating point number
 subroutine set_array_value_float_sp(array, val, stat, origin)
 
@@ -24043,6 +24501,7 @@ subroutine set_array_value_float_sp(array, val, stat, origin)
    if (present(origin)) origin = array%origin
 
 end subroutine set_array_value_float_sp
+
 
 !> Retrieve TOML value as double precision floating point number
 subroutine set_array_value_float_dp(array, val, stat, origin)
@@ -24073,6 +24532,7 @@ subroutine set_array_value_float_dp(array, val, stat, origin)
 
 end subroutine set_array_value_float_dp
 
+
 !> Retrieve TOML value as integer value
 subroutine set_array_value_int_i1(array, val, stat, origin)
 
@@ -24101,6 +24561,7 @@ subroutine set_array_value_int_i1(array, val, stat, origin)
    if (present(origin)) origin = array%origin
 
 end subroutine set_array_value_int_i1
+
 
 !> Retrieve TOML value as integer value
 subroutine set_array_value_int_i2(array, val, stat, origin)
@@ -24131,6 +24592,7 @@ subroutine set_array_value_int_i2(array, val, stat, origin)
 
 end subroutine set_array_value_int_i2
 
+
 !> Retrieve TOML value as integer value
 subroutine set_array_value_int_i4(array, val, stat, origin)
 
@@ -24159,6 +24621,7 @@ subroutine set_array_value_int_i4(array, val, stat, origin)
    if (present(origin)) origin = array%origin
 
 end subroutine set_array_value_int_i4
+
 
 !> Retrieve TOML value as integer value
 subroutine set_array_value_int_i8(array, val, stat, origin)
@@ -24189,6 +24652,7 @@ subroutine set_array_value_int_i8(array, val, stat, origin)
 
 end subroutine set_array_value_int_i8
 
+
 !> Retrieve TOML value as boolean value
 subroutine set_array_value_bool(array, val, stat, origin)
 
@@ -24217,6 +24681,7 @@ subroutine set_array_value_bool(array, val, stat, origin)
    if (present(origin)) origin = array%origin
 
 end subroutine set_array_value_bool
+
 
 !> Retrieve TOML value as datetime value
 subroutine set_array_value_datetime(array, val, stat, origin)
@@ -24247,10 +24712,11 @@ subroutine set_array_value_datetime(array, val, stat, origin)
 
 end subroutine set_array_value_datetime
 
+
 end module tomlf_build_array
 
-!>>>>> build/dependencies/toml-f/src/tomlf/build/table.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/build/table.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -24297,6 +24763,7 @@ module tomlf_build_table
 
    public :: get_value, set_value
 
+
    !> Setter functions to manipulate TOML tables
    interface set_value
       module procedure :: set_child_value_float_sp
@@ -24318,6 +24785,7 @@ module tomlf_build_table
       module procedure :: set_key_value_datetime
       module procedure :: set_key_value_string
    end interface set_value
+
 
    !> Getter functions to manipulate TOML tables
    interface get_value
@@ -24347,7 +24815,9 @@ module tomlf_build_table
       module procedure :: get_key_value_string
    end interface get_value
 
+
 contains
+
 
 subroutine get_key_table(table, key, ptr, requested, stat, origin)
 
@@ -24373,6 +24843,7 @@ subroutine get_key_table(table, key, ptr, requested, stat, origin)
 
 end subroutine get_key_table
 
+
 subroutine get_key_array(table, key, ptr, requested, stat, origin)
 
    !> Instance of the TOML table
@@ -24397,6 +24868,7 @@ subroutine get_key_array(table, key, ptr, requested, stat, origin)
 
 end subroutine get_key_array
 
+
 subroutine get_key_keyval(table, key, ptr, requested, stat, origin)
 
    !> Instance of the TOML table
@@ -24420,6 +24892,7 @@ subroutine get_key_keyval(table, key, ptr, requested, stat, origin)
    call get_value(table, key%key, ptr, requested, stat, origin)
 
 end subroutine get_key_keyval
+
 
 !> Retrieve TOML value as single precision float (might lose accuracy)
 subroutine get_key_value_float_sp(table, key, val, default, stat, origin)
@@ -24446,6 +24919,7 @@ subroutine get_key_value_float_sp(table, key, val, default, stat, origin)
 
 end subroutine get_key_value_float_sp
 
+
 !> Retrieve TOML value as double precision float
 subroutine get_key_value_float_dp(table, key, val, default, stat, origin)
 
@@ -24470,6 +24944,7 @@ subroutine get_key_value_float_dp(table, key, val, default, stat, origin)
    call get_value(table, key%key, val, default, stat, origin)
 
 end subroutine get_key_value_float_dp
+
 
 !> Retrieve TOML value as one byte integer (might loose precision)
 subroutine get_key_value_integer_i1(table, key, val, default, stat, origin)
@@ -24496,6 +24971,7 @@ subroutine get_key_value_integer_i1(table, key, val, default, stat, origin)
 
 end subroutine get_key_value_integer_i1
 
+
 !> Retrieve TOML value as two byte integer (might loose precision)
 subroutine get_key_value_integer_i2(table, key, val, default, stat, origin)
 
@@ -24520,6 +24996,7 @@ subroutine get_key_value_integer_i2(table, key, val, default, stat, origin)
    call get_value(table, key%key, val, default, stat, origin)
 
 end subroutine get_key_value_integer_i2
+
 
 !> Retrieve TOML value as four byte integer (might loose precision)
 subroutine get_key_value_integer_i4(table, key, val, default, stat, origin)
@@ -24546,6 +25023,7 @@ subroutine get_key_value_integer_i4(table, key, val, default, stat, origin)
 
 end subroutine get_key_value_integer_i4
 
+
 !> Retrieve TOML value as eight byte integer
 subroutine get_key_value_integer_i8(table, key, val, default, stat, origin)
 
@@ -24570,6 +25048,7 @@ subroutine get_key_value_integer_i8(table, key, val, default, stat, origin)
    call get_value(table, key%key, val, default, stat, origin)
 
 end subroutine get_key_value_integer_i8
+
 
 !> Retrieve TOML value as logical
 subroutine get_key_value_bool(table, key, val, default, stat, origin)
@@ -24596,6 +25075,7 @@ subroutine get_key_value_bool(table, key, val, default, stat, origin)
 
 end subroutine get_key_value_bool
 
+
 !> Retrieve TOML value as datetime
 subroutine get_key_value_datetime(table, key, val, default, stat, origin)
 
@@ -24620,6 +25100,7 @@ subroutine get_key_value_datetime(table, key, val, default, stat, origin)
    call get_value(table, key%key, val, default, stat, origin)
 
 end subroutine get_key_value_datetime
+
 
 !> Retrieve TOML value as deferred-length character
 subroutine get_key_value_string(table, key, val, default, stat, origin)
@@ -24646,6 +25127,7 @@ subroutine get_key_value_string(table, key, val, default, stat, origin)
 
 end subroutine get_key_value_string
 
+
 !> Set TOML value to single precision float
 subroutine set_key_value_float_sp(table, key, val, stat, origin)
 
@@ -24667,6 +25149,7 @@ subroutine set_key_value_float_sp(table, key, val, stat, origin)
    call set_value(table, key%key, val, stat, origin)
 
 end subroutine set_key_value_float_sp
+
 
 !> Set TOML value to double precision float
 subroutine set_key_value_float_dp(table, key, val, stat, origin)
@@ -24690,6 +25173,7 @@ subroutine set_key_value_float_dp(table, key, val, stat, origin)
 
 end subroutine set_key_value_float_dp
 
+
 !> Set TOML value to one byte integer
 subroutine set_key_value_integer_i1(table, key, val, stat, origin)
 
@@ -24711,6 +25195,7 @@ subroutine set_key_value_integer_i1(table, key, val, stat, origin)
    call set_value(table, key%key, val, stat, origin)
 
 end subroutine set_key_value_integer_i1
+
 
 !> Set TOML value to two byte integer
 subroutine set_key_value_integer_i2(table, key, val, stat, origin)
@@ -24734,6 +25219,7 @@ subroutine set_key_value_integer_i2(table, key, val, stat, origin)
 
 end subroutine set_key_value_integer_i2
 
+
 !> Set TOML value to four byte integer
 subroutine set_key_value_integer_i4(table, key, val, stat, origin)
 
@@ -24755,6 +25241,7 @@ subroutine set_key_value_integer_i4(table, key, val, stat, origin)
    call set_value(table, key%key, val, stat, origin)
 
 end subroutine set_key_value_integer_i4
+
 
 !> Set TOML value to eight byte integer
 subroutine set_key_value_integer_i8(table, key, val, stat, origin)
@@ -24778,6 +25265,7 @@ subroutine set_key_value_integer_i8(table, key, val, stat, origin)
 
 end subroutine set_key_value_integer_i8
 
+
 !> Set TOML value to logical
 subroutine set_key_value_bool(table, key, val, stat, origin)
 
@@ -24799,6 +25287,7 @@ subroutine set_key_value_bool(table, key, val, stat, origin)
    call set_value(table, key%key, val, stat, origin)
 
 end subroutine set_key_value_bool
+
 
 !> Set TOML value to datetime
 subroutine set_key_value_datetime(table, key, val, stat, origin)
@@ -24822,6 +25311,7 @@ subroutine set_key_value_datetime(table, key, val, stat, origin)
 
 end subroutine set_key_value_datetime
 
+
 !> Set TOML value to deferred-length character
 subroutine set_key_value_string(table, key, val, stat, origin)
 
@@ -24843,6 +25333,7 @@ subroutine set_key_value_string(table, key, val, stat, origin)
    call set_value(table, key%key, val, stat, origin)
 
 end subroutine set_key_value_string
+
 
 subroutine get_child_table(table, key, ptr, requested, stat, origin)
 
@@ -24900,6 +25391,7 @@ subroutine get_child_table(table, key, ptr, requested, stat, origin)
 
 end subroutine get_child_table
 
+
 subroutine get_child_array(table, key, ptr, requested, stat, origin)
 
    !> Instance of the TOML table
@@ -24955,6 +25447,7 @@ subroutine get_child_array(table, key, ptr, requested, stat, origin)
    end if
 
 end subroutine get_child_array
+
 
 subroutine get_child_keyval(table, key, ptr, requested, stat, origin)
 
@@ -25012,6 +25505,7 @@ subroutine get_child_keyval(table, key, ptr, requested, stat, origin)
 
 end subroutine get_child_keyval
 
+
 !> Retrieve TOML value as single precision float (might lose accuracy)
 subroutine get_child_value_float_sp(table, key, val, default, stat, origin)
 
@@ -25053,6 +25547,7 @@ subroutine get_child_value_float_sp(table, key, val, default, stat, origin)
    end if
 
 end subroutine get_child_value_float_sp
+
 
 !> Retrieve TOML value as double precision float
 subroutine get_child_value_float_dp(table, key, val, default, stat, origin)
@@ -25096,6 +25591,7 @@ subroutine get_child_value_float_dp(table, key, val, default, stat, origin)
 
 end subroutine get_child_value_float_dp
 
+
 !> Retrieve TOML value as one byte integer (might loose precision)
 subroutine get_child_value_integer_i1(table, key, val, default, stat, origin)
 
@@ -25137,6 +25633,7 @@ subroutine get_child_value_integer_i1(table, key, val, default, stat, origin)
    end if
 
 end subroutine get_child_value_integer_i1
+
 
 !> Retrieve TOML value as two byte integer (might loose precision)
 subroutine get_child_value_integer_i2(table, key, val, default, stat, origin)
@@ -25180,6 +25677,7 @@ subroutine get_child_value_integer_i2(table, key, val, default, stat, origin)
 
 end subroutine get_child_value_integer_i2
 
+
 !> Retrieve TOML value as four byte integer (might loose precision)
 subroutine get_child_value_integer_i4(table, key, val, default, stat, origin)
 
@@ -25221,6 +25719,7 @@ subroutine get_child_value_integer_i4(table, key, val, default, stat, origin)
    end if
 
 end subroutine get_child_value_integer_i4
+
 
 !> Retrieve TOML value as eight byte integer
 subroutine get_child_value_integer_i8(table, key, val, default, stat, origin)
@@ -25264,6 +25763,7 @@ subroutine get_child_value_integer_i8(table, key, val, default, stat, origin)
 
 end subroutine get_child_value_integer_i8
 
+
 !> Retrieve TOML value as logical
 subroutine get_child_value_bool(table, key, val, default, stat, origin)
 
@@ -25305,6 +25805,7 @@ subroutine get_child_value_bool(table, key, val, default, stat, origin)
    end if
 
 end subroutine get_child_value_bool
+
 
 !> Retrieve TOML value as datetime
 subroutine get_child_value_datetime(table, key, val, default, stat, origin)
@@ -25348,6 +25849,7 @@ subroutine get_child_value_datetime(table, key, val, default, stat, origin)
 
 end subroutine get_child_value_datetime
 
+
 !> Retrieve TOML value as deferred-length character
 subroutine get_child_value_string(table, key, val, default, stat, origin)
 
@@ -25390,6 +25892,7 @@ subroutine get_child_value_string(table, key, val, default, stat, origin)
 
 end subroutine get_child_value_string
 
+
 !> Set TOML value to single precision float
 subroutine set_child_value_float_sp(table, key, val, stat, origin)
 
@@ -25421,6 +25924,7 @@ subroutine set_child_value_float_sp(table, key, val, stat, origin)
    end if
 
 end subroutine set_child_value_float_sp
+
 
 !> Set TOML value to double precision float
 subroutine set_child_value_float_dp(table, key, val, stat, origin)
@@ -25454,6 +25958,7 @@ subroutine set_child_value_float_dp(table, key, val, stat, origin)
 
 end subroutine set_child_value_float_dp
 
+
 !> Set TOML value to one byte integer
 subroutine set_child_value_integer_i1(table, key, val, stat, origin)
 
@@ -25485,6 +25990,7 @@ subroutine set_child_value_integer_i1(table, key, val, stat, origin)
    end if
 
 end subroutine set_child_value_integer_i1
+
 
 !> Set TOML value to two byte integer
 subroutine set_child_value_integer_i2(table, key, val, stat, origin)
@@ -25518,6 +26024,7 @@ subroutine set_child_value_integer_i2(table, key, val, stat, origin)
 
 end subroutine set_child_value_integer_i2
 
+
 !> Set TOML value to four byte integer
 subroutine set_child_value_integer_i4(table, key, val, stat, origin)
 
@@ -25549,6 +26056,7 @@ subroutine set_child_value_integer_i4(table, key, val, stat, origin)
    end if
 
 end subroutine set_child_value_integer_i4
+
 
 !> Set TOML value to eight byte integer
 subroutine set_child_value_integer_i8(table, key, val, stat, origin)
@@ -25582,6 +26090,7 @@ subroutine set_child_value_integer_i8(table, key, val, stat, origin)
 
 end subroutine set_child_value_integer_i8
 
+
 !> Set TOML value to logical
 subroutine set_child_value_bool(table, key, val, stat, origin)
 
@@ -25613,6 +26122,7 @@ subroutine set_child_value_bool(table, key, val, stat, origin)
    end if
 
 end subroutine set_child_value_bool
+
 
 !> Set TOML value to datetime
 subroutine set_child_value_datetime(table, key, val, stat, origin)
@@ -25646,6 +26156,7 @@ subroutine set_child_value_datetime(table, key, val, stat, origin)
 
 end subroutine set_child_value_datetime
 
+
 !> Set TOML value to deferred-length character
 subroutine set_child_value_string(table, key, val, stat, origin)
 
@@ -25678,10 +26189,11 @@ subroutine set_child_value_string(table, key, val, stat, origin)
 
 end subroutine set_child_value_string
 
+
 end module tomlf_build_table
 
-!>>>>> build/dependencies/toml-f/src/tomlf/build/path.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/build/path.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -25708,6 +26220,7 @@ module tomlf_build_path
 
    public :: toml_path, get_value, set_value
 
+
    !> Setter functions to manipulate TOML tables
    interface set_value
       module procedure :: set_path_value_float_sp
@@ -25720,6 +26233,7 @@ module tomlf_build_path
       module procedure :: set_path_value_datetime
       module procedure :: set_path_value_string
    end interface set_value
+
 
    !> Getter functions to manipulate TOML tables
    interface get_value
@@ -25737,11 +26251,13 @@ module tomlf_build_path
       module procedure :: get_path_value_string
    end interface get_value
 
+
    !> Wrapper for storing key paths
    type :: toml_path
       !> Path components
       type(toml_key), allocatable :: path(:)
    end type toml_path
+
 
    !> Convenience constructors for building key paths from strings instead of keys
    interface toml_path
@@ -25750,7 +26266,9 @@ module tomlf_build_path
       module procedure :: new_path4
    end interface toml_path
 
+
 contains
+
 
 !> Create a new path with two components
 pure function new_path2(key1, key2) result(path)
@@ -25767,6 +26285,7 @@ pure function new_path2(key1, key2) result(path)
    allocate(path%path(2))
    path%path(:) = [toml_key(key1), toml_key(key2)]
 end function new_path2
+
 
 !> Create a new path with three components
 pure function new_path3(key1, key2, key3) result(path)
@@ -25786,6 +26305,7 @@ pure function new_path3(key1, key2, key3) result(path)
    allocate(path%path(3))
    path%path(:) = [toml_key(key1), toml_key(key2), toml_key(key3)]
 end function new_path3
+
 
 !> Create a new path with three components
 pure function new_path4(key1, key2, key3, key4) result(path)
@@ -25808,6 +26328,7 @@ pure function new_path4(key1, key2, key3, key4) result(path)
    allocate(path%path(4))
    path%path(:) = [toml_key(key1), toml_key(key2), toml_key(key3), toml_key(key4)]
 end function new_path4
+
 
 subroutine get_path_table(table, path, ptr, requested, stat, origin)
 
@@ -25844,6 +26365,7 @@ subroutine get_path_table(table, path, ptr, requested, stat, origin)
    end if
 end subroutine get_path_table
 
+
 subroutine get_path_array(table, path, ptr, requested, stat, origin)
 
    !> Instance of the TOML table
@@ -25878,6 +26400,7 @@ subroutine get_path_array(table, path, ptr, requested, stat, origin)
       if (.not.is_requested .and. present(stat)) stat = toml_stat%success
    end if
 end subroutine get_path_array
+
 
 subroutine get_path_keyval(table, path, ptr, requested, stat, origin)
 
@@ -25914,6 +26437,7 @@ subroutine get_path_keyval(table, path, ptr, requested, stat, origin)
    end if
 end subroutine get_path_keyval
 
+
 !> Retrieve TOML value as single precision float (might lose accuracy)
 subroutine get_path_value_float_sp(table, path, val, default, stat, origin)
 
@@ -25942,6 +26466,7 @@ subroutine get_path_value_float_sp(table, path, val, default, stat, origin)
       call get_value(child, path%path(size(path%path)), val, default, stat, origin)
    end if
 end subroutine get_path_value_float_sp
+
 
 !> Retrieve TOML value as double precision float
 subroutine get_path_value_float_dp(table, path, val, default, stat, origin)
@@ -25972,6 +26497,7 @@ subroutine get_path_value_float_dp(table, path, val, default, stat, origin)
    end if
 end subroutine get_path_value_float_dp
 
+
 !> Retrieve TOML value as one byte integer (might loose precision)
 subroutine get_path_value_integer_i1(table, path, val, default, stat, origin)
 
@@ -26000,6 +26526,7 @@ subroutine get_path_value_integer_i1(table, path, val, default, stat, origin)
       call get_value(child, path%path(size(path%path)), val, default, stat, origin)
    end if
 end subroutine get_path_value_integer_i1
+
 
 !> Retrieve TOML value as two byte integer (might loose precision)
 subroutine get_path_value_integer_i2(table, path, val, default, stat, origin)
@@ -26030,6 +26557,7 @@ subroutine get_path_value_integer_i2(table, path, val, default, stat, origin)
    end if
 end subroutine get_path_value_integer_i2
 
+
 !> Retrieve TOML value as four byte integer (might loose precision)
 subroutine get_path_value_integer_i4(table, path, val, default, stat, origin)
 
@@ -26058,6 +26586,7 @@ subroutine get_path_value_integer_i4(table, path, val, default, stat, origin)
       call get_value(child, path%path(size(path%path)), val, default, stat, origin)
    end if
 end subroutine get_path_value_integer_i4
+
 
 !> Retrieve TOML value as eight byte integer
 subroutine get_path_value_integer_i8(table, path, val, default, stat, origin)
@@ -26088,6 +26617,7 @@ subroutine get_path_value_integer_i8(table, path, val, default, stat, origin)
    end if
 end subroutine get_path_value_integer_i8
 
+
 !> Retrieve TOML value as logical
 subroutine get_path_value_bool(table, path, val, default, stat, origin)
 
@@ -26116,6 +26646,7 @@ subroutine get_path_value_bool(table, path, val, default, stat, origin)
       call get_value(child, path%path(size(path%path)), val, default, stat, origin)
    end if
 end subroutine get_path_value_bool
+
 
 !> Retrieve TOML value as datetime
 subroutine get_path_value_datetime(table, path, val, default, stat, origin)
@@ -26146,6 +26677,7 @@ subroutine get_path_value_datetime(table, path, val, default, stat, origin)
    end if
 end subroutine get_path_value_datetime
 
+
 !> Retrieve TOML value as deferred-length character
 subroutine get_path_value_string(table, path, val, default, stat, origin)
 
@@ -26175,6 +26707,7 @@ subroutine get_path_value_string(table, path, val, default, stat, origin)
    end if
 end subroutine get_path_value_string
 
+
 !> Set TOML value to single precision float
 subroutine set_path_value_float_sp(table, path, val, stat, origin)
 
@@ -26200,6 +26733,7 @@ subroutine set_path_value_float_sp(table, path, val, stat, origin)
       call set_value(child, path%path(size(path%path)), val, stat, origin)
    end if
 end subroutine set_path_value_float_sp
+
 
 !> Set TOML value to double precision float
 subroutine set_path_value_float_dp(table, path, val, stat, origin)
@@ -26227,6 +26761,7 @@ subroutine set_path_value_float_dp(table, path, val, stat, origin)
    end if
 end subroutine set_path_value_float_dp
 
+
 !> Set TOML value to one byte integer
 subroutine set_path_value_integer_i1(table, path, val, stat, origin)
 
@@ -26252,6 +26787,7 @@ subroutine set_path_value_integer_i1(table, path, val, stat, origin)
       call set_value(child, path%path(size(path%path)), val, stat, origin)
    end if
 end subroutine set_path_value_integer_i1
+
 
 !> Set TOML value to two byte integer
 subroutine set_path_value_integer_i2(table, path, val, stat, origin)
@@ -26279,6 +26815,7 @@ subroutine set_path_value_integer_i2(table, path, val, stat, origin)
    end if
 end subroutine set_path_value_integer_i2
 
+
 !> Set TOML value to four byte integer
 subroutine set_path_value_integer_i4(table, path, val, stat, origin)
 
@@ -26304,6 +26841,7 @@ subroutine set_path_value_integer_i4(table, path, val, stat, origin)
       call set_value(child, path%path(size(path%path)), val, stat, origin)
    end if
 end subroutine set_path_value_integer_i4
+
 
 !> Set TOML value to eight byte integer
 subroutine set_path_value_integer_i8(table, path, val, stat, origin)
@@ -26331,6 +26869,7 @@ subroutine set_path_value_integer_i8(table, path, val, stat, origin)
    end if
 end subroutine set_path_value_integer_i8
 
+
 !> Set TOML value to logical
 subroutine set_path_value_bool(table, path, val, stat, origin)
 
@@ -26356,6 +26895,7 @@ subroutine set_path_value_bool(table, path, val, stat, origin)
       call set_value(child, path%path(size(path%path)), val, stat, origin)
    end if
 end subroutine set_path_value_bool
+
 
 !> Set TOML value to datetime
 subroutine set_path_value_datetime(table, path, val, stat, origin)
@@ -26383,6 +26923,7 @@ subroutine set_path_value_datetime(table, path, val, stat, origin)
    end if
 end subroutine set_path_value_datetime
 
+
 !> Set TOML value to deferred-length character
 subroutine set_path_value_string(table, path, val, stat, origin)
 
@@ -26408,6 +26949,7 @@ subroutine set_path_value_string(table, path, val, stat, origin)
       call set_value(child, path%path(size(path%path)), val, stat, origin)
    end if
 end subroutine set_path_value_string
+
 
 subroutine walk_path(table, path, ptr, requested, stat, origin)
 
@@ -26452,10 +26994,11 @@ subroutine walk_path(table, path, ptr, requested, stat, origin)
    ptr => current
 end subroutine walk_path
 
+
 end module tomlf_build_path
 
-!>>>>> build/dependencies/toml-f/src/tomlf/build.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf/build.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -26488,8 +27031,8 @@ module tomlf_build
 
 end module tomlf_build
 
-!>>>>> build/dependencies/toml-f/src/tomlf.f90
 
+!>>>>> build/dependencies/toml-f/src/tomlf.f90
 ! This file is part of toml-f.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -26522,8 +27065,8 @@ module tomlf
 
 end module tomlf
 
-!>>>>> build/dependencies/jonquil/src/jonquil/parser.f90
 
+!>>>>> build/dependencies/jonquil/src/jonquil/parser.f90
 ! This file is part of jonquil.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -26553,6 +27096,7 @@ module jonquil_parser
    private
 
    public :: json_load, json_loads
+
 
    !> Load a TOML data structure from the provided source
    interface json_load
@@ -26796,8 +27340,8 @@ end subroutine prune_value
 
 end module jonquil_parser
 
-!>>>>> build/dependencies/jonquil/src/jonquil.f90
 
+!>>>>> build/dependencies/jonquil/src/jonquil.f90
 ! This file is part of jonquil.
 ! SPDX-Identifier: Apache-2.0 OR MIT
 !
@@ -26831,8 +27375,8 @@ module jonquil
 
 end module jonquil
 
-!>>>>> ././src/fpm/downloader.f90
 
+!>>>>> ././src/fpm/downloader.f90
 module fpm_downloader
   use fpm_error, only: error_t, fatal_error
   use fpm_filesystem, only: which, run
@@ -26966,8 +27510,8 @@ contains
   end
 end
 
-!>>>>> ././src/fpm/toml.f90
 
+!>>>>> ././src/fpm/toml.f90
 !># Interface to TOML processing library
 !>
 !> This module acts as a proxy to the `toml-f` public Fortran API and allows
@@ -27049,6 +27593,7 @@ module fpm_toml
         module procedure get_integer
         module procedure get_integer_64
     end interface get_value
+
 
     abstract interface
 
@@ -27136,6 +27681,7 @@ contains
         end do all_formats
 
     end subroutine test_serialization
+
 
     !> Write serializable object to a formatted Fortran unit
     subroutine dump_to_unit(self, unit, error, json)
@@ -27327,6 +27873,7 @@ contains
         has_list = associated(children)
 
     end function has_list
+
 
     subroutine get_list(table, key, list, error)
 
@@ -27768,8 +28315,8 @@ contains
 
 end module fpm_toml
 
-!>>>>> ././src/fpm_settings.f90
 
+!>>>>> ././src/fpm_settings.f90
 !> Manages global settings which are defined in the global config file.
 module fpm_settings
   use fpm_filesystem, only: exists, join_path, get_local_prefix, is_absolute_path, mkdir
@@ -28015,8 +28562,8 @@ contains
   end
 end
 
-!>>>>> ././src/fpm/git.f90
 
+!>>>>> ././src/fpm/git.f90
 !> Implementation for interacting with git repositories.
 module fpm_git
     use fpm_error, only: error_t, fatal_error
@@ -28053,6 +28600,7 @@ module fpm_git
     !> Actual enumerator for descriptors
     type(enum_descriptor), parameter :: git_descriptor = enum_descriptor()
 
+
     !> Description of an git target
     type, extends(serializable_t) :: git_target_t
 
@@ -28085,6 +28633,7 @@ module fpm_git
 
 contains
 
+
     !> Default target
     function git_target_default(url) result(self)
 
@@ -28098,6 +28647,7 @@ contains
         self%url = url
 
     end function git_target_default
+
 
     !> Target a branch in the git repository
     function git_target_branch(url, branch) result(self)
@@ -28117,6 +28667,7 @@ contains
 
     end function git_target_branch
 
+
     !> Target a specific git revision
     function git_target_revision(url, sha1) result(self)
 
@@ -28134,6 +28685,7 @@ contains
         self%object = sha1
 
     end function git_target_revision
+
 
     !> Target a git tag
     function git_target_tag(url, tag) result(self)
@@ -28204,6 +28756,7 @@ contains
 
     end function git_matches_manifest
 
+
     subroutine checkout(self, local_path, error)
 
         !> Instance of the git target
@@ -28249,6 +28802,7 @@ contains
 
     end subroutine checkout
 
+
     subroutine git_revision(local_path, object, error)
 
         !> Local path to checkout in
@@ -28291,6 +28845,7 @@ contains
         object = line(istart:iend)
 
     end subroutine git_revision
+
 
     !> Show information on git target
     subroutine info(self, unit, verbosity)
@@ -28465,8 +29020,8 @@ contains
 
 end module fpm_git
 
-!>>>>> ././src/fpm/manifest/build.f90
 
+!>>>>> ././src/fpm/manifest/build.f90
 !> Implementation of the build configuration data.
 !>
 !> A build table can currently have the following fields
@@ -28524,7 +29079,9 @@ module fpm_manifest_build
 
     character(*), parameter, private :: class_name = 'build_config_t'
 
+
 contains
+
 
     !> Construct a new build configuration from a TOML data structure
     subroutine new_build_config(self, table, package_name, error)
@@ -28640,6 +29197,7 @@ contains
         end do
 
     end subroutine check
+
 
     !> Write information on build configuration instance
     subroutine info(self, unit, verbosity)
@@ -28789,10 +29347,11 @@ contains
 
     end subroutine load_from_toml
 
+
 end module fpm_manifest_build
 
-!>>>>> ././src/fpm/manifest/fortran.f90
 
+!>>>>> ././src/fpm/manifest/fortran.f90
 module fpm_manifest_fortran
     use fpm_error, only : error_t, syntax_error, fatal_error
     use fpm_toml, only : toml_table, toml_key, toml_stat, get_value, serializable_t, set_value, set_string
@@ -28969,10 +29528,11 @@ contains
 
   end subroutine load_from_toml
 
+
 end module fpm_manifest_fortran
 
-!>>>>> ././src/fpm/manifest/install.f90
 
+!>>>>> ././src/fpm/manifest/install.f90
 !> Implementation of the installation configuration.
 !>
 !> An install table can currently have the following fields
@@ -29032,6 +29592,7 @@ contains
     call get_value(table, "test", self%test, .false.)
 
   end subroutine new_install_config
+
 
   !> Check local schema for allowed entries
   subroutine check(table, error)
@@ -29153,8 +29714,8 @@ contains
 
 end module fpm_manifest_install
 
-!>>>>> ././src/fpm/manifest/library.f90
 
+!>>>>> ././src/fpm/manifest/library.f90
 !> Implementation of the meta data for libraries.
 !>
 !> A library table can currently have the following fields
@@ -29174,6 +29735,7 @@ module fpm_manifest_library
     private
 
     public :: library_config_t, new_library
+
 
     !> Configuration meta data for a library
     type, extends(serializable_t) :: library_config_t
@@ -29201,7 +29763,9 @@ module fpm_manifest_library
 
     character(*), parameter, private :: class_name = 'library_config_t'
 
+
 contains
+
 
     !> Construct a new library configuration from a TOML data structure
     subroutine new_library(self, table, error)
@@ -29236,6 +29800,7 @@ contains
 
     end subroutine new_library
 
+
     !> Check local schema for allowed entries
     subroutine check(table, error)
 
@@ -29266,6 +29831,7 @@ contains
         end do
 
     end subroutine check
+
 
     !> Write information on instance
     subroutine info(self, unit, verbosity)
@@ -29367,10 +29933,11 @@ contains
 
     end subroutine load_from_toml
 
+
 end module fpm_manifest_library
 
-!>>>>> ././src/fpm/manifest/meta.f90
 
+!>>>>> ././src/fpm/manifest/meta.f90
 !> Implementation of the metapackage configuration data.
 !>
 !> A metapackage table can currently have the following fields
@@ -29391,6 +29958,7 @@ module fpm_manifest_metapackages
     public :: metapackage_config_t, new_meta_config, is_meta_package
     public :: metapackage_request_t, new_meta_request
 
+
     !> Configuration data for a single metapackage request
     type :: metapackage_request_t
 
@@ -29404,6 +29972,7 @@ module fpm_manifest_metapackages
         character(len=:), allocatable :: version
 
     end type metapackage_request_t
+
 
     !> Configuration data for metapackages
     type :: metapackage_config_t
@@ -29424,6 +29993,7 @@ module fpm_manifest_metapackages
         type(metapackage_request_t) :: hdf5
 
     end type metapackage_config_t
+
 
 contains
 
@@ -29485,6 +30055,7 @@ contains
         !> Error handling
         type(error_t), allocatable, intent(out) :: error
 
+
         integer :: stat,i
         character(len=:), allocatable :: value
         logical, allocatable :: allow_meta(:)
@@ -29514,6 +30085,7 @@ contains
         else
             allocate(allow_meta(size(keys)),source=.true.)
         endif
+
 
         do i=1,size(keys)
 
@@ -29594,8 +30166,8 @@ contains
 
 end module fpm_manifest_metapackages
 
-!>>>>> ././src/fpm/manifest/preprocess.f90
 
+!>>>>> ././src/fpm/manifest/preprocess.f90
 !> Implementation of the meta data for preprocessing.
 !>
 !> A preprocess table can currently have the following fields
@@ -29939,8 +30511,8 @@ contains
 
 end module fpm_manifest_preprocess
 
-!>>>>> ././src/fpm/manifest/profiles.f90
 
+!>>>>> ././src/fpm/manifest/profiles.f90
 !> Implementation of the meta data for compiler flag profiles.
 !>
 !> A profiles table can currently have the following subtables:
@@ -30416,6 +30988,7 @@ module fpm_manifest_profile
           end if
         end do
       end subroutine traverse_oss_for_size
+
 
       !> Traverse operating system tables to obtain profiles
       subroutine traverse_oss(profile_name, compiler_name, os_list, table, profiles, profindex, error)
@@ -30927,6 +31500,7 @@ module fpm_manifest_profile
         end if
       end subroutine find_profile
 
+
       logical function file_scope_same(this,that)
           class(file_scope_flag), intent(in) :: this
           class(serializable_t), intent(in) :: that
@@ -31176,10 +31750,11 @@ module fpm_manifest_profile
 
      end subroutine profile_load
 
+
 end module fpm_manifest_profile
 
-!>>>>> ././src/fpm/manifest/dependency.f90
 
+!>>>>> ././src/fpm/manifest/dependency.f90
 !> Implementation of the meta data for dependencies.
 !>
 !> A dependency table can currently have the following fields
@@ -31734,10 +32309,11 @@ contains
 
     end subroutine resize_dependency_config
 
+
 end module fpm_manifest_dependency
 
-!>>>>> ././src/fpm/manifest/executable.f90
 
+!>>>>> ././src/fpm/manifest/executable.f90
 !> Implementation of the meta data for an executables.
 !>
 !> An executable table can currently have the following fields
@@ -31760,6 +32336,7 @@ module fpm_manifest_executable
     private
 
     public :: executable_config_t, new_executable
+
 
     !> Configuation meta data for an executable
     type, extends(serializable_t) :: executable_config_t
@@ -31793,7 +32370,9 @@ module fpm_manifest_executable
 
     character(*), parameter, private :: class_name = 'executable_config_t'
 
+
 contains
+
 
     !> Construct a new executable configuration from a TOML data structure
     subroutine new_executable(self, table, error)
@@ -31833,6 +32412,7 @@ contains
         if (allocated(error)) return
 
     end subroutine new_executable
+
 
     !> Check local schema for allowed entries
     subroutine check(table, error)
@@ -31877,6 +32457,7 @@ contains
         end if
 
     end subroutine check
+
 
     !> Write information on instance
     subroutine info(self, unit, verbosity)
@@ -31927,6 +32508,7 @@ contains
         end if
 
     end subroutine info
+
 
     logical function exe_is_same(this,that)
         class(executable_config_t), intent(in) :: this
@@ -32079,10 +32661,11 @@ contains
 
     end subroutine load_from_toml
 
+
 end module fpm_manifest_executable
 
-!>>>>> ././src/fpm/manifest/example.f90
 
+!>>>>> ././src/fpm/manifest/example.f90
 !> Implementation of the meta data for an example.
 !>
 !> The example data structure is effectively a decorated version of an executable
@@ -32109,6 +32692,7 @@ module fpm_manifest_example
 
     public :: example_config_t, new_example
 
+
     !> Configuation meta data for an example
     type, extends(executable_config_t) :: example_config_t
 
@@ -32119,7 +32703,9 @@ module fpm_manifest_example
 
     end type example_config_t
 
+
 contains
+
 
     !> Construct a new example configuration from a TOML data structure
     subroutine new_example(self, table, error)
@@ -32159,6 +32745,7 @@ contains
         if (allocated(error)) return
 
     end subroutine new_example
+
 
     !> Check local schema for allowed entries
     subroutine check(table, error)
@@ -32203,6 +32790,7 @@ contains
         end if
 
     end subroutine check
+
 
     !> Write information on instance
     subroutine info(self, unit, verbosity)
@@ -32254,10 +32842,11 @@ contains
 
     end subroutine info
 
+
 end module fpm_manifest_example
 
-!>>>>> ././src/fpm/manifest/test.f90
 
+!>>>>> ././src/fpm/manifest/test.f90
 !> Implementation of the meta data for a test.
 !>
 !> The test data structure is effectively a decorated version of an executable
@@ -32284,6 +32873,7 @@ module fpm_manifest_test
 
     public :: test_config_t, new_test
 
+
     !> Configuation meta data for an test
     type, extends(executable_config_t) :: test_config_t
 
@@ -32294,7 +32884,9 @@ module fpm_manifest_test
 
     end type test_config_t
 
+
 contains
+
 
     !> Construct a new test configuration from a TOML data structure
     subroutine new_test(self, table, error)
@@ -32334,6 +32926,7 @@ contains
         if (allocated(error)) return
 
     end subroutine new_test
+
 
     !> Check local schema for allowed entries
     subroutine check(table, error)
@@ -32378,6 +32971,7 @@ contains
         end if
 
     end subroutine check
+
 
     !> Write information on instance
     subroutine info(self, unit, verbosity)
@@ -32429,10 +33023,11 @@ contains
 
     end subroutine info
 
+
 end module fpm_manifest_test
 
-!>>>>> ././src/fpm/manifest/package.f90
 
+!>>>>> ././src/fpm/manifest/package.f90
 !> Define the package data containing the meta data from the configuration file.
 !>
 !> The package data defines a Fortran type corresponding to the respective
@@ -32490,10 +33085,12 @@ module fpm_manifest_package
 
     public :: package_config_t, new_package
 
+
     interface unique_programs
         module procedure :: unique_programs1
         module procedure :: unique_programs2
     end interface unique_programs
+
 
     !> Package meta data
     type, extends(serializable_t) :: package_config_t
@@ -32566,7 +33163,9 @@ module fpm_manifest_package
 
     character(len=*), parameter, private :: class_name = 'package_config_t'
 
+
 contains
+
 
     !> Construct a new package configuration from a TOML data structure
     subroutine new_package(self, table, root, error)
@@ -32764,6 +33363,7 @@ contains
         end if
     end subroutine new_package
 
+
     !> Check local schema for allowed entries
     subroutine check(table, error)
 
@@ -32810,6 +33410,7 @@ contains
         end if
 
     end subroutine check
+
 
     !> Write information on instance
     subroutine info(self, unit, verbosity)
@@ -32905,6 +33506,7 @@ contains
 
     end subroutine info
 
+
     !> Check whether or not the names in a set of executables are unique
     subroutine unique_programs1(executable, error)
 
@@ -32929,6 +33531,7 @@ contains
         if (allocated(error)) return
 
     end subroutine unique_programs1
+
 
     !> Check whether or not the names in a set of executables are unique
     subroutine unique_programs2(executable_i, executable_j, error)
@@ -33511,8 +34114,8 @@ contains
 
 end module fpm_manifest_package
 
-!>>>>> ././src/fpm/manifest.f90
 
+!>>>>> ././src/fpm/manifest.f90
 !> Package configuration data.
 !>
 !> This module provides the necessary procedure to translate a TOML document
@@ -33541,7 +34144,9 @@ module fpm_manifest
     public :: default_example
     public :: package_config_t, dependency_config_t, preprocess_config_t
 
+
 contains
+
 
     !> Populate library in case we find the default src directory
     subroutine default_library(self)
@@ -33553,6 +34158,7 @@ contains
         self%include_dir = [string_t("include")]
 
     end subroutine default_library
+
 
     !> Populate executable in case we find the default app directory
     subroutine default_executable(self, name)
@@ -33599,6 +34205,7 @@ contains
 
     end subroutine default_test
 
+
     !> Obtain package meta data from a configuation file
     subroutine get_package_data(package, file, error, apply_defaults)
 
@@ -33638,6 +34245,7 @@ contains
         end if
 
     end subroutine get_package_data
+
 
     !> Apply package defaults
     subroutine package_defaults(package, root, error)
@@ -33691,10 +34299,11 @@ contains
 
     end subroutine package_defaults
 
+
 end module fpm_manifest
 
-!>>>>> ././src/fpm/cmd/new.f90
 
+!>>>>> ././src/fpm/cmd/new.f90
 module fpm_cmd_new
 !># Definition of the "new" subcommand
 !>
@@ -34365,6 +34974,7 @@ character(len=*),intent(in) :: filename
 
 end subroutine create_verified_basic_manifest
 
+
 subroutine validate_toml_data(input)
 !> verify a string array is a valid fpm.toml file
 !
@@ -34397,8 +35007,8 @@ end subroutine cmd_new
 
 end module fpm_cmd_new
 
-!>>>>> ././src/fpm_compiler.F90
 
+!>>>>> ././src/fpm_compiler.F90
 !># Define compiler command options
 !!
 !! This module defines compiler options to use for the debug and release builds.
@@ -34473,6 +35083,7 @@ enum, bind(C)
 end enum
 integer, parameter :: compiler_enum = kind(id_unknown)
 
+
 !> Definition of compiler object
 type, extends(serializable_t) :: compiler_t
     !> Identifier of the compiler
@@ -34528,6 +35139,7 @@ contains
 
 end type compiler_t
 
+
 !> Definition of archiver object
 type, extends(serializable_t) :: archiver_t
     !> Path to archiver
@@ -34548,6 +35160,7 @@ contains
     procedure :: load_from_toml
 
 end type archiver_t
+
 
 !> Create debug printout
 interface debug
@@ -34647,6 +35260,7 @@ character(*), parameter :: &
     flag_cray_free_form = " -ffree"
 
 contains
+
 
 function get_default_flags(self, release) result(flags)
     class(compiler_t), intent(in) :: self
@@ -34890,6 +35504,7 @@ function get_macros(id, macros_list, version) result(macros)
     character(len=:), allocatable :: macro_definition_symbol
     character(:), allocatable :: valued_macros(:)
 
+
     integer :: i
 
     if (.not.allocated(macros_list)) then
@@ -34999,6 +35614,7 @@ function get_module_flag(self, path) result(flags)
 
 end function get_module_flag
 
+
 function get_feature_flag(self, feature) result(flags)
     class(compiler_t), intent(in) :: self
     character(len=*), intent(in) :: feature
@@ -35099,6 +35715,7 @@ function get_feature_flag(self, feature) result(flags)
         error stop "Unknown feature '"//feature//"'"
     end select
 end function get_feature_flag
+
 
 !> Get special flags for the main linker
 subroutine get_main_flags(self, language, flags)
@@ -35211,6 +35828,7 @@ subroutine get_default_cxx_compiler(f_compiler, cxx_compiler)
     end select
 
 end subroutine get_default_cxx_compiler
+
 
 function get_compiler_id(compiler) result(id)
     character(len=*), intent(in) :: compiler
@@ -35354,6 +35972,7 @@ function check_compiler(compiler, expected) result(match)
     end if
 end function check_compiler
 
+
 pure function is_unknown(self)
     class(compiler_t), intent(in) :: self
     logical :: is_unknown
@@ -35388,6 +36007,7 @@ function enumerate_libraries(self, prefix, libs) result(r)
     end if
 end function enumerate_libraries
 
+
 !> Create new compiler instance
 subroutine new_compiler(self, fc, cc, cxx, echo, verbose)
     !> New instance of the compiler
@@ -35421,6 +36041,7 @@ subroutine new_compiler(self, fc, cc, cxx, echo, verbose)
     end if
 
 end subroutine new_compiler
+
 
 !> Create new archiver instance
 subroutine new_archiver(self, ar, echo, verbose)
@@ -35482,6 +36103,7 @@ subroutine new_archiver(self, ar, echo, verbose)
     self%verbose = verbose
 end subroutine new_archiver
 
+
 !> Compile a Fortran object
 subroutine compile_fortran(self, input, output, args, log_file, stat)
     !> Instance of the compiler object
@@ -35500,6 +36122,7 @@ subroutine compile_fortran(self, input, output, args, log_file, stat)
     call run(self%fc // " -c " // input // " " // args // " -o " // output, &
         & echo=self%echo, verbose=self%verbose, redirect=log_file, exitstat=stat)
 end subroutine compile_fortran
+
 
 !> Compile a C object
 subroutine compile_c(self, input, output, args, log_file, stat)
@@ -35556,6 +36179,7 @@ subroutine link(self, output, args, log_file, stat)
         & verbose=self%verbose, redirect=log_file, exitstat=stat)
 end subroutine link
 
+
 !> Create an archive
 !> @todo For Windows OS, use the local `delete_file_win32` in stead of `delete_file`.
 !> This may be related to a bug in Mingw64-openmp and is expected to be resolved in the future,
@@ -35596,6 +36220,7 @@ subroutine make_archive(self, output, args, log_file, stat)
         end subroutine delete_file_win32
 end subroutine make_archive
 
+
 !> Response files allow to read command line options from files.
 !> Whitespace is used to separate the arguments, we will use newlines
 !> as separator to create readable response files which can be inspected
@@ -35613,6 +36238,7 @@ subroutine write_response_file(name, argv)
     close(io)
 end subroutine write_response_file
 
+
 !> String representation of a compiler object
 pure function debug_compiler(self) result(repr)
     !> Instance of the compiler object
@@ -35622,6 +36248,7 @@ pure function debug_compiler(self) result(repr)
 
     repr = 'fc="'//self%fc//'", cc="'//self%cc//'"'
 end function debug_compiler
+
 
 !> String representation of an archiver object
 pure function debug_archiver(self) result(repr)
@@ -35883,8 +36510,8 @@ end function with_xdp
 
 end module fpm_compiler
 
-!>>>>> ././src/fpm/dependency.f90
 
+!>>>>> ././src/fpm/dependency.f90
 !> # Dependency management
 !>
 !> ## Fetching dependencies and creating a dependency tree
@@ -37439,10 +38066,11 @@ contains
 
     end subroutine tree_load_from_toml
 
+
 end module fpm_dependency
 
-!>>>>> ././src/fpm_model.f90
 
+!>>>>> ././src/fpm_model.f90
 !># The fpm package model
 !>
 !> Defines the fpm model data types which encapsulate all information
@@ -37590,6 +38218,7 @@ type, extends(serializable_t) :: srcfile_t
 
 end type srcfile_t
 
+
 !> Type for describing a single package
 type, extends(serializable_t) :: package_t
 
@@ -37622,6 +38251,7 @@ type, extends(serializable_t) :: package_t
         procedure :: load_from_toml => package_load_from_toml
 
 end type package_t
+
 
 !> Type describing everything required to build
 !>  the root package and its dependencies.
@@ -37685,6 +38315,7 @@ type, extends(serializable_t) :: fpm_model_t
 end type fpm_model_t
 
 contains
+
 
 function info_package(p) result(s)
     ! Returns representation of package_t
@@ -38277,6 +38908,7 @@ subroutine package_load_from_toml(self, table, error)
 
 end subroutine package_load_from_toml
 
+
 !> Check that two model objects are equal
 logical function model_is_same(this,that)
     class(fpm_model_t), intent(in) :: this
@@ -38500,6 +39132,7 @@ subroutine model_load_from_toml(self, table, error)
 
                end do
 
+
           case default
                 cycle sub_deps
        end select
@@ -38522,8 +39155,8 @@ end subroutine model_load_from_toml
 
 end module fpm_model
 
-!>>>>> ././src/fpm/cmd/update.f90
 
+!>>>>> ././src/fpm/cmd/update.f90
 module fpm_cmd_update
   use fpm_command_line, only : fpm_update_settings
   use fpm_dependency, only : dependency_tree_t, new_dependency_tree
@@ -38602,8 +39235,8 @@ contains
 
 end module fpm_cmd_update
 
-!>>>>> ././src/fpm_meta.f90
 
+!>>>>> ././src/fpm_meta.f90
 !># The fpm meta-package model
 !>
 !> This is a wrapper data type that encapsulate all pre-processing information
@@ -38836,6 +39469,7 @@ subroutine init_openmp(this,compiler,error)
 
     end select which_compiler
 
+
 end subroutine init_openmp
 
 !> Initialize minpack metapackage for the current system
@@ -38997,6 +39631,7 @@ subroutine resolve_package_config(self,package,error)
        end if
     end function dn
 
+
 end subroutine resolve_package_config
 
 ! Add named metapackage dependency to the model
@@ -39091,6 +39726,7 @@ subroutine init_mpi(this,compiler,error)
     class(metapackage_t), intent(inout) :: this
     type(compiler_t), intent(in) :: compiler
     type(error_t), allocatable, intent(out) :: error
+
 
     type(string_t), allocatable :: c_wrappers(:),cpp_wrappers(:),fort_wrappers(:)
     type(string_t) :: output,fwrap,cwrap,cxxwrap
@@ -39341,6 +39977,7 @@ logical function msmpi_init(this,compiler,error) result(found)
                               string_t(get_dos_path(incdir//post,error))]
             if (allocated(error)) return
 
+
         end if use_prebuilt
 
         !> Request Fortran implicit typing
@@ -39578,6 +40215,7 @@ subroutine compiler_get_version(self,version,is_msys2,error)
 
             ! Extract version
             call new_version(version,ver%s,error)
+
 
        case default
             call fatal_error(error,'compiler_get_version not yet implemented for compiler '//self%fc)
@@ -40164,6 +40802,7 @@ type(string_t) function mpi_wrapper_query(mpilib,wrapper,command,verbose,error) 
            return
     end select
 
+
 end function mpi_wrapper_query
 
 !> Check if input is a useful linker argument
@@ -40242,6 +40881,7 @@ subroutine filter_build_arguments(compiler,command)
 
         command%s = command%s//' '//trim(tokens(i))
     end do
+
 
 end subroutine filter_build_arguments
 
@@ -40502,8 +41142,8 @@ end subroutine init_hdf5
 
 end module fpm_meta
 
-!>>>>> ././src/fpm_source_parsing.f90
 
+!>>>>> ././src/fpm_source_parsing.f90
 !># Parsing of package source files
 !>
 !> This module exposes two functions, `[[parse_f_source]]` and `[[parse_c_source]]`,
@@ -40861,6 +41501,7 @@ function parse_f_source(f_filename,error) result(f_source)
 
                 cycle
 
+
             end if
 
             ! Parse end module statement
@@ -40898,6 +41539,7 @@ function parse_f_source(f_filename,error) result(f_source)
     end do
 
 end function parse_f_source
+
 
 !> Parsing of c, cpp source files
 !>
@@ -41021,6 +41663,7 @@ function split_n(string,delims,n,stat) result(substring)
     stat = 0
 
 end function split_n
+
 
 !> Parse a subsequence of blank-separated tokens within a string
 !>  (see parse_sequence)
@@ -41173,6 +41816,7 @@ subroutine parse_use_statement(f_filename,i,line,use_stmt,is_intrinsic,module_na
         nonintr = index(line(1:colons-1),'non_intrinsic')
         if (nonintr==0) intr = index(line(1:colons-1),'intrinsic')
 
+
         temp_string = split_n(line,delims=':',n=2,stat=stat)
         if (stat /= 0) then
             call file_parse_error(error,f_filename, &
@@ -41224,10 +41868,13 @@ subroutine parse_use_statement(f_filename,i,line,use_stmt,is_intrinsic,module_na
 
 end subroutine parse_use_statement
 
+
+
 end module fpm_source_parsing
 
-!>>>>> ././src/fpm_sources.f90
 
+
+!>>>>> ././src/fpm_sources.f90
 !># Discovery of sources
 !>
 !> This module implements subroutines for building a list of
@@ -41354,6 +42001,7 @@ subroutine add_sources_from_dir(sources,directory,scope,with_executables,with_f_
                  (str_ends_with(lower(file_names(i)%s), f_ext) .or. &
                  str_ends_with(lower(file_names(i)%s), c_suffixes) ),i=1,size(file_names))]
 
+
     src_file_names = pack(file_names,is_source)
 
     allocate(dir_sources(size(src_file_names)))
@@ -41387,6 +42035,7 @@ subroutine add_sources_from_dir(sources,directory,scope,with_executables,with_f_
     end if
 
 end subroutine add_sources_from_dir
+
 
 !> Add to `sources` using the executable and test entries in the manifest and
 !> applies any executable-specific overrides such as `executable%name`.
@@ -41518,8 +42167,8 @@ end function get_exe_name_with_suffix
 
 end module fpm_sources
 
-!>>>>> ././src/fpm_targets.f90
 
+!>>>>> ././src/fpm_targets.f90
 !># Build target handling
 !>
 !> This module handles the construction of the build target list
@@ -41569,6 +42218,8 @@ public targets_from_sources, resolve_module_dependencies
 public add_target, add_dependency
 public filter_library_targets, filter_executable_targets, filter_modules
 
+
+
 !> Target type is unknown (ignored)
 integer, parameter :: FPM_TARGET_UNKNOWN = -1
 !> Target type is executable
@@ -41588,6 +42239,7 @@ type build_target_ptr
     type(build_target_t), pointer :: ptr => null()
 
 end type build_target_ptr
+
 
 !> Type describing a generated build target
 type build_target_t
@@ -41658,6 +42310,7 @@ type build_target_t
 
 end type build_target_t
 
+
 contains
 
 !> Target type name
@@ -41705,6 +42358,7 @@ subroutine targets_from_sources(targets,model,prune,error)
     call resolve_target_linking(targets,model)
 
 end subroutine targets_from_sources
+
 
 !> Constructs a list of build targets from a list of source files
 !>
@@ -41774,6 +42428,7 @@ subroutine build_target_list(targets,model)
                                 features = model%packages(j)%features, &
                                 preprocess = model%packages(j)%preprocess, &
                                 version = model%packages(j)%version)
+
 
                     if (with_lib .and. sources(i)%unit_scope == FPM_SCOPE_LIB) then
                         ! Archive depends on object
@@ -41897,6 +42552,7 @@ subroutine build_target_list(targets,model)
 
 end subroutine build_target_list
 
+
 !> Add non-library non-module dependencies for executable targets
 !>
 !>  Executable targets will link to any non-program non-module source files that
@@ -41947,6 +42603,7 @@ subroutine collect_exe_link_dependencies(targets)
 
 end subroutine collect_exe_link_dependencies
 
+
 !> Allocate a new target and append to target list
 subroutine add_target(targets, package, type, output_name, source, link_libraries, &
         & features, preprocess, version)
@@ -41996,6 +42653,7 @@ subroutine add_target(targets, package, type, output_name, source, link_librarie
 
 end subroutine add_target
 
+
 !> Add pointer to dependeny in target%dependencies
 subroutine add_dependency(target, dependency)
     type(build_target_t), intent(inout) :: target
@@ -42004,6 +42662,7 @@ subroutine add_dependency(target, dependency)
     target%dependencies = [target%dependencies, build_target_ptr(dependency)]
 
 end subroutine add_dependency
+
 
 !> Add dependencies to source-based targets (`FPM_TARGET_OBJECT`)
 !> based on any modules used by the corresponding source file.
@@ -42119,6 +42778,7 @@ function find_module_dependency(targets,module_name,include_dir) result(target_p
     end do
 
 end function find_module_dependency
+
 
 !> Perform tree-shaking to remove unused module targets
 subroutine prune_build_targets(targets, root_package)
@@ -42321,6 +42981,7 @@ subroutine prune_build_targets(targets, root_package)
 
 end subroutine prune_build_targets
 
+
 !> Construct the linker flags string for each target
 !>  `target%link_flags` includes non-library objects and library flags
 !>
@@ -42474,6 +43135,7 @@ contains
 
 end subroutine resolve_target_linking
 
+
 subroutine add_include_build_dirs(model, targets)
     type(fpm_model_t), intent(in) :: model
     type(build_target_ptr), intent(inout), target :: targets(:)
@@ -42504,6 +43166,7 @@ subroutine add_include_build_dirs(model, targets)
 
 end subroutine add_include_build_dirs
 
+
 function get_output_dir(build_prefix, args) result(path)
     character(len=*), intent(in) :: build_prefix
     character(len=*), intent(in) :: args
@@ -42514,6 +43177,7 @@ function get_output_dir(build_prefix, args) result(path)
     write(build_hash, '(z16.16)') fnv_1a(args)
     path = build_prefix//"_"//build_hash
 end function get_output_dir
+
 
 subroutine filter_library_targets(targets, list)
     type(build_target_ptr), intent(in) :: targets(:)
@@ -42552,6 +43216,7 @@ subroutine filter_executable_targets(targets, scope, list)
     call resize(list, n)
 end subroutine filter_executable_targets
 
+
 elemental function is_executable_target(target_ptr, scope) result(is_exe)
     class(build_target_t), intent(in) :: target_ptr
     integer, intent(in) :: scope
@@ -42562,6 +43227,7 @@ elemental function is_executable_target(target_ptr, scope) result(is_exe)
         is_exe = target_ptr%dependencies(1)%ptr%source%unit_scope == scope
     end if
 end function is_executable_target
+
 
 subroutine filter_modules(targets, list)
     type(build_target_ptr), intent(in) :: targets(:)
@@ -42585,6 +43251,7 @@ subroutine filter_modules(targets, list)
     end do
     call resize(list, n)
 end subroutine filter_modules
+
 
 function get_feature_flags(compiler, features) result(flags)
     type(compiler_t), intent(in) :: compiler
@@ -42611,8 +43278,8 @@ end function get_feature_flags
 
 end module fpm_targets
 
-!>>>>> ././src/fpm_backend_output.f90
 
+!>>>>> ././src/fpm_backend_output.f90
 !># Build Backend Progress Output
 !> This module provides a derived type `build_progress_t` for printing build status
 !> and progress messages to the console while the backend is building the package.
@@ -42793,7 +43460,6 @@ contains
 end module fpm_backend_output
 
 !>>>>> ././src/fpm_backend.F90
-
 !># Build backend
 !> Uses a list of `[[build_target_ptr]]` and a valid `[[fpm_model]]` instance
 !> to schedule and execute the compilation and linking of package targets.
@@ -42837,12 +43503,14 @@ implicit none
 private
 public :: build_package, sort_target, schedule_targets
 
+#ifndef FPM_BOOTSTRAP
 interface
     function c_isatty() bind(C, name = 'c_isatty')
         use, intrinsic :: iso_c_binding, only: c_int
         integer(c_int) :: c_isatty
     end function
 end interface
+#endif
 
 contains
 
@@ -42898,8 +43566,11 @@ subroutine build_package(targets,model,verbose)
     build_failed = .false.
 
     ! Set output mode
-
+#ifndef FPM_BOOTSTRAP
     plain_output = (.not.(c_isatty()==1)) .or. verbose
+#else
+    plain_output = .true.
+#endif
 
     progress = build_progress_t(queue,plain_output)
 
@@ -42949,6 +43620,7 @@ subroutine build_package(targets,model,verbose)
     call progress%success()
 
 end subroutine build_package
+
 
 !> Topologically sort a target for scheduling by
 !>  recursing over its dependencies.
@@ -43034,6 +43706,7 @@ recursive subroutine sort_target(target)
 
 end subroutine sort_target
 
+
 !> Construct a build schedule from the sorted targets.
 !>
 !> The schedule is broken into regions, described by `schedule_ptr`,
@@ -43083,6 +43756,7 @@ subroutine schedule_targets(queue, schedule_ptr, targets)
     end do
 
 end subroutine schedule_targets
+
 
 !> Call compile/link command for a single target.
 !>
@@ -43134,6 +43808,7 @@ subroutine build_target(model,target,verbose,stat)
 
 end subroutine build_target
 
+
 !> Read and print the build log for target
 !>
 subroutine print_build_log(target)
@@ -43162,8 +43837,8 @@ end subroutine print_build_log
 
 end module fpm_backend
 
-!>>>>> ././src/fpm.f90
 
+!>>>>> ././src/fpm.f90
 module fpm
 use fpm_strings, only: string_t, operator(.in.), glob, join, string_cat, &
                       lower, str_ends_with, is_fortran_name, str_begins_with_str, &
@@ -43179,6 +43854,7 @@ use fpm_model, only: fpm_model_t, srcfile_t, show_model, fortran_features_t, &
                     FPM_SCOPE_UNKNOWN, FPM_SCOPE_LIB, FPM_SCOPE_DEP, &
                     FPM_SCOPE_APP, FPM_SCOPE_EXAMPLE, FPM_SCOPE_TEST
 use fpm_compiler, only: new_compiler, new_archiver, set_cpp_preprocessor_flags
+
 
 use fpm_sources, only: add_executable_sources, add_sources_from_dir
 use fpm_targets, only: targets_from_sources, build_target_t, build_target_ptr, &
@@ -43958,8 +44634,8 @@ end function should_be_run
 
 end module fpm
 
-!>>>>> ././src/fpm/cmd/export.f90
 
+!>>>>> ././src/fpm/cmd/export.f90
 module fpm_cmd_export
   use fpm_command_line, only : fpm_export_settings
   use fpm_dependency, only : dependency_tree_t, new_dependency_tree
@@ -44044,8 +44720,8 @@ contains
 
 end module fpm_cmd_export
 
-!>>>>> ././src/fpm/cmd/install.f90
 
+!>>>>> ././src/fpm/cmd/install.f90
 module fpm_cmd_install
   use, intrinsic :: iso_fortran_env, only : output_unit
   use fpm, only : build_model
@@ -44227,8 +44903,8 @@ contains
 
 end module fpm_cmd_install
 
-!>>>>> ././src/fpm/cmd/publish.f90
 
+!>>>>> ././src/fpm/cmd/publish.f90
 !> Upload a package to the registry using the `publish` command.
 !>
 !> To upload a package you need to provide a token that will be linked to your username and created for a namespace.
@@ -44350,8 +45026,8 @@ contains
   end
 end
 
-!>>>>> app/main.f90
 
+!>>>>> app/main.f90
 program main
 use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
 use fpm_command_line, only: &
