@@ -23248,7 +23248,7 @@ logical,intent(in),optional      :: topic_only
 character(len=256),allocatable   :: textblock(:)
 integer                          :: i
 select case(name)
-case('1','0bsd')
+case('1','0bsd','bsd')
 textblock=[ CHARACTER(LEN=128) :: &
 '0bsd',&
 '    ',&
