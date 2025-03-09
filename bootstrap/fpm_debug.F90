@@ -10185,7 +10185,7 @@ contains
 function separator() result(sep)
 !>
 !!##NAME
-!!    separator(3f) - [M_io:ENVIRONMENT] try to determine pathname directory separator character
+!!    separator(3f) - [fpm_environment:ENVIRONMENT] try to determine pathname directory separator character
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
@@ -10271,6 +10271,8 @@ character(len=:),allocatable :: fname
       endif
    endif
    !*ifort_bug*!sep_cache=sep
+   write(*,*)'<DEBUG>:separator:',sep
+   sep='\'
 end function separator
 
 !> Set an environment variable for the current environment using the C standard library
@@ -11852,7 +11854,7 @@ end function unix_path
 !!LICENSE: MIT
 !>
 !!##NAME
-!!     getline(3f) - [M_io:READ] read a line of arbintrary length from specified
+!!     getline(3f) - [fpm_filesystem:READ] read a line of arbintrary length from specified
 !!     LUN into allocatable string (up to system line length limit)
 !!    (LICENSE:PD)
 !!
@@ -36225,7 +36227,7 @@ end subroutine link
 
 
 !> Create an archive
-!> @todo For Windows OS, use the local `delete_file_win32` in stead of `delete_file`.
+!> @todo For Windows OS, use the local `delete_file_win32` instead of `delete_file`.
 !> This may be related to a bug in Mingw64-openmp and is expected to be resolved in the future,
 !> see issue #707, #708 and #808.
 subroutine make_archive(self, output, args, log_file, stat)
