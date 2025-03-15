@@ -10272,7 +10272,6 @@ character(len=:),allocatable :: fname
    endif
    !*ifort_bug*!sep_cache=sep
    write(*,*)'<DEBUG>:separator:',sep
-   sep='\'
 end function separator
 
 !> Set an environment variable for the current environment using the C standard library
@@ -42748,12 +42747,14 @@ subroutine resolve_module_dependencies(targets,external_modules,error)
             do j=1,size(targets(i)%ptr%source%modules_used)
 
                 if (targets(i)%ptr%source%modules_used(j)%s .in. targets(i)%ptr%source%modules_provided) then
+		     write(*,*)'<DEBUG>resolve_module_dependencies:in same file'
                     ! Dependency satisfied in same file, skip
                     cycle
                 end if
 
                 if (targets(i)%ptr%source%modules_used(j)%s .in. external_modules) then
                     ! Dependency satisfied in system-installed module
+		     write(*,*)'<DEBUG>resolve_module_dependencies:system-installed'
                     cycle
                 end if
 
@@ -42762,9 +42763,11 @@ subroutine resolve_module_dependencies(targets,external_modules,error)
                     dep%ptr => &
                         find_module_dependency(targets,targets(i)%ptr%source%modules_used(j)%s, &
                                             include_dir = dirname(targets(i)%ptr%source%file_name))
+		     write(*,*)'<DEBUG>resolve_module_dependencies:in program scope'
                 else
                     dep%ptr => &
                         find_module_dependency(targets,targets(i)%ptr%source%modules_used(j)%s)
+   		     write(*,*)'<DEBUG>resolve_module_dependencies:not in program scope'
                 end if
 
                 if (.not.associated(dep%ptr)) then

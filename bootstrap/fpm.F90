@@ -36225,7 +36225,7 @@ end subroutine link
 
 
 !> Create an archive
-!> @todo For Windows OS, use the local `delete_file_win32` in stead of `delete_file`.
+!> @todo For Windows OS, use the local `delete_file_win32` instead of `delete_file`.
 !> This may be related to a bug in Mingw64-openmp and is expected to be resolved in the future,
 !> see issue #707, #708 and #808.
 subroutine make_archive(self, output, args, log_file, stat)
