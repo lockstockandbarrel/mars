@@ -1,4 +1,6 @@
+
 !>>>>> ././src/M_intrinsics.f90
+
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
@@ -20,12 +22,14 @@ logical,intent(in),optional                       :: prefix
 logical,intent(in),optional                       :: topic
 logical,intent(in),optional                       :: m_help
 character(len=256),allocatable                    :: textblock(:)
+character(len=256),allocatable                    :: narrow(:)
+character(len=256)                                :: header
 character(len=:),allocatable                      :: a, b, c
-integer                                           :: i, p, pg
+integer                                           :: i, j, k, p, pg
    select case(name)
    case('','manual','intrinsics','fortranmanual','fortran_manual')
       textblock=help_intrinsics_all(prefix,topic,m_help)
-   case('fortran','toc')
+   case('fortran','toc','toc3','toc5','toc7')
       textblock=help_intrinsics_section()
       do i=1,size(textblock)
          p = index(textblock(i), '[')
@@ -38,10 +42,147 @@ integer                                           :: i, p, pg
          endif
       enddo
       call sort_name(textblock)
+      allocate(narrow(0))
+      header=''
+      do i=1,size(textblock)
+       j=index(textblock(i),']')
+       select case(name)
+       case('toc3')
+          if(index(textblock(i),'(3)').eq.0)cycle
+       case('toc5')
+          if(index(textblock(i),'(5)').eq.0)cycle
+       case('toc7')
+          k=0
+          k=max(k,index(textblock(i),'(7)'))
+          k=max(k,index(textblock(i),'(7f)'))
+          if(k==0)cycle
+       end select
+       if (textblock(i)(:j).ne.header)then
+          header=textblock(i)(:j)
+          narrow=[character(len=256) :: narrow,header]
+       endif
+       textblock(i)=textblock(i)(j+1:)
+       narrow=[character(len=256) :: narrow,'     '//paragraph(textblock(i),70)]
+      enddo
+      textblock=narrow
    case default
       textblock=help_intrinsics_one(name,prefix,topic,m_help)
    end select
 end function help_intrinsics
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
+!===================================================================================================================================
+function paragraph(source_string,length)
+
+!$@(#) M_strings::paragraph(3f): wrap a long string into a paragraph
+
+character(len=*),intent(in)       :: source_string
+integer,intent(in)                :: length
+integer                           :: itoken
+integer                           :: ibegin
+integer                           :: iend
+character(len=*),parameter        :: delimiters=' '
+character(len=:),allocatable      :: paragraph(:)
+integer                           :: ilines
+integer                           :: ilength
+integer                           :: iword, iword_max
+integer                           :: i
+!-----------------------------------------------------------------------------------------------------------------------------------
+!  parse string once to find out how big to make the returned array, then redo everything but store the data
+!  could store array of endpoints and leave original whitespace alone or many other options
+   do i=1,2
+      iword_max=0                                  ! length of longest token
+      ilines=1                                     ! number of output line output will go on
+      ilength=0                                    ! length of output line so far
+      itoken=0                                     ! must set ITOKEN=0 before looping on strtok(3f) on a new string.
+      do while ( strtok(source_string,itoken,ibegin,iend,delimiters) )
+         iword=iend-ibegin+1
+         iword_max=max(iword_max,iword)
+         if(iword > length)then                   ! this token is longer than the desired line length so put it on a line by itself
+            if(ilength /= 0)then
+               ilines=ilines+1
+            endif
+            if(i == 2)then     ! if paragraph has been allocated store data, else just gathering data to determine size of paragraph
+               paragraph(ilines)=source_string(ibegin:iend)//' '
+            endif
+            ilength=iword+1
+         elseif(ilength+iword <= length)then       ! this word will fit on current line
+            if(i == 2)then
+               paragraph(ilines)=paragraph(ilines)(:ilength)//source_string(ibegin:iend)
+            endif
+            ilength=ilength+iword+1
+         else                                      ! adding this word would make line too long so start new line
+            ilines=ilines+1
+            ilength=0
+            if(i == 2)then
+               paragraph(ilines)=paragraph(ilines)(:ilength)//source_string(ibegin:iend)
+            endif
+            ilength=iword+1
+         endif
+      enddo
+      if(i==1)then                                 ! determined number of lines needed so allocate output array
+         allocate(character(len=max(length,iword_max)) :: paragraph(ilines))
+         paragraph=' '
+      endif
+   enddo
+   paragraph=paragraph(:ilines)
+end function paragraph
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
+!===================================================================================================================================
+FUNCTION strtok(source_string,itoken,token_start,token_end,delimiters) result(strtok_status)
+! JSU- 20151030
+
+!$@(#) M_strings::strtok(3f): Tokenize a string
+
+character(len=*),intent(in)  :: source_string    ! Source string to tokenize.
+character(len=*),intent(in)  :: delimiters       ! list of separator characters. May change between calls
+integer,intent(inout)        :: itoken           ! token count since started
+logical                      :: strtok_status    ! returned value
+integer,intent(out)          :: token_start      ! beginning of token found if function result is .true.
+integer,intent(inout)        :: token_end        ! end of token found if function result is .true.
+integer,save                 :: isource_len
+!----------------------------------------------------------------------------------------------------------------------------
+!  calculate where token_start should start for this pass
+   if(itoken <= 0)then                           ! this is assumed to be the first call
+      token_start=1
+   else                                          ! increment start to previous end + 1
+      token_start=token_end+1
+   endif
+!----------------------------------------------------------------------------------------------------------------------------
+   isource_len=len(source_string)                ! length of input string
+!----------------------------------------------------------------------------------------------------------------------------
+   if(token_start > isource_len)then            ! user input error or at end of string
+      token_end=isource_len                      ! assume end of token is end of string until proven otherwise so it is set
+      strtok_status=.false.
+      return
+   endif
+!----------------------------------------------------------------------------------------------------------------------------
+   ! find beginning of token
+   do while (token_start  <=  isource_len)       ! step thru each character to find next delimiter, if any
+      if(index(delimiters,source_string(token_start:token_start))  /=  0) then
+         token_start = token_start + 1
+      else
+         exit
+      endif
+   enddo
+!----------------------------------------------------------------------------------------------------------------------------
+   token_end=token_start
+   do while (token_end  <=  isource_len-1)       ! step thru each character to find next delimiter, if any
+      if(index(delimiters,source_string(token_end+1:token_end+1))  /=  0) then  ! found a delimiter in next character
+         exit
+      endif
+      token_end = token_end + 1
+   enddo
+!----------------------------------------------------------------------------------------------------------------------------
+   if (token_start  >  isource_len) then        ! determine if finished
+      strtok_status=.false.                      ! flag that input string has been completely processed
+   else
+      itoken=itoken+1                            ! increment count of tokens found
+      strtok_status=.true.                       ! flag more tokens may remain
+   endif
+!----------------------------------------------------------------------------------------------------------------------------
+end function strtok
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
@@ -297,62 +438,62 @@ textblock=[character(len=256) :: &
 '      contains', &
 '', &
 '        subroutine DUSTY_CORNERS_1(message)', &
-'           character(len=*),intent(in) :: message', &
+'        character(len=*),intent(in) :: message', &
 '', &
-'           ! A dusty corner is that abs(-huge(0)-1) of an integer would be', &
-'           ! a representable negative value on most machines but result in a', &
-'           ! positive value out of range.', &
+'          ! A dusty corner is that abs(-huge(0)-1) of an integer would be', &
+'          ! a representable negative value on most machines but result in a', &
+'          ! positive value out of range.', &
 '', &
-'           print gen,  message', &
-'           ! By definition:', &
-'           !   You can take the absolute value of any value whose POSITIVE value', &
-'           !   is representable with the same type and kind.', &
+'          print gen,  message', &
+'          ! By definition:', &
+'          !   You can take the absolute value of any value whose POSITIVE value', &
+'          !   is representable with the same type and kind.', &
 '', &
-'           print gen, ''abs range test : '', abs(huge(0)), abs(-huge(0))', &
-'           print gen, ''abs range test : '', abs(huge(0.0)), abs(-huge(0.0))', &
-'           print gen, ''abs range test : '', abs(tiny(0.0)), abs(-tiny(0.0))', &
+'          print gen, ''abs range test : '', abs(huge(0)), abs(-huge(0))', &
+'          print gen, ''abs range test : '', abs(huge(0.0)), abs(-huge(0.0))', &
+'          print gen, ''abs range test : '', abs(tiny(0.0)), abs(-tiny(0.0))', &
 '', &
 '        end subroutine DUSTY_CORNERS_1', &
 '', &
 '        subroutine DUSTY_CORNERS_2(message)', &
-'           character(len=*),intent(in) :: message', &
+'        character(len=*),intent(in) :: message', &
 '', &
-'           ! dusty corner: "kind=dp" is required or the value returned by', &
-'           ! CMPLX() is a default real instead of double precision.', &
+'          ! dusty corner: "kind=dp" is required or the value returned by', &
+'          ! CMPLX() is a default real instead of double precision.', &
 '', &
-'           ! Working with complex values you often encounter the CMPLX(3)', &
-'           ! function. CMPLX(3) defaults to returning a default REAL regardless', &
-'           ! of input type. Not really a direct problem with ABS(2f) per-se,', &
-'           ! but a common error when working with doubleprecision complex values', &
+'          ! Working with complex values you often encounter the CMPLX(3)', &
+'          ! function. CMPLX(3) defaults to returning a default REAL regardless', &
+'          ! of input type. Not really a direct problem with ABS(2f) per-se,', &
+'          ! but a common error when working with doubleprecision complex values', &
 '', &
-'           print gen,  message', &
-'           print gen, ''real result versus doubleprecision result'', &', &
-'           & abs(cmplx(30.0_dp,40.0_dp)), &', &
-'           & abs(cmplx(30.0_dp,40.0_dp,kind=dp))', &
+'          print gen,  message', &
+'          print gen, ''real result versus doubleprecision result'', &', &
+'          & abs(cmplx(30.0_dp,40.0_dp)), &', &
+'          & abs(cmplx(30.0_dp,40.0_dp,kind=dp))', &
 '', &
 '        end subroutine DUSTY_CORNERS_2', &
 '', &
 '        subroutine DUSTY_CORNERS_3(message)', &
-'           character(len=*),intent(in) :: message', &
-'           print gen, message', &
+'        character(len=*),intent(in) :: message', &
+'          print gen, message', &
 '', &
-'           ! this will probably cause an overflow error, or', &
-'           !print gen,  abs(cmplx( huge(0.0), huge(0.0) ))', &
+'          ! this will probably cause an overflow error, or', &
+'          !print gen,  abs(cmplx( huge(0.0), huge(0.0) ))', &
 '', &
-'           print gen, ''because the biggest default real is'',huge(0.0)', &
-'           print gen, ''because returning magnitude of sqrt(x%re**2,x%im**2)''', &
+'          print gen, ''because the biggest default real is'',huge(0.0)', &
+'          print gen, ''because returning magnitude of sqrt(x%re**2,x%im**2)''', &
 '', &
 '        end subroutine DUSTY_CORNERS_3', &
 '', &
 '        subroutine DUSTY_CORNERS_4(message)', &
-'           character(len=*),intent(in) :: message', &
-'           print gen, message', &
+'        character(len=*),intent(in) :: message', &
+'          print gen, message', &
 '', &
-'           ! if you do not want the distance for a complex value you', &
-'           ! might want something like returning a complex value with', &
-'           ! both the imaginary and real parts. One way to do that is', &
+'          ! if you do not want the distance for a complex value you', &
+'          ! might want something like returning a complex value with', &
+'          ! both the imaginary and real parts. One way to do that is', &
 '', &
-'           print gen, cmplx(abs(z%re),abs(z%im),kind=kind(z))', &
+'          print gen, cmplx(abs(z%re),abs(z%im),kind=kind(z))', &
 '', &
 '        end subroutine DUSTY_CORNERS_4', &
 '', &
@@ -362,7 +503,7 @@ textblock=[character(len=256) :: &
 '', &
 '       >  integer         In: -1                        Out: 1', &
 '       >  real            In: -1.00000000               Out: 1.00000000', &
-'       >  doubleprecision  In: -45.780000000000001      Out: 45.780000000000001', &
+'       >  doubleprecision  In: -45.78000000000000       Out: 45.78000000000000', &
 '       >  complex         In: (-3.00000000,-4.00000000) Out: 5.00000000', &
 '       > abs is elemental: 20 0 1 3 100', &
 '       > distance of ( -3.00000000 -4.00000000 ) from zero is 5.00000000', &
@@ -371,7 +512,7 @@ textblock=[character(len=256) :: &
 '       > abs range test :  0.340282347E+39 0.340282347E+39', &
 '       > abs range test :  0.117549435E-37 0.117549435E-37', &
 '       > beware of losing precision using CMPLX(3)', &
-'       > real result versus doubleprecision result 50.0000000 50.000000000000000', &
+'       > real result versus doubleprecision result 50.0000000 50.00000000000000', &
 '       > beware of overflow of complex values', &
 '       > because the biggest default real is 0.340282347E+39', &
 '       > because returning magnitude of sqrt(x%re**2,x%im**2)', &
@@ -386,12 +527,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 abs(3fortran)', &
+'                               March 16, 2025                   abs(3fortran)', &
 '']
 
 shortname="abs"
 call process()
-
 
 case('2','achar')
 
@@ -544,12 +684,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               achar(3fortran)', &
+'                               March 16, 2025                 achar(3fortran)', &
 '']
 
 shortname="achar"
 call process()
-
 
 case('3','acos')
 
@@ -638,12 +777,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                acos(3fortran)', &
+'                               March 16, 2025                  acos(3fortran)', &
 '']
 
 shortname="acos"
 call process()
-
 
 case('4','acosd')
 
@@ -724,12 +862,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               acosd(3fortran)', &
+'                               March 16, 2025                 acosd(3fortran)', &
 '']
 
 shortname="acosd"
 call process()
-
 
 case('5','acosh')
 
@@ -798,12 +935,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               acosh(3fortran)', &
+'                               March 16, 2025                 acosh(3fortran)', &
 '']
 
 shortname="acosh"
 call process()
-
 
 case('6','acospi')
 
@@ -899,12 +1035,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              acospi(3fortran)', &
+'                               March 16, 2025                acospi(3fortran)', &
 '']
 
 shortname="acospi"
 call process()
-
 
 case('7','adjustl')
 
@@ -989,12 +1124,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             adjustl(3fortran)', &
+'                               March 16, 2025               adjustl(3fortran)', &
 '']
 
 shortname="adjustl"
 call process()
-
 
 case('8','adjustr')
 
@@ -1075,12 +1209,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             adjustr(3fortran)', &
+'                               March 16, 2025               adjustr(3fortran)', &
 '']
 
 shortname="adjustr"
 call process()
-
 
 case('9','aimag')
 
@@ -1197,12 +1330,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               aimag(3fortran)', &
+'                               March 16, 2025                 aimag(3fortran)', &
 '']
 
 shortname="aimag"
 call process()
-
 
 case('10','aint')
 
@@ -1290,12 +1422,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                aint(3fortran)', &
+'                               March 16, 2025                  aint(3fortran)', &
 '']
 
 shortname="aint"
 call process()
-
 
 case('11','all')
 
@@ -1403,12 +1534,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 all(3fortran)', &
+'                               March 16, 2025                   all(3fortran)', &
 '']
 
 shortname="all"
 call process()
-
 
 case('12','allocated')
 
@@ -1503,12 +1633,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025           allocated(3fortran)', &
+'                               March 16, 2025             allocated(3fortran)', &
 '']
 
 shortname="allocated"
 call process()
-
 
 case('13','anint')
 
@@ -1622,12 +1751,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               anint(3fortran)', &
+'                               March 16, 2025                 anint(3fortran)', &
 '']
 
 shortname="anint"
 call process()
-
 
 case('14','any')
 
@@ -1781,12 +1909,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 any(3fortran)', &
+'                               March 16, 2025                   any(3fortran)', &
 '']
 
 shortname="any"
 call process()
-
 
 case('15','asin')
 
@@ -1896,12 +2023,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                asin(3fortran)', &
+'                               March 16, 2025                  asin(3fortran)', &
 '']
 
 shortname="asin"
 call process()
-
 
 case('16','asind')
 
@@ -2021,12 +2147,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               asind(3fortran)', &
+'                               March 16, 2025                 asind(3fortran)', &
 '']
 
 shortname="asind"
 call process()
-
 
 case('17','asinh')
 
@@ -2095,12 +2220,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               asinh(3fortran)', &
+'                               March 16, 2025                 asinh(3fortran)', &
 '']
 
 shortname="asinh"
 call process()
-
 
 case('18','asinpi')
 
@@ -2227,12 +2351,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              asinpi(3fortran)', &
+'                               March 16, 2025                asinpi(3fortran)', &
 '']
 
 shortname="asinpi"
 call process()
-
 
 case('19','associate')
 
@@ -2250,7 +2373,7 @@ textblock=[character(len=256) :: &
 '', &
 '       [ construct-name : ] ASSOCIATE ( associate-name => selector ...)', &
 '         :', &
-'         : the associate-block; a sequence of zero or more statements or constructs', &
+'         : the associate-block; zero or more statements or constructs', &
 '         :', &
 '       END ASSOCIATE [ construct-name ]', &
 '', &
@@ -2291,8 +2414,8 @@ textblock=[character(len=256) :: &
 '', &
 '             MYNAME: associate', &
 '              :', &
-'         if(something_is_true) exit MYNAME', &
-'          :', &
+'             if(something_is_true) exit MYNAME', &
+'              :', &
 '             end associate MYNAME', &
 '', &
 '  sample program:', &
@@ -2480,7 +2603,7 @@ textblock=[character(len=256) :: &
 '  selector.', &
 '', &
 '  The associating entity itself is a variable, but if the selector is not a', &
-'  denable variable, the associating entity is not definable and shall not be', &
+'  definable variable, the associating entity is not definable and shall not be', &
 '  defined or become undefined.', &
 '', &
 '  If a selector is not permitted to appear in a variable definition context,', &
@@ -2530,7 +2653,9 @@ textblock=[character(len=256) :: &
 '', &
 '  The next example illustrates multiple associations.', &
 '', &
-'            associate ( w => result(i,j)%w, zx => ax%b(i,j)%d, zy => ay%b(i,j)%d )', &
+'            associate ( w => result(i,j)%w, &', &
+'            & zx => ax%b(i,j)%d, &', &
+'            & zy => ay%b(i,j)%d )', &
 '              w = zx*x + zy*y', &
 '            end associate', &
 '', &
@@ -2550,41 +2675,40 @@ textblock=[character(len=256) :: &
 '        character(len=*),parameter :: g=''(*(g0,1x))''', &
 '        character :: array(-5:5,-5:5)      ! custom non-normal bounds', &
 '        ! note the different between queries of ARRAY versus ARRAY(:,:)', &
-'           write(*,g)''array:    '',  ''lbound='',lbound(array), &', &
-'                                     ''ubound='',ubound(array)', &
-'           write(*,g)''array(:,:): '', ''lbound='',lbound(array(:,:)), &', &
-'                                     ''ubound='',ubound(array(:,:))', &
+'          write(*,g)''array:    '',  ''lbound='',lbound(array), &', &
+'                                    ''ubound='',ubound(array)', &
+'          write(*,g)''array(:,:): '', ''lbound='',lbound(array(:,:)), &', &
+'                                    ''ubound='',ubound(array(:,:))', &
 '        ! the bounds assigned to the identifiers are what UBOUND(3f)', &
 '        ! and LBOUND(3f) return given the selector as an argument', &
-'           associate ( &', &
-'              alias=>   array,              & ! keeps the custom bounds', &
-'              normal=>  array(:,:),         & ! gets normal bounds', &
-'              quadI=>   array(+1:+5,-5:-1), & ! quad* will have normal bounds', &
-'              quadII=>  array(-5:-1,-5:-1), & !', &
-'              quadIII=> array(-5:-1,+1:+5), & !', &
-'              quadIV=>  array(+1:+5,+1:+5), & !', &
-'              xaxis=>array(:,0), &', &
-'              yaxis=>array(0,:) &', &
-'              )', &
-'              array=''.'' ! selector name is still valid in the block', &
-'              xaxis=''-''', &
-'              yaxis=''|''', &
-'              alias(0,0)=''+'' ! uses non-normal bounds, equivalent to array(0,0)=''+''', &
-'              write(*,''(11(g0,1x))'') alias', &
-'              ! the quads have normalized dimension bounds (1:5,1:5):', &
-'              quadI    =  ''1'';  quadI(1,1)    =  ''a'';      quadI(5,5)    =  ''A''', &
-'              quadII   =  ''2'';  quadII(1,1)   =  ''b'';      quadII(5,5)   =  ''B''', &
-'              quadIII  =  ''3'';  quadIII(1,1)  =  ''c'';      quadIII(5,5)  =  ''C''', &
-'              quadIV   =  ''4'';  quadIV(1,1)   =  ''d'';      quadIV(5,5)   =  ''D''', &
-'              write(*,''(11(g0,1x))'') alias', &
-'', &
-'              write(*,g)''array:   lbound='',lbound(array),  ''ubound='',ubound(array)', &
-'              write(*,g)''alias:   lbound='',lbound(alias),  ''ubound='',ubound(alias)', &
-'              write(*,g)''normal:  lbound='',lbound(normal), ''ubound='',ubound(normal)', &
-'              write(*,g)''quadI:   lbound='',lbound(quadI),  ''ubound='',ubound(quadI)', &
-'              write(*,g)''quadII:  lbound='',lbound(quadII), ''ubound='',ubound(quadII)', &
-'              write(*,g)''quadIV:  lbound='',lbound(quadIV), ''ubound='',ubound(quadIV)', &
-'           end associate', &
+'          associate ( &', &
+'           alias=>   array,              & ! keeps the custom bounds', &
+'           normal=>  array(:,:),         & ! gets normal bounds', &
+'           quadI=>   array(+1:+5,-5:-1), & ! quad* will have normal bounds', &
+'           quadII=>  array(-5:-1,-5:-1), & !', &
+'           quadIII=> array(-5:-1,+1:+5), & !', &
+'           quadIV=>  array(+1:+5,+1:+5), & !', &
+'           xaxis=>array(:,0), &', &
+'           yaxis=>array(0,:) &', &
+'           )', &
+'           array=''.'' ! selector name is still valid in the block', &
+'           xaxis=''-''', &
+'           yaxis=''|''', &
+'           alias(0,0)=''+'' ! uses non-normal bounds, equivalent to array(0,0)=''+''', &
+'           write(*,''(11(g0,1x))'') alias', &
+'           ! the quads have normalized dimension bounds (1:5,1:5):', &
+'           quadI    =  ''1'';  quadI(1,1)    =  ''a'';  quadI(5,5)    =  ''A''', &
+'           quadII   =  ''2'';  quadII(1,1)   =  ''b'';  quadII(5,5)   =  ''B''', &
+'           quadIII  =  ''3'';  quadIII(1,1)  =  ''c'';  quadIII(5,5)  =  ''C''', &
+'           quadIV   =  ''4'';  quadIV(1,1)   =  ''d'';  quadIV(5,5)   =  ''D''', &
+'           write(*,''(11(g0,1x))'') alias', &
+'           write(*,g)''array:  lbound='',lbound(array), ''ubound='',ubound(array)', &
+'           write(*,g)''alias:  lbound='',lbound(alias), ''ubound='',ubound(alias)', &
+'           write(*,g)''normal: lbound='',lbound(normal),''ubound='',ubound(normal)', &
+'           write(*,g)''quadI:  lbound='',lbound(quadI), ''ubound='',ubound(quadI)', &
+'           write(*,g)''quadII: lbound='',lbound(quadII),''ubound='',ubound(quadII)', &
+'           write(*,g)''quadIV: lbound='',lbound(quadIV),''ubound='',ubound(quadIV)', &
+'          end associate', &
 '        end program demo_associate', &
 '', &
 '  Results:', &
@@ -2654,8 +2778,12 @@ textblock=[character(len=256) :: &
 '        end program main', &
 '', &
 '  are you allowed to allocate v to a different size before the ASSOCIATE is', &
-'  terminated? If so, what happens to c? ```fortran program', &
-'  demonstrate_associate implicit none integer, allocatable :: v(:) v = [3,4]', &
+'  terminated? If so, what happens to c?', &
+'', &
+'          program demonstrate_associate', &
+'          implicit none', &
+'          integer, allocatable :: v(:)', &
+'          v = [3,4]', &
 '', &
 '          associate (c => v) ; call disp("1",v,c)', &
 '          c = c*10           ; call disp("2",v,c)', &
@@ -2689,14 +2817,13 @@ textblock=[character(len=256) :: &
 '        type(type(a)),intent(in) :: a(..) ! if a in an expression', &
 '        type(type(a))            :: a(..) ! if a in a variable', &
 '        end subroutine assoc', &
+'        ! somewhat like the parameters being class(*) but without all the', &
+'        ! SELECT statements like type(type(a)) worked.', &
 '', &
-'        ! somewhat like the parameters being class(*) but without all the SELECT statements', &
-'        ! like type(type(a)) worked.', &
-'', &
-'        ! so "a" in the subroutine does not have the allocatable, optional, or pointer', &
-'        ! attributes even if AA did, and it is up to the programmer to make sure AA is allocated', &
-'        ! or assigned a target or present if optional when making the call if it has those', &
-'        ! attributes.', &
+'        ! so "a" in the subroutine does not have the allocatable, optional,', &
+'        ! or pointer attributes even if AA did, and it is up to the programmer', &
+'        ! to make sure AA is allocated or assigned a target or present if', &
+'        ! optional when making the call if it has those attributes.', &
 '', &
 '        ! but it can have the target attribute.', &
 '', &
@@ -2724,12 +2851,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025           associate(7fortran)', &
+'                               March 16, 2025             associate(7fortran)', &
 '']
 
 shortname="associate"
 call process()
-
 
 case('20','associated')
 
@@ -2844,12 +2970,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025          associated(3fortran)', &
+'                               March 16, 2025            associated(3fortran)', &
 '']
 
 shortname="associated"
 call process()
-
 
 case('21','atan2')
 
@@ -2967,8 +3092,8 @@ textblock=[character(len=256) :: &
 '          call cartesian_to_polar(vals(i), radius,ang)', &
 '          write(*,101)vals(i),ang,r2d(ang),radius', &
 '       enddo', &
-'       101 format( ''X= '',f5.2,'' Y= '',f5.2,'' ANGLE= '',g0, &', &
-'       & T38,''DEGREES= '',g0.4, T54,''DISTANCE='',g0)', &
+'       101 format( ''X='',f5.2,'' Y='',f5.2,'' ANGLE='',g0, &', &
+'       & T38,''DEGREES='',g0.4, T54,''DISTANCE='',g0)', &
 '       endblock COMPLEX_VALS', &
 '      !', &
 '      contains', &
@@ -3000,13 +3125,13 @@ textblock=[character(len=256) :: &
 '       >  elemental  0.321750551      0.463647604', &
 '       >  elemental  0.197395563      0.380506366', &
 '       >  complex            (0.00000000,1.00000000)   1.57079637', &
-'       > X=  1.00 Y=  0.00 ANGLE= 0.00000000  DEGREES= 0.000  DISTANCE=1.00000000', &
-'       > X=  1.00 Y=  1.00 ANGLE= 0.785398185 DEGREES= 45.00  DISTANCE=1.41421354', &
-'       > X=  0.00 Y=  1.00 ANGLE= 1.57079637  DEGREES= 90.00  DISTANCE=1.00000000', &
-'       > X= -1.00 Y=  1.00 ANGLE= 2.35619450  DEGREES= 135.0  DISTANCE=1.41421354', &
-'       > X= -1.00 Y=  0.00 ANGLE= 3.14159274  DEGREES= 180.0  DISTANCE=1.00000000', &
-'       > X= -1.00 Y= -1.00 ANGLE= 3.92699075  DEGREES= 225.0  DISTANCE=1.41421354', &
-'       > X=  0.00 Y= -1.00 ANGLE= 4.71238899  DEGREES= 270.0  DISTANCE=1.00000000', &
+'       > X= 1.00 Y= 0.00 ANGLE= 0.00000000  DEGREES= 0.000 DISTANCE=1.00000000', &
+'       > X= 1.00 Y= 1.00 ANGLE= 0.785398185 DEGREES= 45.00 DISTANCE=1.41421354', &
+'       > X= 0.00 Y= 1.00 ANGLE= 1.57079637  DEGREES= 90.00 DISTANCE=1.00000000', &
+'       > X=-1.00 Y= 1.00 ANGLE= 2.35619450  DEGREES= 135.0 DISTANCE=1.41421354', &
+'       > X=-1.00 Y= 0.00 ANGLE= 3.14159274  DEGREES= 180.0 DISTANCE=1.00000000', &
+'       > X=-1.00 Y=-1.00 ANGLE= 3.92699075  DEGREES= 225.0 DISTANCE=1.41421354', &
+'       > X= 0.00 Y=-1.00 ANGLE= 4.71238899  DEGREES= 270.0 DISTANCE=1.00000000', &
 '', &
 '      # STANDARD', &
 '', &
@@ -3020,15 +3145,15 @@ textblock=[character(len=256) :: &
 '', &
 '      # RESOURCES', &
 '', &
-'      - [arctan:wikipedia](https://en.wikipedia.org/wiki/Inverse_trigonometric_functions)', &
+'      - [arctan:wikipedia]', &
+'       (https://en.wikipedia.org/wiki/Inverse_trigonometric_functions)', &
 '       _Fortran intrinsic descriptions (license: MIT) \@urbanjost_', &
 '', &
-'                              February 19, 2025               atan2(3fortran)', &
+'                               March 16, 2025                 atan2(3fortran)', &
 '']
 
 shortname="atan2"
 call process()
-
 
 case('22','atan2d')
 
@@ -3195,12 +3320,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              atan2d(3fortran)', &
+'                               March 16, 2025                atan2d(3fortran)', &
 '']
 
 shortname="atan2d"
 call process()
-
 
 case('23','atan2pi')
 
@@ -3353,12 +3477,11 @@ textblock=[character(len=256) :: &
 'RESOURCES', &
 '  o  arctan:wikipedia Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             atan2pi(3fortran)', &
+'                               March 16, 2025               atan2pi(3fortran)', &
 '']
 
 shortname="atan2pi"
 call process()
-
 
 case('24','atan')
 
@@ -3439,12 +3562,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                atan(3fortran)', &
+'                               March 16, 2025                  atan(3fortran)', &
 '']
 
 shortname="atan"
 call process()
-
 
 case('25','atand')
 
@@ -3526,12 +3648,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               atand(3fortran)', &
+'                               March 16, 2025                 atand(3fortran)', &
 '']
 
 shortname="atand"
 call process()
-
 
 case('26','atanh')
 
@@ -3592,12 +3713,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               atanh(3fortran)', &
+'                               March 16, 2025                 atanh(3fortran)', &
 '']
 
 shortname="atanh"
 call process()
-
 
 case('27','atanpi')
 
@@ -3680,12 +3800,11 @@ textblock=[character(len=256) :: &
 'RESOURCES', &
 '  o  wikipedia: inverse trigonometric functions', &
 '', &
-'                              February 19, 2025              atanpi(3fortran)', &
+'                               March 16, 2025                atanpi(3fortran)', &
 '']
 
 shortname="atanpi"
 call process()
-
 
 case('28','atomic_add')
 
@@ -3750,12 +3869,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025          atomic_add(3fortran)', &
+'                               March 16, 2025            atomic_add(3fortran)', &
 '']
 
 shortname="atomic_add"
 call process()
-
 
 case('29','atomic_and')
 
@@ -3821,12 +3939,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025          atomic_and(3fortran)', &
+'                               March 16, 2025            atomic_and(3fortran)', &
 '']
 
 shortname="atomic_and"
 call process()
-
 
 case('30','atomic_cas')
 
@@ -3884,12 +4001,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025          atomic_cas(3fortran)', &
+'                               March 16, 2025            atomic_cas(3fortran)', &
 '']
 
 shortname="atomic_cas"
 call process()
-
 
 case('31','atomic_define')
 
@@ -3953,12 +4069,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025       atomic_define(3fortran)', &
+'                               March 16, 2025         atomic_define(3fortran)', &
 '']
 
 shortname="atomic_define"
 call process()
-
 
 case('32','atomic_fetch_add')
 
@@ -4017,12 +4132,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025    atomic_fetch_add(3fortran)', &
+'                               March 16, 2025      atomic_fetch_add(3fortran)', &
 '']
 
 shortname="atomic_fetch_add"
 call process()
-
 
 case('33','atomic_fetch_and')
 
@@ -4082,12 +4196,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025    atomic_fetch_and(3fortran)', &
+'                               March 16, 2025      atomic_fetch_and(3fortran)', &
 '']
 
 shortname="atomic_fetch_and"
 call process()
-
 
 case('34','atomic_fetch_or')
 
@@ -4147,12 +4260,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025     atomic_fetch_or(3fortran)', &
+'                               March 16, 2025       atomic_fetch_or(3fortran)', &
 '']
 
 shortname="atomic_fetch_or"
 call process()
-
 
 case('35','atomic_fetch_xor')
 
@@ -4212,12 +4324,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025    atomic_fetch_xor(3fortran)', &
+'                               March 16, 2025      atomic_fetch_xor(3fortran)', &
 '']
 
 shortname="atomic_fetch_xor"
 call process()
-
 
 case('36','atomic_or')
 
@@ -4286,12 +4397,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           atomic_or(3fortran)', &
+'                               March 16, 2025             atomic_or(3fortran)', &
 '']
 
 shortname="atomic_or"
 call process()
-
 
 case('37','atomic_ref')
 
@@ -4363,12 +4473,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025          atomic_ref(3fortran)', &
+'                               March 16, 2025            atomic_ref(3fortran)', &
 '']
 
 shortname="atomic_ref"
 call process()
-
 
 case('38','atomic_xor')
 
@@ -4435,12 +4544,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025          atomic_xor(3fortran)', &
+'                               March 16, 2025            atomic_xor(3fortran)', &
 '']
 
 shortname="atomic_xor"
 call process()
-
 
 case('39','backspace')
 
@@ -4564,12 +4672,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025           backspace(7fortran)', &
+'                               March 16, 2025             backspace(7fortran)', &
 '']
 
 shortname="backspace"
 call process()
-
 
 case('40','bessel_j0')
 
@@ -4626,12 +4733,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           bessel_j0(3fortran)', &
+'                               March 16, 2025             bessel_j0(3fortran)', &
 '']
 
 shortname="bessel_j0"
 call process()
-
 
 case('41','bessel_j1')
 
@@ -4687,12 +4793,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           bessel_j1(3fortran)', &
+'                               March 16, 2025             bessel_j1(3fortran)', &
 '']
 
 shortname="bessel_j1"
 call process()
-
 
 case('42','bessel_jn')
 
@@ -4782,12 +4887,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           bessel_jn(3fortran)', &
+'                               March 16, 2025             bessel_jn(3fortran)', &
 '']
 
 shortname="bessel_jn"
 call process()
-
 
 case('43','bessel_y0')
 
@@ -4843,12 +4947,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           bessel_y0(3fortran)', &
+'                               March 16, 2025             bessel_y0(3fortran)', &
 '']
 
 shortname="bessel_y0"
 call process()
-
 
 case('44','bessel_y1')
 
@@ -4903,12 +5006,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           bessel_y1(3fortran)', &
+'                               March 16, 2025             bessel_y1(3fortran)', &
 '']
 
 shortname="bessel_y1"
 call process()
-
 
 case('45','bessel_yn')
 
@@ -4998,12 +5100,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           bessel_yn(3fortran)', &
+'                               March 16, 2025             bessel_yn(3fortran)', &
 '']
 
 shortname="bessel_yn"
 call process()
-
 
 case('46','bge')
 
@@ -5156,12 +5257,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 bge(3fortran)', &
+'                               March 16, 2025                   bge(3fortran)', &
 '']
 
 shortname="bge"
 call process()
-
 
 case('47','bgt')
 
@@ -5261,12 +5361,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 bgt(3fortran)', &
+'                               March 16, 2025                   bgt(3fortran)', &
 '']
 
 shortname="bgt"
 call process()
-
 
 case('48','bit_size')
 
@@ -5347,12 +5446,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025            bit_size(3fortran)', &
+'                               March 16, 2025              bit_size(3fortran)', &
 '']
 
 shortname="bit_size"
 call process()
-
 
 case('49','ble')
 
@@ -5441,12 +5539,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 ble(3fortran)', &
+'                               March 16, 2025                   ble(3fortran)', &
 '']
 
 shortname="ble"
 call process()
-
 
 case('50','block')
 
@@ -5565,12 +5662,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               block(7fortran)', &
+'                               March 16, 2025                 block(7fortran)', &
 '']
 
 shortname="block"
 call process()
-
 
 case('51','blt')
 
@@ -5653,12 +5749,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 blt(3fortran)', &
+'                               March 16, 2025                   blt(3fortran)', &
 '']
 
 shortname="blt"
 call process()
-
 
 case('52','btest')
 
@@ -5784,12 +5879,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               btest(3fortran)', &
+'                               March 16, 2025                 btest(3fortran)', &
 '']
 
 shortname="btest"
 call process()
-
 
 case('53','c_associated')
 
@@ -5855,12 +5949,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025        c_associated(3fortran)', &
+'                               March 16, 2025          c_associated(3fortran)', &
 '']
 
 shortname="c_associated"
 call process()
-
 
 case('54','ceiling')
 
@@ -6091,12 +6184,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             ceiling(3fortran)', &
+'                               March 16, 2025               ceiling(3fortran)', &
 '']
 
 shortname="ceiling"
 call process()
-
 
 case('55','c_f_pointer')
 
@@ -6160,12 +6252,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025         c_f_pointer(3fortran)', &
+'                               March 16, 2025           c_f_pointer(3fortran)', &
 '']
 
 shortname="c_f_pointer"
 call process()
-
 
 case('56','c_f_procpointer')
 
@@ -6228,12 +6319,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025     c_f_procpointer(3fortran)', &
+'                               March 16, 2025       c_f_procpointer(3fortran)', &
 '']
 
 shortname="c_f_procpointer"
 call process()
-
 
 case('57','c_funloc')
 
@@ -6296,12 +6386,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025            c_funloc(3fortran)', &
+'                               March 16, 2025              c_funloc(3fortran)', &
 '']
 
 shortname="c_funloc"
 call process()
-
 
 case('58','char')
 
@@ -6425,12 +6514,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                char(3fortran)', &
+'                               March 16, 2025                  char(3fortran)', &
 '']
 
 shortname="char"
 call process()
-
 
 case('59','c_loc')
 
@@ -6480,12 +6568,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025               c_loc(3fortran)', &
+'                               March 16, 2025                 c_loc(3fortran)', &
 '']
 
 shortname="c_loc"
 call process()
-
 
 case('60','close')
 
@@ -6611,12 +6698,11 @@ textblock=[character(len=256) :: &
 '  BACKSPACE(7), CLOSE(7), ENDFILE(7), FLUSH(7), INQUIRE(7), OPEN(7), PRINT(7),', &
 '  READ(7), REWIND(7), WAIT(7), WRITE(7)', &
 '', &
-'                              February 19, 2025               close(7fortran)', &
+'                               March 16, 2025                 close(7fortran)', &
 '']
 
 shortname="close"
 call process()
-
 
 case('61','cmplx')
 
@@ -6876,12 +6962,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               cmplx(3fortran)', &
+'                               March 16, 2025                 cmplx(3fortran)', &
 '']
 
 shortname="cmplx"
 call process()
-
 
 case('62','co_broadcast')
 
@@ -6938,12 +7023,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025        co_broadcast(3fortran)', &
+'                               March 16, 2025          co_broadcast(3fortran)', &
 '']
 
 shortname="co_broadcast"
 call process()
-
 
 case('63','co_lbound')
 
@@ -6990,7 +7074,6 @@ textblock=[character(len=256) :: &
 
 shortname="co_lbound"
 call process()
-
 
 case('64','co_max')
 
@@ -7052,12 +7135,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025              co_max(3fortran)', &
+'                               March 16, 2025                co_max(3fortran)', &
 '']
 
 shortname="co_max"
 call process()
-
 
 case('65','co_min')
 
@@ -7115,12 +7197,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025              co_min(3fortran)', &
+'                               March 16, 2025                co_min(3fortran)', &
 '']
 
 shortname="co_min"
 call process()
-
 
 case('66','command_argument_count')
 
@@ -7186,12 +7267,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 20command_argument_count(3fortran)', &
+'                               March 16, 2025command_argument_count(3fortran)', &
 '']
 
 shortname="command_argument_count"
 call process()
-
 
 case('67','comment')
 
@@ -7315,12 +7395,11 @@ textblock=[character(len=256) :: &
 'SEE ALSO', &
 '  CONTINUATION(5),', &
 '', &
-'                              February 19, 2025             comment(5fortran)', &
+'                               March 16, 2025               comment(5fortran)', &
 '']
 
 shortname="comment"
 call process()
-
 
 case('68','compiler_options')
 
@@ -7396,12 +7475,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025    compiler_options(3fortran)', &
+'                               March 16, 2025      compiler_options(3fortran)', &
 '']
 
 shortname="compiler_options"
 call process()
-
 
 case('69','compiler_version')
 
@@ -7464,12 +7542,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025    compiler_version(3fortran)', &
+'                               March 16, 2025      compiler_version(3fortran)', &
 '']
 
 shortname="compiler_version"
 call process()
-
 
 case('70','conjg')
 
@@ -7587,12 +7664,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               conjg(3fortran)', &
+'                               March 16, 2025                 conjg(3fortran)', &
 '']
 
 shortname="conjg"
 call process()
-
 
 case('71','continuation')
 
@@ -7963,12 +8039,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025        continuation(5fortran)', &
+'                               March 16, 2025          continuation(5fortran)', &
 '']
 
 shortname="continuation"
 call process()
-
 
 case('72','continue')
 
@@ -8040,12 +8115,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran statement descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025            continue(7fortran)', &
+'                               March 16, 2025              continue(7fortran)', &
 '']
 
 shortname="continue"
 call process()
-
 
 case('73','co_reduce')
 
@@ -8139,12 +8213,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           co_reduce(3fortran)', &
+'                               March 16, 2025             co_reduce(3fortran)', &
 '']
 
 shortname="co_reduce"
 call process()
-
 
 case('74','cos')
 
@@ -8188,27 +8261,150 @@ textblock=[character(len=256) :: &
 '', &
 '      program demo_cos', &
 '      implicit none', &
-'      character(len=*),parameter :: g2=''(a,t20,g0)''', &
-'      doubleprecision,parameter  :: PI=atan(1.0d0)*4.0d0', &
-'        write(*,g2)''COS(0.0)=    '', cos(0.0)', &
-'        write(*,g2)''COS(PI)=     '', cos(PI)', &
-'        write(*,g2)''COS(PI/2.0d0)='', cos(PI/2.0d0),''EPSILON='',epsilon(PI)', &
-'        write(*,g2)''COS(2*PI)=    '', cos(2*PI)', &
-'        write(*,g2)''COS(-2*PI)=   '', cos(-2*PI)', &
-'        write(*,g2)''COS(-2000*PI)='', cos(-2000*PI)', &
-'        write(*,g2)''COS(3000*PI)= '', cos(3000*PI)', &
+'      real,parameter      :: PI=atan(1.0d0)*4.0d0', &
+'      real                :: val', &
+'      character,parameter  :: nl=NEW_LINE(''A'')', &
+'        write(*,''(*(g0))'',advance=''no'') &', &
+'', &
+'      ''basics:'',                                          nl, &', &
+'      '' COS(0.0) =       '', cos(0.0),                     nl, &', &
+'      '' COS(PI) =        '', cos(PI),                      nl, &', &
+'      '' '',                                                nl, &', &
+'      ''X may be any real value'',                          nl, &', &
+'      '' COS(222*PI) =    '', cos(222*PI),                  nl, &', &
+'      '' COS(-333*PI) =           '', cos(-333*PI),                 nl, &', &
+'      '' '',                                                nl, &', &
+'      ''note: probably not exactly zero ....'',                     nl, &', &
+'      '' COS(PI/2.0)=     '', cos(PI/2.0),                  nl, &', &
+'      '' EPSILON=         '', epsilon(PI),                  nl, &', &
+'      '' '',                                                nl, &', &
+'      ''COS() is elemental'',                               nl, &', &
+'      '' COS([0.0,PI/4,PI/2,PI*3/4,PI]) = '',               nl', &
+'        write(*,''(*(1x,g0,1x))'') COS([0.0,PI/4,PI/2,PI*3/4,PI])', &
+'', &
+'        write(*,''(*(g0))'',advance=''no'') &', &
+'      '' '',                                                nl, &', &
+'      ''Law of Cosines:'',                                  nl, &', &
+'      '' '',                                                nl, &', &
+'      ''right triangle'',                                   nl, &', &
+'      two_sides_and_degrees_between(3.0,4.0,90.0),          nl, &', &
+'      ''equilateral'',                                      nl, &', &
+'      two_sides_and_degrees_between(3.3,3.3,60.0),          nl, &', &
+'      '' '',                                                nl, &', &
+'      ''Dusty Corners:'',                                   nl, &', &
+'      '' '',                                                nl, &', &
+'      ''If very large, representable numbers are far apart'',  nl, &', &
+'      ''so adding or subtracting a few radians can not even'', nl, &', &
+'      ''change the value! Note the expected values here:'',    nl', &
+'        val=0.0', &
+'        call delta( val-2.0, val-1.0 )', &
+'', &
+'        write(*,''(a)'') ''but look at the same call when the values are huge;''', &
+'        val=huge(0.0)/1000', &
+'        call delta( val-2.0, val-1.0 )', &
+'', &
+'      contains', &
+'', &
+'      subroutine delta(A,B)', &
+'      real(kind=kind(0.0)),intent(in) :: a,b', &
+'      print ''(a,t30,g0)'' , &', &
+'      '' A=                   '', A, &', &
+'      '' B=                   '', B, &', &
+'      '' B-A=                 '', B-A, &', &
+'      '' COS(A*PI)=           '', cos(A*PI), &', &
+'      '' COS(B*PI)=           '', cos(B*PI), &', &
+'      '' spacing(A)=          '', spacing(A), &', &
+'      '' COS((B-A)*PI)=               '', cos((B-A)*PI), &', &
+'      '' COS(B*PI)-COS(A*PI)=   '', cos(B*PI)-cos(A*PI), &', &
+'      repeat(''='',40)', &
+'      end subroutine delta', &
+'', &
+'      function two_sides_and_degrees_between(a,b,X) result(str)', &
+'      real,intent(in)             :: a,b,X', &
+'      real                        :: c', &
+'      real,parameter              :: PI = atan(1.0d0) * 4.0d0', &
+'      real,parameter              :: degrees_to_radians = PI / 180.0', &
+'      character,parameter         :: nl=NEW_LINE(''A'')', &
+'      character(len=:),allocatable :: str', &
+'      ! The law of cosines states that for a', &
+'      ! triangle with sides of length a, b, and c', &
+'      ! that if the angle X is formed by sides a and', &
+'      ! b that the length of the third side c is', &
+'      !', &
+'        c = sqrt( a**2 + b**2 - 2*a*b*cos(degrees_to_radians*X) )', &
+'        allocate( character(len=132) :: str )', &
+'        write(str,''(*(g0))'')&', &
+'        ''For sides A='',a,'', B='',b,'' and X='',x,'' degrees,'',nl,''side C='',c', &
+'        str=trim(str)', &
+'      !', &
+'      !                       \', &
+'      !                      / \', &
+'      !                     / Y \', &
+'      !                    /     \', &
+'      !                   /       \', &
+'      !                  /         \', &
+'      !               b /           \ c', &
+'      !                /             \', &
+'      !               /               \', &
+'      !              /                 \', &
+'      !             /                   \', &
+'      !            / X                 Z \', &
+'      !           -------------------------', &
+'      !                       a', &
+'      end function two_sides_and_degrees_between', &
 '      end program demo_cos', &
 '', &
 '  Results:', &
 '', &
-'       > COS(0.0)=         1.000000', &
-'       > COS(PI)=          -1.000000000000000', &
-'       > COS(PI/2.0d0)=     .6123233995736766E-16', &
-'       > EPSILON=          .2220446049250313E-15', &
-'       > COS(2*PI)=        1.000000000000000', &
-'       > COS(-2*PI)=       1.000000000000000', &
-'       > COS(-2000*PI)=     1.000000000000000', &
-'       > COS(3000*PI)=     1.000000000000000', &
+'       > basics:', &
+'       >  COS(0.0) =        1.00000000', &
+'       >  COS(PI) =         -1.00000000', &
+'       >', &
+'       > X may be any real value', &
+'       >  COS(222*PI) =      1.00000000', &
+'       >  COS(-333*PI) =     -1.00000000', &
+'       >', &
+'       > note: probably not exactly zero ....', &
+'       >  COS(PI/2.0)=      -0.437113883E-7', &
+'       >  EPSILON=          0.119209290E-6', &
+'       >', &
+'       > COS() is elemental', &
+'       >  COS([0.0,PI/4,PI/2,PI*3/4,PI]) =', &
+'       >  1.00000000  0.707106769  -0.437113883E-7  -0.707106769  -1.00000000', &
+'       >', &
+'       > Law of Cosines:', &
+'       >', &
+'       > right triangle', &
+'       > For sides A=3.00000000, B=4.00000000 and X=90.0000000 degrees,', &
+'       > side C=5.00000000', &
+'       > equilateral', &
+'       > For sides A=3.29999995, B=3.29999995 and X=60.0000000 degrees,', &
+'       > side C=3.29999995', &
+'       >', &
+'       > Dusty Corners:', &
+'       >', &
+'       > If very large, representable numbers are far apart', &
+'       > so adding or subtracting a few radians can not even', &
+'       > change the value! Note the expected values here:', &
+'       >  A=                         -2.00000000', &
+'       >  B=                         -1.00000000', &
+'       >  B-A=                       1.00000000', &
+'       >  COS(A*PI)=                 1.00000000', &
+'       >  COS(B*PI)=                 -1.00000000', &
+'       >  spacing(A)=                0.238418579E-6', &
+'       >  COS((B-A)*PI)=             -1.00000000', &
+'       >  COS(B*PI)-COS(A*PI)=       -2.00000000', &
+'       > ========================================', &
+'       > but look at the same call when the values are huge;', &
+'       >  A=                         0.340282343E+36', &
+'       >  B=                         0.340282343E+36', &
+'       >  B-A=                       0.00000000', &
+'       >  COS(A*PI)=                 0.766595423', &
+'       >  COS(B*PI)=                 0.766595423', &
+'       >  spacing(A)=                0.396140813E+29', &
+'       >  COS((B-A)*PI)=             1.00000000', &
+'       >  COS(B*PI)-COS(A*PI)=       0.00000000', &
+'       > ========================================', &
 '', &
 'STANDARD', &
 '  FORTRAN 77', &
@@ -8221,12 +8417,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025                 cos(3fortran)', &
+'                               March 16, 2025                   cos(3fortran)', &
 '']
 
 shortname="cos"
 call process()
-
 
 case('75','cosd')
 
@@ -8306,12 +8501,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025                cosd(3fortran)', &
+'                               March 16, 2025                  cosd(3fortran)', &
 '']
 
 shortname="cosd"
 call process()
-
 
 case('76','cosh')
 
@@ -8373,12 +8567,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025                cosh(3fortran)', &
+'                               March 16, 2025                  cosh(3fortran)', &
 '']
 
 shortname="cosh"
 call process()
-
 
 case('77','cospi')
 
@@ -8464,12 +8657,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025               cospi(3fortran)', &
+'                               March 16, 2025                 cospi(3fortran)', &
 '']
 
 shortname="cospi"
 call process()
-
 
 case('78','co_sum')
 
@@ -8535,12 +8727,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025              co_sum(3fortran)', &
+'                               March 16, 2025                co_sum(3fortran)', &
 '']
 
 shortname="co_sum"
 call process()
-
 
 case('79','co_ubound')
 
@@ -8587,7 +8778,6 @@ textblock=[character(len=256) :: &
 
 shortname="co_ubound"
 call process()
-
 
 case('80','count')
 
@@ -8819,12 +9009,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               count(3fortran)', &
+'                               March 16, 2025                 count(3fortran)', &
 '']
 
 shortname="count"
 call process()
-
 
 case('81','cpu_time')
 
@@ -8925,12 +9114,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025            cpu_time(3fortran)', &
+'                               March 16, 2025              cpu_time(3fortran)', &
 '']
 
 shortname="cpu_time"
 call process()
-
 
 case('82','cshift')
 
@@ -9056,12 +9244,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025              cshift(3fortran)', &
+'                               March 16, 2025                cshift(3fortran)', &
 '']
 
 shortname="cshift"
 call process()
-
 
 case('83','c_sizeof')
 
@@ -9116,12 +9303,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025            c_sizeof(3fortran)', &
+'                               March 16, 2025              c_sizeof(3fortran)', &
 '']
 
 shortname="c_sizeof"
 call process()
-
 
 case('84','date_and_time')
 
@@ -9298,12 +9484,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025       date_and_time(3fortran)', &
+'                               March 16, 2025         date_and_time(3fortran)', &
 '']
 
 shortname="date_and_time"
 call process()
-
 
 case('85','dble')
 
@@ -9370,12 +9555,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                dble(3fortran)', &
+'                               March 16, 2025                  dble(3fortran)', &
 '']
 
 shortname="dble"
 call process()
-
 
 case('86','deallocate')
 
@@ -9539,12 +9723,11 @@ textblock=[character(len=256) :: &
 '     shall retain its previous allocation status or pointer association', &
 '     status.', &
 '', &
-'                              February 19, 2025          deallocate(7fortran)', &
+'                               March 16, 2025            deallocate(7fortran)', &
 '']
 
 shortname="deallocate"
 call process()
-
 
 case('87','digits')
 
@@ -9608,12 +9791,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              digits(3fortran)', &
+'                               March 16, 2025                digits(3fortran)', &
 '']
 
 shortname="digits"
 call process()
-
 
 case('88','dim')
 
@@ -9711,12 +9893,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 dim(3fortran)', &
+'                               March 16, 2025                   dim(3fortran)', &
 '']
 
 shortname="dim"
 call process()
-
 
 case('89','dot_product')
 
@@ -9808,12 +9989,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025         dot_product(3fortran)', &
+'                               March 16, 2025           dot_product(3fortran)', &
 '']
 
 shortname="dot_product"
 call process()
-
 
 case('90','dprod')
 
@@ -9915,12 +10095,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               dprod(3fortran)', &
+'                               March 16, 2025                 dprod(3fortran)', &
 '']
 
 shortname="dprod"
 call process()
-
 
 case('91','dshiftl')
 
@@ -10058,12 +10237,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             dshiftl(3fortran)', &
+'                               March 16, 2025               dshiftl(3fortran)', &
 '']
 
 shortname="dshiftl"
 call process()
-
 
 case('92','dshiftr')
 
@@ -10204,12 +10382,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             dshiftr(3fortran)', &
+'                               March 16, 2025               dshiftr(3fortran)', &
 '']
 
 shortname="dshiftr"
 call process()
-
 
 case('93','endfile')
 
@@ -10296,12 +10473,11 @@ textblock=[character(len=256) :: &
 '  BACKSPACE(7), CLOSE(7), ENDFILE(7), FLUSH(7), INQUIRE(7), OPEN(7), PRINT(7),', &
 '  READ(7), REWIND(7), WAIT(7), WRITE(7)', &
 '', &
-'                              February 19, 2025             endfile(7fortran)', &
+'                               March 16, 2025               endfile(7fortran)', &
 '']
 
 shortname="endfile"
 call process()
-
 
 case('94','eoshift')
 
@@ -10474,12 +10650,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             eoshift(3fortran)', &
+'                               March 16, 2025               eoshift(3fortran)', &
 '']
 
 shortname="eoshift"
 call process()
-
 
 case('95','epsilon')
 
@@ -10599,12 +10774,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             epsilon(3fortran)', &
+'                               March 16, 2025               epsilon(3fortran)', &
 '']
 
 shortname="epsilon"
 call process()
-
 
 case('96','erf')
 
@@ -10664,12 +10838,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025                 erf(3fortran)', &
+'                               March 16, 2025                   erf(3fortran)', &
 '']
 
 shortname="erf"
 call process()
-
 
 case('97','erfc')
 
@@ -10744,12 +10917,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                erfc(3fortran)', &
+'                               March 16, 2025                  erfc(3fortran)', &
 '']
 
 shortname="erfc"
 call process()
-
 
 case('98','erfc_scaled')
 
@@ -10819,12 +10991,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025         erfc_scaled(3fortran)', &
+'                               March 16, 2025           erfc_scaled(3fortran)', &
 '']
 
 shortname="erfc_scaled"
 call process()
-
 
 case('99','event_query')
 
@@ -10903,12 +11074,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025         event_query(3fortran)', &
+'                               March 16, 2025           event_query(3fortran)', &
 '']
 
 shortname="event_query"
 call process()
-
 
 case('100','execute_command_line')
 
@@ -11084,12 +11254,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025execute_command_line(3fortran)', &
+'                               March 16, 2025  execute_command_line(3fortran)', &
 '']
 
 shortname="execute_command_line"
 call process()
-
 
 case('101','exit')
 
@@ -11393,12 +11562,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                exit(7fortran)', &
+'                               March 16, 2025                  exit(7fortran)', &
 '']
 
 shortname="exit"
 call process()
-
 
 case('102','exp')
 
@@ -11503,12 +11671,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 exp(3fortran)', &
+'                               March 16, 2025                   exp(3fortran)', &
 '']
 
 shortname="exp"
 call process()
-
 
 case('103','exponent')
 
@@ -11578,12 +11745,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025            exponent(3fortran)', &
+'                               March 16, 2025              exponent(3fortran)', &
 '']
 
 shortname="exponent"
 call process()
-
 
 case('104','extends_type_of')
 
@@ -11752,12 +11918,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025     extends_type_of(3fortran)', &
+'                               March 16, 2025       extends_type_of(3fortran)', &
 '']
 
 shortname="extends_type_of"
 call process()
-
 
 case('105','findloc')
 
@@ -12041,12 +12206,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             findloc(3fortran)', &
+'                               March 16, 2025               findloc(3fortran)', &
 '']
 
 shortname="findloc"
 call process()
-
 
 case('106','floor')
 
@@ -12148,12 +12312,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               floor(3fortran)', &
+'                               March 16, 2025                 floor(3fortran)', &
 '']
 
 shortname="floor"
 call process()
-
 
 case('107','flush')
 
@@ -12240,12 +12403,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               flush(7fortran)', &
+'                               March 16, 2025                 flush(7fortran)', &
 '']
 
 shortname="flush"
 call process()
-
 
 case('108','fraction')
 
@@ -12314,12 +12476,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025            fraction(3fortran)', &
+'                               March 16, 2025              fraction(3fortran)', &
 '']
 
 shortname="fraction"
 call process()
-
 
 case('109','gamma')
 
@@ -12460,12 +12621,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025               gamma(3fortran)', &
+'                               March 16, 2025                 gamma(3fortran)', &
 '']
 
 shortname="gamma"
 call process()
-
 
 case('110','get_command')
 
@@ -12562,12 +12722,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025         get_command(3fortran)', &
+'                               March 16, 2025           get_command(3fortran)', &
 '']
 
 shortname="get_command"
 call process()
-
 
 case('111','get_command_argument')
 
@@ -12695,12 +12854,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025get_command_argument(3fortran)', &
+'                               March 16, 2025  get_command_argument(3fortran)', &
 '']
 
 shortname="get_command_argument"
 call process()
-
 
 case('112','get_environment_variable')
 
@@ -12847,12 +13005,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, get_environment_variable(3fortran)', &
+'                               March 16, 20get_environment_variable(3fortran)', &
 '']
 
 shortname="get_environment_variable"
 call process()
-
 
 case('113','huge')
 
@@ -12985,12 +13142,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                huge(3fortran)', &
+'                               March 16, 2025                  huge(3fortran)', &
 '']
 
 shortname="huge"
 call process()
-
 
 case('114','hypot')
 
@@ -13085,57 +13241,10 @@ textblock=[character(len=256) :: &
 '  Fortran 2008', &
 '', &
 'SEE ALSO', &
-'  o  acos(3) - Arccosine (inverse cosine) function', &
-'', &
-'  o  acosh(3) - Inverse hyperbolic cosine function', &
-'', &
-'  o  asin(3) - Arcsine function', &
-'', &
-'  o  asinh(3) - Inverse hyperbolic sine function', &
-'', &
-'  o  atan(3) - Arctangent AKA inverse tangent function', &
-'', &
-'  o  atan2(3) - Arctangent (inverse tangent) function', &
-'', &
-'  o  atanh(3) - Inverse hyperbolic tangent function', &
-'', &
-'  o  cos(3) - Cosine function', &
-'', &
-'  o  cosh(3) - Hyperbolic cosine function', &
-'', &
-'  o  sin(3) - Sine function', &
-'', &
-'  o  sinh(3) - Hyperbolic sine function', &
-'', &
-'  o  tan(3) - Tangent function', &
-'', &
-'  o  tanh(3) - Hyperbolic tangent function', &
-'', &
-'  o  bessel_j0(3) - Bessel function of the first kind of order 0', &
-'', &
-'  o  bessel_j1(3) - Bessel function of the first kind of order 1', &
-'', &
-'  o  bessel_jn(3) - Bessel function of the first kind', &
-'', &
-'  o  bessel_y0(3) - Bessel function of the second kind of order 0', &
-'', &
-'  o  bessel_y1(3) - Bessel function of the second kind of order 1', &
-'', &
-'  o  bessel_yn(3) - Bessel function of the second kind', &
-'', &
-'  o  erf(3) - Error function', &
-'', &
-'  o  erfc(3) - Complementary error function', &
-'', &
-'  o  erfc_scaled(3) - Scaled complementary error function', &
-'', &
 '  o  exp(3) - Base-e exponential function', &
 '', &
 '  o  gamma(3) - Gamma function, which yields factorials for positive whole', &
 '     numbers', &
-'', &
-'  o  hypot(3) - Returns the Euclidean distance - the distance between a point', &
-'     and the origin.', &
 '', &
 '  o  log(3) - Natural logarithm', &
 '', &
@@ -13143,25 +13252,13 @@ textblock=[character(len=256) :: &
 '', &
 '  o  log_gamma(3) - Logarithm of the absolute value of the Gamma function', &
 '', &
-'  o  norm2(3) - Euclidean vector norm', &
-'', &
-'  o  sqrt(3) - Square-root function', &
-'', &
-'  o  random_init(3) - Initializes the state of the pseudorandom number', &
-'     generator', &
-'', &
-'  o  random_number(3) - Pseudo-random number', &
-'', &
-'  o  random_seed(3) - Initialize a pseudo-random number sequence', &
-'', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               hypot(3fortran)', &
+'                               March 16, 2025                 hypot(3fortran)', &
 '']
 
 shortname="hypot"
 call process()
-
 
 case('115','iachar')
 
@@ -13271,12 +13368,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              iachar(3fortran)', &
+'                               March 16, 2025                iachar(3fortran)', &
 '']
 
 shortname="iachar"
 call process()
-
 
 case('116','iall')
 
@@ -13355,12 +13451,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                iall(3fortran)', &
+'                               March 16, 2025                  iall(3fortran)', &
 '']
 
 shortname="iall"
 call process()
-
 
 case('117','iand')
 
@@ -13441,12 +13536,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                iand(3fortran)', &
+'                               March 16, 2025                  iand(3fortran)', &
 '']
 
 shortname="iand"
 call process()
-
 
 case('118','iany')
 
@@ -13552,12 +13646,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                iany(3fortran)', &
+'                               March 16, 2025                  iany(3fortran)', &
 '']
 
 shortname="iany"
 call process()
-
 
 case('119','ibclr')
 
@@ -13651,12 +13744,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               ibclr(3fortran)', &
+'                               March 16, 2025                 ibclr(3fortran)', &
 '']
 
 shortname="ibclr"
 call process()
-
 
 case('120','ibits')
 
@@ -13753,12 +13845,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               ibits(3fortran)', &
+'                               March 16, 2025                 ibits(3fortran)', &
 '']
 
 shortname="ibits"
 call process()
-
 
 case('121','ibset')
 
@@ -13851,12 +13942,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               ibset(3fortran)', &
+'                               March 16, 2025                 ibset(3fortran)', &
 '']
 
 shortname="ibset"
 call process()
-
 
 case('122','ichar')
 
@@ -13962,12 +14052,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               ichar(3fortran)', &
+'                               March 16, 2025                 ichar(3fortran)', &
 '']
 
 shortname="ichar"
 call process()
-
 
 case('123','ieor')
 
@@ -14068,12 +14157,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                ieor(3fortran)', &
+'                               March 16, 2025                  ieor(3fortran)', &
 '']
 
 shortname="ieor"
 call process()
-
 
 case('124','if')
 
@@ -14249,12 +14337,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                  if(7fortran)', &
+'                               March 16, 2025                    if(7fortran)', &
 '']
 
 shortname="if"
 call process()
-
 
 case('125','image_index')
 
@@ -14300,12 +14387,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025         image_index(3fortran)', &
+'                               March 16, 2025           image_index(3fortran)', &
 '']
 
 shortname="image_index"
 call process()
-
 
 case('126','implicit')
 
@@ -14578,12 +14664,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025            implicit(7fortran)', &
+'                               March 16, 2025              implicit(7fortran)', &
 '']
 
 shortname="implicit"
 call process()
-
 
 case('127','include')
 
@@ -14762,12 +14847,11 @@ textblock=[character(len=256) :: &
 '      include "somemorecode.inc"', &
 '      end program show_include', &
 '', &
-'                              February 19, 2025             include(7fortran)', &
+'                               March 16, 2025               include(7fortran)', &
 '']
 
 shortname="include"
 call process()
-
 
 case('128','index')
 
@@ -14864,12 +14948,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025               index(3fortran)', &
+'                               March 16, 2025                 index(3fortran)', &
 '']
 
 shortname="index"
 call process()
-
 
 case('129','inquire')
 
@@ -15401,12 +15484,13 @@ textblock=[character(len=256) :: &
 '          & readwrite=readwrite,sign=sign,round=round,blank=blank,           &', &
 '          & decimal=decimal,delim=delim,encoding=encoding,pad=pad,           &', &
 '          & named=named,opened=opened,exist=exist,number=number,             &', &
-'      !bug & pending=pending,                                                &', &
+'          !bug & pending=pending,                                            &', &
 '          & asynchronous=asynchronous,                                       &', &
 '          & iostat=iostat,err=999,iomsg=message)', &
 '        elseif(filename_  /= '''')then', &
 '          write(*,*)''*print_inquire* checking file:''//filename_', &
-'          inquire(file=filename_ ,recl=recl,nextrec=nextrec,pos=pos,         &', &
+'          inquire(file=filename_,                                            &', &
+'          & recl=recl,nextrec=nextrec,pos=pos,                               &', &
 '          & size=size,position=position,name=name,                           &', &
 '          & form=form,formatted=formatted,unformatted=unformatted,           &', &
 '          & access=access,sequential=sequential,direct=direct,stream=stream, &', &
@@ -15416,13 +15500,14 @@ textblock=[character(len=256) :: &
 '          & number=number,pending=pending,asynchronous=asynchronous,         &', &
 '          & iostat=iostat,err=999,iomsg=message)', &
 '        else', &
-'           write(*,*)''*print_inquire* must specify either filename or unit number''', &
+'           write(*,*) &', &
+'           & ''*print_inquire* must specify either filename or unit number''', &
 '        endif', &
 '        write(*,nml=inquire,delim=''none'')', &
 '        return', &
 '      999   continue', &
 '        write(*,*)''*print_inquire* bad inquire''', &
-'      !  If an error condition occurs during execution of an INQUIRE  statement,', &
+'      !  If an error condition occurs during execution of an INQUIRE statement,', &
 '      !  all of the inquiry identifiers except iostat become undefined.', &
 '        write(*,*) ''*print_inquire* inquire call failed,iostat='',iostat, &', &
 '        & ''message='',message', &
@@ -15433,12 +15518,11 @@ textblock=[character(len=256) :: &
 '  BACKSPACE(7), CLOSE(7), ENDFILE(7), FLUSH(7), INQUIRE(7), OPEN(7), PRINT(7),', &
 '  READ(7), REWIND(7), WAIT(7), WRITE(7)', &
 '', &
-'                              February 19, 2025             inquire(7fortran)', &
+'                               March 16, 2025               inquire(7fortran)', &
 '']
 
 shortname="inquire"
 call process()
-
 
 case('130','int')
 
@@ -15562,12 +15646,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 int(3fortran)', &
+'                               March 16, 2025                   int(3fortran)', &
 '']
 
 shortname="int"
 call process()
-
 
 case('131','ior')
 
@@ -15644,12 +15727,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 ior(3fortran)', &
+'                               March 16, 2025                   ior(3fortran)', &
 '']
 
 shortname="ior"
 call process()
-
 
 case('132','iparity')
 
@@ -15732,12 +15814,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025             iparity(3fortran)', &
+'                               March 16, 2025               iparity(3fortran)', &
 '']
 
 shortname="iparity"
 call process()
-
 
 case('133','is_contiguous')
 
@@ -15862,12 +15943,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025       is_contiguous(3fortran)', &
+'                               March 16, 2025         is_contiguous(3fortran)', &
 '']
 
 shortname="is_contiguous"
 call process()
-
 
 case('134','ishft')
 
@@ -15958,12 +16038,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               ishft(3fortran)', &
+'                               March 16, 2025                 ishft(3fortran)', &
 '']
 
 shortname="ishft"
 call process()
-
 
 case('135','ishftc')
 
@@ -16100,12 +16179,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              ishftc(3fortran)', &
+'                               March 16, 2025                ishftc(3fortran)', &
 '']
 
 shortname="ishftc"
 call process()
-
 
 case('136','is_iostat_end')
 
@@ -16227,12 +16305,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025       is_iostat_end(3fortran)', &
+'                               March 16, 2025         is_iostat_end(3fortran)', &
 '']
 
 shortname="is_iostat_end"
 call process()
-
 
 case('137','is_iostat_eor')
 
@@ -16290,15 +16367,15 @@ textblock=[character(len=256) :: &
 '           read(lun, *, iostat=ios) inums', &
 '           write(*,*)''iostat='',ios', &
 '           if(is_iostat_eor(ios)) then', &
-'          inums=-huge(0)', &
+'              inums=-huge(0)', &
 '              print *, ''end of record''', &
 '           elseif(is_iostat_end(ios)) then', &
 '              print *,''end of file''', &
-'          inums=-huge(0)', &
+'              inums=-huge(0)', &
 '              exit', &
 '           elseif(ios.ne.0)then', &
 '              print *,''I/O error'',ios', &
-'          inums=-huge(0)', &
+'              inums=-huge(0)', &
 '              exit', &
 '           else', &
 '              write(*,''(*(g0,1x))'')''inums='',inums', &
@@ -16344,12 +16421,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025       is_iostat_eor(3fortran)', &
+'                               March 16, 2025         is_iostat_eor(3fortran)', &
 '']
 
 shortname="is_iostat_eor"
 call process()
-
 
 case('138','kind')
 
@@ -16427,12 +16503,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                kind(3fortran)', &
+'                               March 16, 2025                  kind(3fortran)', &
 '']
 
 shortname="kind"
 call process()
-
 
 case('139','lbound')
 
@@ -16596,12 +16671,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              lbound(3fortran)', &
+'                               March 16, 2025                lbound(3fortran)', &
 '']
 
 shortname="lbound"
 call process()
-
 
 case('140','lcobound')
 
@@ -16643,12 +16717,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025            lcobound(3fortran)', &
+'                               March 16, 2025              lcobound(3fortran)', &
 '']
 
 shortname="lcobound"
 call process()
-
 
 case('141','leadz')
 
@@ -16729,12 +16802,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               leadz(3fortran)', &
+'                               March 16, 2025                 leadz(3fortran)', &
 '']
 
 shortname="leadz"
 call process()
-
 
 case('142','len')
 
@@ -16871,12 +16943,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 len(3fortran)', &
+'                               March 16, 2025                   len(3fortran)', &
 '']
 
 shortname="len"
 call process()
-
 
 case('143','len_trim')
 
@@ -16977,12 +17048,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025            len_trim(3fortran)', &
+'                               March 16, 2025              len_trim(3fortran)', &
 '']
 
 shortname="len_trim"
 call process()
-
 
 case('144','lge')
 
@@ -17088,12 +17158,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 lge(3fortran)', &
+'                               March 16, 2025                   lge(3fortran)', &
 '']
 
 shortname="lge"
 call process()
-
 
 case('145','lgt')
 
@@ -17200,12 +17269,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 lgt(3fortran)', &
+'                               March 16, 2025                   lgt(3fortran)', &
 '']
 
 shortname="lgt"
 call process()
-
 
 case('146','lle')
 
@@ -17336,12 +17404,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 lle(3fortran)', &
+'                               March 16, 2025                   lle(3fortran)', &
 '']
 
 shortname="lle"
 call process()
-
 
 case('147','llt')
 
@@ -17451,12 +17518,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 llt(3fortran)', &
+'                               March 16, 2025                   llt(3fortran)', &
 '']
 
 shortname="llt"
 call process()
-
 
 case('148','log10')
 
@@ -17516,50 +17582,6 @@ textblock=[character(len=256) :: &
 '  FORTRAN 77', &
 '', &
 'SEE ALSO', &
-'  o  acos(3) - Arccosine (inverse cosine) function', &
-'', &
-'  o  acosh(3) - Inverse hyperbolic cosine function', &
-'', &
-'  o  asin(3) - Arcsine function', &
-'', &
-'  o  asinh(3) - Inverse hyperbolic sine function', &
-'', &
-'  o  atan(3) - Arctangent AKA inverse tangent function', &
-'', &
-'  o  atan2(3) - Arctangent (inverse tangent) function', &
-'', &
-'  o  atanh(3) - Inverse hyperbolic tangent function', &
-'', &
-'  o  cos(3) - Cosine function', &
-'', &
-'  o  cosh(3) - Hyperbolic cosine function', &
-'', &
-'  o  sin(3) - Sine function', &
-'', &
-'  o  sinh(3) - Hyperbolic sine function', &
-'', &
-'  o  tan(3) - Tangent function', &
-'', &
-'  o  tanh(3) - Hyperbolic tangent function', &
-'', &
-'  o  bessel_j0(3) - Bessel function of the first kind of order 0', &
-'', &
-'  o  bessel_j1(3) - Bessel function of the first kind of order 1', &
-'', &
-'  o  bessel_jn(3) - Bessel function of the first kind', &
-'', &
-'  o  bessel_y0(3) - Bessel function of the second kind of order 0', &
-'', &
-'  o  bessel_y1(3) - Bessel function of the second kind of order 1', &
-'', &
-'  o  bessel_yn(3) - Bessel function of the second kind', &
-'', &
-'  o  erf(3) - Error function', &
-'', &
-'  o  erfc(3) - Complementary error function', &
-'', &
-'  o  erfc_scaled(3) - Scaled complementary error function', &
-'', &
 '  o  exp(3) - Base-e exponential function', &
 '', &
 '  o  gamma(3) - Gamma function, which yields factorials for positive whole', &
@@ -17570,29 +17592,15 @@ textblock=[character(len=256) :: &
 '', &
 '  o  log(3) - Natural logarithm', &
 '', &
-'  o  log10(3) - Base 10 or common logarithm', &
-'', &
 '  o  log_gamma(3) - Logarithm of the absolute value of the Gamma function', &
-'', &
-'  o  norm2(3) - Euclidean vector norm', &
-'', &
-'  o  sqrt(3) - Square-root function', &
-'', &
-'  o  random_init(3) - Initializes the state of the pseudorandom number', &
-'     generator', &
-'', &
-'  o  random_number(3) - Pseudo-random number', &
-'', &
-'  o  random_seed(3) - Initialize a pseudo-random number sequence', &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025               log10(3fortran)', &
+'                               March 16, 2025                 log10(3fortran)', &
 '']
 
 shortname="log10"
 call process()
-
 
 case('149','log')
 
@@ -17655,83 +17663,25 @@ textblock=[character(len=256) :: &
 '  FORTRAN 77', &
 '', &
 'SEE ALSO', &
-'  o  acos(3) - Arccosine (inverse cosine) function', &
-'', &
-'  o  acosh(3) - Inverse hyperbolic cosine function', &
-'', &
-'  o  asin(3) - Arcsine function', &
-'', &
-'  o  asinh(3) - Inverse hyperbolic sine function', &
-'', &
-'  o  atan(3) - Arctangent AKA inverse tangent function', &
-'', &
-'  o  atan2(3) - Arctangent (inverse tangent) function', &
-'', &
-'  o  atanh(3) - Inverse hyperbolic tangent function', &
-'', &
-'  o  cos(3) - Cosine function', &
-'', &
-'  o  cosh(3) - Hyperbolic cosine function', &
-'', &
-'  o  sin(3) - Sine function', &
-'', &
-'  o  sinh(3) - Hyperbolic sine function', &
-'', &
-'  o  tan(3) - Tangent function', &
-'', &
-'  o  tanh(3) - Hyperbolic tangent function', &
-'', &
-'  o  bessel_j0(3) - Bessel function of the first kind of order 0', &
-'', &
-'  o  bessel_j1(3) - Bessel function of the first kind of order 1', &
-'', &
-'  o  bessel_jn(3) - Bessel function of the first kind', &
-'', &
-'  o  bessel_y0(3) - Bessel function of the second kind of order 0', &
-'', &
-'  o  bessel_y1(3) - Bessel function of the second kind of order 1', &
-'', &
-'  o  bessel_yn(3) - Bessel function of the second kind', &
-'', &
-'  o  erf(3) - Error function', &
-'', &
-'  o  erfc(3) - Complementary error function', &
-'', &
-'  o  erfc_scaled(3) - Scaled complementary error function', &
+'  o  log10(3) - Base 10 or common logarithm', &
 '', &
 '  o  exp(3) - Base-e exponential function', &
-'', &
-'  o  gamma(3) - Gamma function, which yields factorials for positive whole', &
-'     numbers', &
 '', &
 '  o  hypot(3) - Returns the Euclidean distance - the distance between a point', &
 '     and the origin.', &
 '', &
-'  o  log(3) - Natural logarithm', &
-'', &
-'  o  log10(3) - Base 10 or common logarithm', &
+'  o  gamma(3) - Gamma function, which yields factorials for positive whole', &
+'     numbers', &
 '', &
 '  o  log_gamma(3) - Logarithm of the absolute value of the Gamma function', &
 '', &
-'  o  norm2(3) - Euclidean vector norm', &
-'', &
-'  o  sqrt(3) - Square-root function', &
-'', &
-'  o  random_init(3) - Initializes the state of the pseudorandom number', &
-'     generator', &
-'', &
-'  o  random_number(3) - Pseudo-random number', &
-'', &
-'  o  random_seed(3) - Initialize a pseudo-random number sequence', &
-'', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 log(3fortran)', &
+'                               March 16, 2025                   log(3fortran)', &
 '']
 
 shortname="log"
 call process()
-
 
 case('150','log_gamma')
 
@@ -17789,12 +17739,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           log_gamma(3fortran)', &
+'                               March 16, 2025             log_gamma(3fortran)', &
 '']
 
 shortname="log_gamma"
 call process()
-
 
 case('151','logical')
 
@@ -17803,7 +17752,7 @@ textblock=[character(len=256) :: &
 'logical(3fortran)                                           logical(3fortran)', &
 '', &
 'NAME', &
-'  LOGICAL(3) - [TYPE:LOGICAL] Conversion between kinds of logical values', &
+'  LOGICAL(3) - [TYPE:CONVERSION] Conversion between kinds of logical values', &
 '', &
 'SYNOPSIS', &
 '  result = logical(l [,kind])', &
@@ -17839,19 +17788,89 @@ textblock=[character(len=256) :: &
 '  Sample program:', &
 '', &
 '      program demo_logical', &
-'      ! Access array containing the kind type parameter values supported by this', &
-'      ! compiler for entities of logical type', &
 '      use iso_fortran_env, only : logical_kinds', &
+'      use,intrinsic :: iso_fortran_env, only : int8, int16, int32, int64', &
+'      use,intrinsic :: iso_fortran_env, only : real32, real64, real128', &
 '      implicit none', &
-'      integer :: i', &
-'', &
-'        ! list kind values supported on this platform, which generally vary', &
-'        ! in storage size as alias declarations', &
+'      character(len=*),parameter :: g=''(*(g0))''', &
+'      integer :: i, i1, i2', &
+'      logical :: l1, l2', &
+'       !', &
+'       ! list kind values supported on this platform', &
+'       !', &
 '        do i =1, size(logical_kinds)', &
 '           write(*,''(*(g0))'')''integer,parameter :: boolean'', &', &
 '           & logical_kinds(i),''='', logical_kinds(i)', &
 '        enddo', &
+'       ! for performance and storage purposes you generally want', &
+'       ! to use the smallest storage size supported when using', &
+'       ! large arrays, but some existing routines may require', &
+'       ! the default kind. LOGICAL(3f) can change the kind of', &
+'       ! the variables.', &
+'       !', &
+'       ! But converting a logical to an integer is not done', &
+'       ! with LOGICAL(3f); but can be down with MERGE(3f).', &
+'       !', &
+'        l1=.true.', &
+'        l2=.false.', &
+'        i1=merge(0,1,l1)', &
+'        i2=merge(0,1,l2)', &
+'        write(*,g)''L1='',l1,'' L2='',l2,'' I1='',i1,'' I2='',i2', &
+'       !', &
+'       ! show type and kind of default logicals', &
+'        call showme(.true.)', &
+'        call showme(l1)', &
+'       ! show logical() changing type and kind', &
+'        call showme(logical(l1))', &
+'       ! you may have to delete unsupported kinds from this example', &
 '', &
+'       ! this is probably the default', &
+'        call showme(logical(l1,kind=4))', &
+'       ! note how showme shows different kinds are being passed to it', &
+'        call showme(logical(l1,kind=8))', &
+'        call showme(logical(l1,kind=2))', &
+'       ! this is probably the smallest storage size supported', &
+'       ! on this platform; but kind values are platform-specific', &
+'        call showme(logical(l1,kind=1))', &
+'      contains', &
+'      subroutine showme(val)', &
+'      ! @(#) showme(3f) - display type and kind of intrinsic value', &
+'      class(*),intent(in) :: val', &
+'        select type(val)', &
+'           type is (integer(kind=int8))', &
+'             write(*,''("integer(kind=int8) ",i0)'') val', &
+'           type is (integer(kind=int16))', &
+'              write(*,''("integer(kind=int16) ",i0)'') val', &
+'           type is (integer(kind=int32))', &
+'              write(*,''("integer(kind=int32) ",i0)'') val', &
+'           type is (integer(kind=int64))', &
+'              write(*,''("integer(kind=int64) ",i0)'') val', &
+'           type is (real(kind=real32))', &
+'              write(*,''("real(kind=real32) ",1pg0)'') val', &
+'           type is (real(kind=real64))', &
+'              write(*,''("real(kind=real64) ",1pg0)'') val', &
+'           type is (real(kind=real128))', &
+'             write(*,''("real(kind=real128) ",1pg0)'') val', &
+'           type is (logical(kind=1))', &
+'                 write(*,''("logical(kind=1) ",l1,a,i0)'') val, &', &
+'             & ''storage='',storage_size(val)', &
+'           type is (logical(kind=2))', &
+'                 write(*,''("logical(kind=2) ",l1,a,i0)'') val, &', &
+'             & ''storage='',storage_size(val)', &
+'           type is (logical(kind=4))', &
+'                 write(*,''("logical(kind=4) ",l1,a,i0)'') val, &', &
+'             & ''storage='',storage_size(val)', &
+'           type is (logical(kind=8))', &
+'                 write(*,''("logical(kind=8) ",l1,a,i0)'') val, &', &
+'             & ''storage='',storage_size(val)', &
+'           type is (character(len=*))', &
+'               write(*,''("character ",a)'') trim(val)', &
+'           type is (complex)', &
+'                        write(*,''("","(",1pg0,",",1pg0,")")'') val', &
+'           class default', &
+'           stop ''crud. showme() does not know about this type''', &
+'        end select', &
+'      end subroutine showme', &
 '      end program demo_logical', &
 '', &
 '  Results:', &
@@ -17861,21 +17880,42 @@ textblock=[character(len=256) :: &
 '       > integer,parameter :: boolean4=4', &
 '       > integer,parameter :: boolean8=8', &
 '       > integer,parameter :: boolean16=16', &
+'       > L1=T L2=F I1=0 I2=1', &
+'       > logical(kind=4) Tstorage=32', &
+'       > logical(kind=4) Tstorage=32', &
+'       > logical(kind=4) Tstorage=32', &
+'       > logical(kind=1) Tstorage=8', &
+'       > logical(kind=2) Tstorage=16', &
+'       > logical(kind=4) Tstorage=32', &
 '', &
 'STANDARD', &
 '  Fortran 95 , related ISO_FORTRAN_ENV module - fortran 2009', &
 '', &
 'SEE ALSO', &
-'  INT(3), REAL(3), CMPLX(3)', &
+'  o  AIMAG(3) - Imaginary part of complex number', &
+'', &
+'  o  CMPLX(3) - Conversion to a complex type', &
+'', &
+'  o  DBLE(3) - Converstion to double precision real', &
+'', &
+'  o  INT(3) - Truncate towards zero and convert to integer', &
+'', &
+'  o  NINT(3) - Nearest whole number', &
+'', &
+'  o  REAL(3) - Convert to real type', &
+'', &
+'  o  OUT_OF_RANGE(3) - Whether a numeric value can be converted safely to', &
+'     another type', &
+'', &
+'  o  TRANSFER(3) - Transfer bit patterns', &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             logical(3fortran)', &
+'                               March 16, 2025               logical(3fortran)', &
 '']
 
 shortname="logical"
 call process()
-
 
 case('152','maskl')
 
@@ -17960,12 +18000,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               maskl(3fortran)', &
+'                               March 16, 2025                 maskl(3fortran)', &
 '']
 
 shortname="maskl"
 call process()
-
 
 case('153','maskr')
 
@@ -18068,12 +18107,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               maskr(3fortran)', &
+'                               March 16, 2025                 maskr(3fortran)', &
 '']
 
 shortname="maskr"
 call process()
-
 
 case('154','matmul')
 
@@ -18308,12 +18346,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              matmul(3fortran)', &
+'                               March 16, 2025                matmul(3fortran)', &
 '']
 
 shortname="matmul"
 call process()
-
 
 case('155','max')
 
@@ -18467,12 +18504,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 max(3fortran)', &
+'                               March 16, 2025                   max(3fortran)', &
 '']
 
 shortname="max"
 call process()
-
 
 case('156','maxexponent')
 
@@ -18532,12 +18568,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025         maxexponent(3fortran)', &
+'                               March 16, 2025           maxexponent(3fortran)', &
 '']
 
 shortname="maxexponent"
 call process()
-
 
 case('157','maxloc')
 
@@ -18655,12 +18690,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025              maxloc(3fortran)', &
+'                               March 16, 2025                maxloc(3fortran)', &
 '']
 
 shortname="maxloc"
 call process()
-
 
 case('158','maxval')
 
@@ -18787,12 +18821,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              maxval(3fortran)', &
+'                               March 16, 2025                maxval(3fortran)', &
 '']
 
 shortname="maxval"
 call process()
-
 
 case('159','merge')
 
@@ -18966,12 +18999,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               merge(3fortran)', &
+'                               March 16, 2025                 merge(3fortran)', &
 '']
 
 shortname="merge"
 call process()
-
 
 case('160','merge_bits')
 
@@ -19097,12 +19129,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025          merge_bits(3fortran)', &
+'                               March 16, 2025            merge_bits(3fortran)', &
 '']
 
 shortname="merge_bits"
 call process()
-
 
 case('161','min')
 
@@ -19202,12 +19233,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost ''', &
 '', &
-'                              February 19, 2025                 min(3fortran)', &
+'                               March 16, 2025                   min(3fortran)', &
 '']
 
 shortname="min"
 call process()
-
 
 case('162','minexponent')
 
@@ -19266,12 +19296,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025         minexponent(3fortran)', &
+'                               March 16, 2025           minexponent(3fortran)', &
 '']
 
 shortname="minexponent"
 call process()
-
 
 case('163','minloc')
 
@@ -19377,12 +19406,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              minloc(3fortran)', &
+'                               March 16, 2025                minloc(3fortran)', &
 '']
 
 shortname="minloc"
 call process()
-
 
 case('164','minval')
 
@@ -19395,17 +19423,17 @@ textblock=[character(len=256) :: &
 '  along dimension DIM corresponding to true elements of MASK.', &
 '', &
 'SYNOPSIS', &
-'  forms', &
+'  forms:', &
 '', &
-'         result = minval(array, [mask])', &
+'         result = minval(array [,mask])', &
 '', &
 '  or', &
 '', &
-'         result = minval(array [,dim] [,mask])', &
+'         result = minval(array ,dim [,mask])', &
 '', &
 '          type(TYPE(kind=**)) function minval(array, dim, mask)', &
 '', &
-'           NUMERIC,intent(in) :: array(..)', &
+'           type(TYPE(kind=**)),intent(in) :: array(..)', &
 '           integer(kind=**),intent(in),optional :: dim', &
 '           logical(kind=**),intent(in),optional :: mask(..)', &
 '', &
@@ -19576,16 +19604,15 @@ textblock=[character(len=256) :: &
 '  Fortran 95', &
 '', &
 'SEE ALSO', &
-'  MIN(3), MINLOC(3) MAXLOC(3), MAXVAL(3), MIN(3)', &
+'  MAXVAL(3), MIN(3), MAX(3) MINLOC(3) MAXLOC(3),', &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              minval(3fortran)', &
+'                               March 16, 2025                minval(3fortran)', &
 '']
 
 shortname="minval"
 call process()
-
 
 case('165','mod')
 
@@ -19693,12 +19720,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 mod(3fortran)', &
+'                               March 16, 2025                   mod(3fortran)', &
 '']
 
 shortname="mod"
 call process()
-
 
 case('166','modulo')
 
@@ -19777,12 +19803,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025              modulo(3fortran)', &
+'                               March 16, 2025                modulo(3fortran)', &
 '']
 
 shortname="modulo"
 call process()
-
 
 case('167','move_alloc')
 
@@ -19885,12 +19910,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025          move_alloc(3fortran)', &
+'                               March 16, 2025            move_alloc(3fortran)', &
 '']
 
 shortname="move_alloc"
 call process()
-
 
 case('168','mvbits')
 
@@ -20039,12 +20063,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              mvbits(3fortran)', &
+'                               March 16, 2025                mvbits(3fortran)', &
 '']
 
 shortname="mvbits"
 call process()
-
 
 case('169','namelist')
 
@@ -20634,12 +20657,11 @@ textblock=[character(len=256) :: &
 '      output procedure or by continuation of delimited character sequences,', &
 '      each output record begins with a blank character.', &
 '', &
-'                              February 19, 2025            namelist(7fortran)', &
+'                               March 16, 2025              namelist(7fortran)', &
 '']
 
 shortname="namelist"
 call process()
-
 
 case('170','nearest')
 
@@ -20726,12 +20748,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025             nearest(3fortran)', &
+'                               March 16, 2025               nearest(3fortran)', &
 '']
 
 shortname="nearest"
 call process()
-
 
 case('171','new_line')
 
@@ -20897,12 +20918,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025            new_line(3fortran)', &
+'                               March 16, 2025              new_line(3fortran)', &
 '']
 
 shortname="new_line"
 call process()
-
 
 case('172','nint')
 
@@ -21049,12 +21069,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                nint(3fortran)', &
+'                               March 16, 2025                  nint(3fortran)', &
 '']
 
 shortname="nint"
 call process()
-
 
 case('173','norm2')
 
@@ -21168,12 +21187,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               norm2(3fortran)', &
+'                               March 16, 2025                 norm2(3fortran)', &
 '']
 
 shortname="norm2"
 call process()
-
 
 case('174','not')
 
@@ -21259,12 +21277,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 not(3fortran)', &
+'                               March 16, 2025                   not(3fortran)', &
 '']
 
 shortname="not"
 call process()
-
 
 case('175','null')
 
@@ -21387,12 +21404,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                null(3fortran)', &
+'                               March 16, 2025                  null(3fortran)', &
 '']
 
 shortname="null"
 call process()
-
 
 case('176','num_images')
 
@@ -21473,12 +21489,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025          num_images(3fortran)', &
+'                               March 16, 2025            num_images(3fortran)', &
 '']
 
 shortname="num_images"
 call process()
-
 
 case('177','open')
 
@@ -21796,12 +21811,11 @@ textblock=[character(len=256) :: &
 '  BACKSPACE(7), CLOSE(7), ENDFILE(7), FLUSH(7), INQUIRE(7), OPEN(7), PRINT(7),', &
 '  READ(7), REWIND(7), WAIT(7), WRITE(7)', &
 '', &
-'                              February 19, 2025                open(7fortran)', &
+'                               March 16, 2025                  open(7fortran)', &
 '']
 
 shortname="open"
 call process()
-
 
 case('178','out_of_range')
 
@@ -21950,12 +21964,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025        out_of_range(3fortran)', &
+'                               March 16, 2025          out_of_range(3fortran)', &
 '']
 
 shortname="out_of_range"
 call process()
-
 
 case('179','pack')
 
@@ -22056,7 +22069,7 @@ textblock=[character(len=256) :: &
 '         real             :: sorted(size(values))', &
 '            if (size(values) > 1) then', &
 '               sorted = &', &
-'           & [qsort(pack(values(2:),values(2:)<values(1))), values(1), &', &
+'               & [qsort(pack(values(2:),values(2:)<values(1))), values(1), &', &
 '               & qsort(pack(values(2:),values(2:)>=values(1)))]', &
 '            else', &
 '               sorted = values', &
@@ -22081,12 +22094,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                pack(3fortran)', &
+'                               March 16, 2025                  pack(3fortran)', &
 '']
 
 shortname="pack"
 call process()
-
 
 case('180','parity')
 
@@ -22190,12 +22202,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              parity(3fortran)', &
+'                               March 16, 2025                parity(3fortran)', &
 '']
 
 shortname="parity"
 call process()
-
 
 case('181','popcnt')
 
@@ -22276,12 +22287,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              popcnt(3fortran)', &
+'                               March 16, 2025                popcnt(3fortran)', &
 '']
 
 shortname="popcnt"
 call process()
-
 
 case('182','poppar')
 
@@ -22368,12 +22378,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              poppar(3fortran)', &
+'                               March 16, 2025                poppar(3fortran)', &
 '']
 
 shortname="poppar"
 call process()
-
 
 case('183','precision')
 
@@ -22436,12 +22445,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025           precision(3fortran)', &
+'                               March 16, 2025             precision(3fortran)', &
 '']
 
 shortname="precision"
 call process()
-
 
 case('184','present')
 
@@ -22561,12 +22569,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             present(3fortran)', &
+'                               March 16, 2025               present(3fortran)', &
 '']
 
 shortname="present"
 call process()
-
 
 case('185','print')
 
@@ -22660,12 +22667,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               print(7fortran)', &
+'                               March 16, 2025                 print(7fortran)', &
 '']
 
 shortname="print"
 call process()
-
 
 case('186','product')
 
@@ -22896,12 +22902,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             product(3fortran)', &
+'                               March 16, 2025               product(3fortran)', &
 '']
 
 shortname="product"
 call process()
-
 
 case('187','program')
 
@@ -22987,12 +22992,11 @@ textblock=[character(len=256) :: &
 '  A main program, external subprogram, module, submodule, or block data', &
 '  program unit.', &
 '', &
-'                              February 19, 2025             program(7fortran)', &
+'                               March 16, 2025               program(7fortran)', &
 '']
 
 shortname="program"
 call process()
-
 
 case('188','radix')
 
@@ -23059,12 +23063,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               radix(3fortran)', &
+'                               March 16, 2025                 radix(3fortran)', &
 '']
 
 shortname="radix"
 call process()
-
 
 case('189','random_init')
 
@@ -23139,12 +23142,11 @@ textblock=[character(len=256) :: &
 '', &
 '  _Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025         random_init(3fortran)', &
+'                               March 16, 2025           random_init(3fortran)', &
 '']
 
 shortname="random_init"
 call process()
-
 
 case('190','random_number')
 
@@ -23238,12 +23240,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025       random_number(3fortran)', &
+'                               March 16, 2025         random_number(3fortran)', &
 '']
 
 shortname="random_number"
 call process()
-
 
 case('191','random_seed')
 
@@ -23318,12 +23319,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025         random_seed(3fortran)', &
+'                               March 16, 2025           random_seed(3fortran)', &
 '']
 
 shortname="random_seed"
 call process()
-
 
 case('192','range')
 
@@ -23398,12 +23398,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               range(3fortran)', &
+'                               March 16, 2025                 range(3fortran)', &
 '']
 
 shortname="range"
 call process()
-
 
 case('193','rank')
 
@@ -23567,12 +23566,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                rank(3fortran)', &
+'                               March 16, 2025                  rank(3fortran)', &
 '']
 
 shortname="rank"
 call process()
-
 
 case('194','read')
 
@@ -23631,12 +23629,11 @@ textblock=[character(len=256) :: &
 '  BACKSPACE(7), CLOSE(7), ENDFILE(7), FLUSH(7), INQUIRE(7), OPEN(7), PRINT(7),', &
 '  READ(7), REWIND(7), WAIT(7), WRITE(7)', &
 '', &
-'                              February 19, 2025                read(7fortran)', &
+'                               March 16, 2025                  read(7fortran)', &
 '']
 
 shortname="read"
 call process()
-
 
 case('195','real')
 
@@ -23740,12 +23737,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                real(3fortran)', &
+'                               March 16, 2025                  real(3fortran)', &
 '']
 
 shortname="real"
 call process()
-
 
 case('196','reduce')
 
@@ -23943,12 +23939,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              reduce(3fortran)', &
+'                               March 16, 2025                reduce(3fortran)', &
 '']
 
 shortname="reduce"
 call process()
-
 
 case('197','repeat')
 
@@ -24019,12 +24014,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              repeat(3fortran)', &
+'                               March 16, 2025                repeat(3fortran)', &
 '']
 
 shortname="repeat"
 call process()
-
 
 case('198','reshape')
 
@@ -24233,12 +24227,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             reshape(3fortran)', &
+'                               March 16, 2025               reshape(3fortran)', &
 '']
 
 shortname="reshape"
 call process()
-
 
 case('199','return')
 
@@ -24358,12 +24351,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran statement descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              return(7fortran)', &
+'                               March 16, 2025                return(7fortran)', &
 '']
 
 shortname="return"
 call process()
-
 
 case('200','rewind')
 
@@ -24455,12 +24447,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran statement descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              rewind(7fortran)', &
+'                               March 16, 2025                rewind(7fortran)', &
 '']
 
 shortname="rewind"
 call process()
-
 
 case('201','rrspacing')
 
@@ -24545,12 +24536,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025           rrspacing(3fortran)', &
+'                               March 16, 2025             rrspacing(3fortran)', &
 '']
 
 shortname="rrspacing"
 call process()
-
 
 case('202','same_type_as')
 
@@ -24680,12 +24670,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025        same_type_as(3fortran)', &
+'                               March 16, 2025          same_type_as(3fortran)', &
 '']
 
 shortname="same_type_as"
 call process()
-
 
 case('203','scale')
 
@@ -24782,12 +24771,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               scale(3fortran)', &
+'                               March 16, 2025                 scale(3fortran)', &
 '']
 
 shortname="scale"
 call process()
-
 
 case('204','scan')
 
@@ -24881,12 +24869,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                scan(3fortran)', &
+'                               March 16, 2025                  scan(3fortran)', &
 '']
 
 shortname="scan"
 call process()
-
 
 case('205','select_case')
 
@@ -25044,12 +25031,11 @@ textblock=[character(len=256) :: &
 '              call other()', &
 '        end select', &
 '', &
-'                              February 19, 2025         select_case(7fortran)', &
+'                               March 16, 2025           select_case(7fortran)', &
 '']
 
 shortname="select_case"
 call process()
-
 
 case('206','selected_char_kind')
 
@@ -25205,12 +25191,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025  selected_char_kind(3fortran)', &
+'                               March 16, 2025    selected_char_kind(3fortran)', &
 '']
 
 shortname="selected_char_kind"
 call process()
-
 
 case('207','selected_int_kind')
 
@@ -25286,12 +25271,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025   selected_int_kind(3fortran)', &
+'                               March 16, 2025     selected_int_kind(3fortran)', &
 '']
 
 shortname="selected_int_kind"
 call process()
-
 
 case('208','selected_real_kind')
 
@@ -25406,12 +25390,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025  selected_real_kind(3fortran)', &
+'                               March 16, 2025    selected_real_kind(3fortran)', &
 '']
 
 shortname="selected_real_kind"
 call process()
-
 
 case('209','set_exponent')
 
@@ -25483,12 +25466,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025        set_exponent(3fortran)', &
+'                               March 16, 2025          set_exponent(3fortran)', &
 '']
 
 shortname="set_exponent"
 call process()
-
 
 case('210','shape')
 
@@ -25594,12 +25576,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               shape(3fortran)', &
+'                               March 16, 2025                 shape(3fortran)', &
 '']
 
 shortname="shape"
 call process()
-
 
 case('211','shifta')
 
@@ -25721,12 +25702,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              shifta(3fortran)', &
+'                               March 16, 2025                shifta(3fortran)', &
 '']
 
 shortname="shifta"
 call process()
-
 
 case('212','shiftl')
 
@@ -25851,12 +25831,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              shiftl(3fortran)', &
+'                               March 16, 2025                shiftl(3fortran)', &
 '']
 
 shortname="shiftl"
 call process()
-
 
 case('213','shiftr')
 
@@ -25983,12 +25962,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              shiftr(3fortran)', &
+'                               March 16, 2025                shiftr(3fortran)', &
 '']
 
 shortname="shiftr"
 call process()
-
 
 case('214','sign')
 
@@ -26077,12 +26055,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                sign(3fortran)', &
+'                               March 16, 2025                  sign(3fortran)', &
 '']
 
 shortname="sign"
 call process()
-
 
 case('215','sin')
 
@@ -26179,8 +26156,8 @@ textblock=[character(len=256) :: &
 '      ! given latitude and longitude in degrees', &
 '      !', &
 '      real,intent(in) :: latA,lonA,latB,lonB', &
-'      real :: a,c,dist,delta_lat,delta_lon,lat1,lat2', &
-'      real,parameter :: radius = 6371 ! mean earth radius in kilometers,', &
+'      real           :: a,c,dist,delta_lat,delta_lon,lat1,lat2', &
+'      real,parameter  :: radius = 6371 ! mean earth radius in kilometers,', &
 '      ! recommended by the International Union of Geodesy and Geophysics', &
 '', &
 '      ! generate constant pi/180', &
@@ -26212,12 +26189,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 sin(3fortran)', &
+'                               March 16, 2025                   sin(3fortran)', &
 '']
 
 shortname="sin"
 call process()
-
 
 case('216','sind')
 
@@ -26344,12 +26320,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                sind(3fortran)', &
+'                               March 16, 2025                  sind(3fortran)', &
 '']
 
 shortname="sind"
 call process()
-
 
 case('217','sinh')
 
@@ -26442,12 +26417,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                sinh(3fortran)', &
+'                               March 16, 2025                  sinh(3fortran)', &
 '']
 
 shortname="sinh"
 call process()
-
 
 case('218','sinpi')
 
@@ -26548,12 +26522,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               sinpi(3fortran)', &
+'                               March 16, 2025                 sinpi(3fortran)', &
 '']
 
 shortname="sinpi"
 call process()
-
 
 case('219','size')
 
@@ -26720,12 +26693,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                size(3fortran)', &
+'                               March 16, 2025                  size(3fortran)', &
 '']
 
 shortname="size"
 call process()
-
 
 case('220','spacing')
 
@@ -26800,12 +26772,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025             spacing(3fortran)', &
+'                               March 16, 2025               spacing(3fortran)', &
 '']
 
 shortname="spacing"
 call process()
-
 
 case('221','split')
 
@@ -26937,12 +26908,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               split(3fortran)', &
+'                               March 16, 2025                 split(3fortran)', &
 '']
 
 shortname="split"
 call process()
-
 
 case('222','spread')
 
@@ -27119,12 +27089,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              spread(3fortran)', &
+'                               March 16, 2025                spread(3fortran)', &
 '']
 
 shortname="spread"
 call process()
-
 
 case('223','sqrt')
 
@@ -27224,12 +27193,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                sqrt(3fortran)', &
+'                               March 16, 2025                  sqrt(3fortran)', &
 '']
 
 shortname="sqrt"
 call process()
-
 
 case('224','stop')
 
@@ -27343,12 +27311,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran statement descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                stop(7fortran)', &
+'                               March 16, 2025                  stop(7fortran)', &
 '']
 
 shortname="stop"
 call process()
-
 
 case('225','storage_size')
 
@@ -27447,12 +27414,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025        storage_size(3fortran)', &
+'                               March 16, 2025          storage_size(3fortran)', &
 '']
 
 shortname="storage_size"
 call process()
-
 
 case('226','sum')
 
@@ -27667,12 +27633,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 sum(3fortran)', &
+'                               March 16, 2025                   sum(3fortran)', &
 '']
 
 shortname="sum"
 call process()
-
 
 case('227','system_clock')
 
@@ -27824,12 +27789,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025        system_clock(3fortran)', &
+'                               March 16, 2025          system_clock(3fortran)', &
 '']
 
 shortname="system_clock"
 call process()
-
 
 case('228','tan')
 
@@ -27885,12 +27849,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 tan(3fortran)', &
+'                               March 16, 2025                   tan(3fortran)', &
 '']
 
 shortname="tan"
 call process()
-
 
 case('229','tand')
 
@@ -27947,12 +27910,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                tand(3fortran)', &
+'                               March 16, 2025                  tand(3fortran)', &
 '']
 
 shortname="tand"
 call process()
-
 
 case('230','tanh')
 
@@ -28017,12 +27979,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025                tanh(3fortran)', &
+'                               March 16, 2025                  tanh(3fortran)', &
 '']
 
 shortname="tanh"
 call process()
-
 
 case('231','tanpi')
 
@@ -28095,12 +28056,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025               tanpi(3fortran)', &
+'                               March 16, 2025                 tanpi(3fortran)', &
 '']
 
 shortname="tanpi"
 call process()
-
 
 case('232','this_image')
 
@@ -28180,12 +28140,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025          this_image(3fortran)', &
+'                               March 16, 2025            this_image(3fortran)', &
 '']
 
 shortname="this_image"
 call process()
-
 
 case('233','tiny')
 
@@ -28247,12 +28206,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                tiny(3fortran)', &
+'                               March 16, 2025                  tiny(3fortran)', &
 '']
 
 shortname="tiny"
 call process()
-
 
 case('234','tokenize')
 
@@ -28436,12 +28394,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025            tokenize(3fortran)', &
+'                               March 16, 2025              tokenize(3fortran)', &
 '']
 
 shortname="tokenize"
 call process()
-
 
 case('235','trailz')
 
@@ -28537,12 +28494,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              trailz(3fortran)', &
+'                               March 16, 2025                trailz(3fortran)', &
 '']
 
 shortname="trailz"
 call process()
-
 
 case('236','transfer')
 
@@ -28663,12 +28619,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions', &
 '', &
-'                              February 19, 2025            transfer(3fortran)', &
+'                               March 16, 2025              transfer(3fortran)', &
 '']
 
 shortname="transfer"
 call process()
-
 
 case('237','transpose')
 
@@ -28735,7 +28690,8 @@ textblock=[character(len=256) :: &
 '      integer,intent(in)          :: arr(:,:)', &
 '      integer                     :: i', &
 '      character(len=:),allocatable :: biggest', &
-'        write(*,''(a," shape(",i0,",",i0,")")'')trim(title),shape(arr)  ! print title', &
+'        ! print title', &
+'        write(*,''(a," shape(",i0,",",i0,")")'')trim(title),shape(arr)', &
 '        biggest=''          '' ! make buffer to write integer into', &
 '        ! find how many characters to use for integers', &
 '        write(biggest,''(i0)'')ceiling(log10(max(1.0,real(maxval(abs(arr))))))+2', &
@@ -28781,12 +28737,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025           transpose(3fortran)', &
+'                               March 16, 2025             transpose(3fortran)', &
 '']
 
 shortname="transpose"
 call process()
-
 
 case('238','trim')
 
@@ -28882,12 +28837,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                trim(3fortran)', &
+'                               March 16, 2025                  trim(3fortran)', &
 '']
 
 shortname="trim"
 call process()
-
 
 case('239','ubound')
 
@@ -29059,12 +29013,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              ubound(3fortran)', &
+'                               March 16, 2025                ubound(3fortran)', &
 '']
 
 shortname="ubound"
 call process()
-
 
 case('240','ucobound')
 
@@ -29104,12 +29057,11 @@ textblock=[character(len=256) :: &
 'SEE ALSO', &
 '  LCOBOUND(3), LBOUND(3), UBOUND(3)', &
 '', &
-'                              February 19, 2025            ucobound(3fortran)', &
+'                               March 16, 2025              ucobound(3fortran)', &
 '']
 
 shortname="ucobound"
 call process()
-
 
 case('241','unpack')
 
@@ -29263,12 +29215,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              unpack(3fortran)', &
+'                               March 16, 2025                unpack(3fortran)', &
 '']
 
 shortname="unpack"
 call process()
-
 
 case('242','use')
 
@@ -29369,13 +29320,13 @@ textblock=[character(len=256) :: &
 '  o  An only-use-name shall be a nongeneric name.', &
 '', &
 '  A USE statement with the ONLY option provides access only to those entities', &
-'  that appear as generic-specs, use-names, or use-dened-operators in the only-', &
-'  list.', &
+'  that appear as generic-specs, use-names, or use-defined-operators in the', &
+'  only-list.', &
 '', &
-'  There is no prohibition against a use-name or use-dened-operator appearing', &
+'  There is no prohibition against a use-name or use-defined-operator appearing', &
 '  multiple times in one USE state- ment or in multiple USE statements', &
 '  involving the same module. As a result, it is possible for one use-', &
-'  associated entity to be accessible by more than one local identier.', &
+'  associated entity to be accessible by more than one local identifier.', &
 '', &
 '  An entity in a scoping unit that is accessed by use association through more', &
 '  than one use path, has the ASYN- CHRONOUS or VOLATILE attribute in any of', &
@@ -29521,12 +29472,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025                 use(7fortran)', &
+'                               March 16, 2025                   use(7fortran)', &
 '']
 
 shortname="use"
 call process()
-
 
 case('243','verify')
 
@@ -29902,12 +29852,11 @@ textblock=[character(len=256) :: &
 '', &
 '  Fortran intrinsic descriptions (license: MIT) @urbanjost', &
 '', &
-'                              February 19, 2025              verify(3fortran)', &
+'                               March 16, 2025                verify(3fortran)', &
 '']
 
 shortname="verify"
 call process()
-
 
 case('244','wait')
 
@@ -29979,12 +29928,11 @@ textblock=[character(len=256) :: &
 '  BACKSPACE(7), CLOSE(7), ENDFILE(7), FLUSH(7), INQUIRE(7), OPEN(7), PRINT(7),', &
 '  READ(7), REWIND(7), WAIT(7), WRITE(7)', &
 '', &
-'                              February 19, 2025                wait(7fortran)', &
+'                               March 16, 2025                  wait(7fortran)', &
 '']
 
 shortname="wait"
 call process()
-
 
 case('245','where')
 
@@ -30192,12 +30140,11 @@ textblock=[character(len=256) :: &
 '       > iflag=', &
 '       >       0      0      0     0      0      1      0      0      0      0', &
 '', &
-'                              February 19, 2025               where(7fortran)', &
+'                               March 16, 2025                 where(7fortran)', &
 '']
 
 shortname="where"
 call process()
-
 
 case('246','write')
 
@@ -30213,7 +30160,7 @@ textblock=[character(len=256) :: &
 '  BACKSPACE(7), CLOSE(7), ENDFILE(7), FLUSH(7), INQUIRE(7), OPEN(7), PRINT(7),', &
 '  READ(7), REWIND(7), WAIT(7), WRITE(7)', &
 '', &
-'                              February 19, 2025               write(7fortran)', &
+'                               March 16, 2025                 write(7fortran)', &
 '']
 
 shortname="write"
@@ -30308,9 +30255,55 @@ end module M_intrinsics
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
 
+!>>>>> ././src/M_vendor.F90
+
+module M_vendor
+private
+public system_isatty
+contains
+!>  call compiler-specific ISATTY() function or return .FALSE.
+#undef ISATTY
+
+#ifdef __INTEL_COMPILER
+    function system_isatty(lun)
+    use IFPORT
+    integer,intent(in) :: lun
+    logical :: system_isatty
+       system_isatty=isatty(lun)
+    end function system_isatty
+#define ISATTY
+#endif
+
+#ifdef __NVCOMPILER_MAJOR__X
+    ! __NVCOMPILER_MAJOR__ __NVCOMPILER_MINOR__ __NVCOMPILER_PATCHLEVEL__
+    function system_isatty(lun)
+    use DFPORT
+    integer,intent(in) :: lun
+    logical :: system_isatty
+       system_isatty=isatty(lun)
+    end function system_isatty
+#define ISATTY
+#endif
+
+#ifdef __GFORTRAN__
+    function system_isatty(lun)
+    integer,intent(in) :: lun
+    logical :: system_isatty
+       system_isatty=isatty(lun)
+    end function system_isatty
+#define ISATTY
+#endif
+#ifndef ISATTY
+    function system_isatty(lun)
+    integer,intent(in) :: lun
+    logical :: system_isatty
+       system_isatty=.false.
+    end function system_isatty
+#define ISATTY
+#endif
+end module M_vendor
 
 !>>>>> ./././/../GLINKS/M_CLI2/src/M_CLI2.F90
-
 
 !VERSION 1.0 2020-01-15
 !VERSION 2.0 2020-08-02
@@ -33003,6 +32996,7 @@ subroutine ifnull()
 
    if(upper(oldvalue(1:1)) == 'F'.or.upper(oldvalue(1:1)) == 'T')then
       call update(lastkeyword,'T')
+      !call update(lastkeyword,upper(oldvalue(1:1)))
    elseif(oldvalue(1:1) == '"')then
       call update(lastkeyword,'" "')
    else
@@ -36204,9 +36198,7 @@ end module M_CLI2
 !===================================================================================================================================
 !===================================================================================================================================
 
-
 !>>>>> ./././/../GLINKS/M_match/src/M_match.f90
-
 
 !09/22/1980  15:38:34
 !04/19/2020  11:05:06
@@ -37374,9 +37366,7 @@ end module M_match
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
 
-
 !>>>>> ./././/../GLINKS/M_strings/src/M_strings.F90
-
 
 !>
 !!##NAME
@@ -37916,7 +37906,7 @@ end interface
 !-!end interface
 !-----------------------------------------------------------------------------------------------------------------------------------
 
-! ident_5="@(#) M_strings str(3f) convert up to twenty scalar values to a (CSV) string. Alternatively can also handle one-dimensional arrays"
+! ident_5="@(#) M_strings str(3f) convert up to twenty scalar values or arrays to a string with optional CSV mode."
 
 interface str
    module procedure str_scalar, str_one
@@ -38033,7 +38023,7 @@ CONTAINS
 !!    program demo_glob
 !!    implicit none
 !!    ! This main routine passes a bunch of test strings
-!!    ! into the above code.  In performance comparison mode,
+!!    ! into the above code. In performance comparison mode,
 !!    ! it does that over and over. Otherwise, it does it just
 !!    ! once. Either way, it outputs a passed/failed result.
 !!    !
@@ -38357,28 +38347,28 @@ end function glob
 !!
 !!##SYNOPSIS
 !!
-!!    pure function ends_with(source_string[,suffix][,ignorecase])
+!! pure function ends_with(string,ending[,ignorecase])
 !!
-!!     character(len=*),intent(in) :: source_string
-!!     character(len=*),intent(in) :: suffix(..)
+!!     character(len=*),intent(in) :: string
+!!     character(len=*),intent(in) :: ending(..)
 !!     logical,intent(in),optional :: ignorecase
 !!     logical                     :: ends_with
 !!
 !!##DESCRIPTION
 !!
 !!    ends_with(3f) tests if a string ends with any specified suffix. Differs
-!!    from using index(3f) in that the input file and multiple suffices
+!!    from using index(3f) in that the input string and multiple suffices
 !!    are trimmed by ends_with(3f),
 !!
 !!##OPTIONS
-!!     SOURCE_STRING  string to search
-!!     SUFFIX         list of separator strings. May be scalar or an array.
-!!                    Trailing spaces in SUFFIX are ignored.
+!!     STRING         string to search
+!!     ENDING         list of separator strings. May be scalar or an array.
+!!                    Trailing spaces in ENDING are ignored.
 !!     IGNORECASE     If .true. case is ignored.
 !!
 !!##RETURNS
 !!     ENDS_WITH      returns .TRUE. if one of the suffix match the end
-!!                    of SOURCE_STRING.
+!!                    of STRING.
 !!
 !!##EXAMPLES
 !!
@@ -42613,7 +42603,7 @@ end subroutine notabs
 !!     character(len=:),allocatable  :: OUTSTR
 !!
 !!##DESCRIPTION
-!!    dilate(3) converts tabs in INSTR to spaces in OUTSTR.  It assumes a
+!!    dilate(3) converts tabs in INSTR to spaces in OUTSTR. It assumes a
 !!    tab is set every 8 characters. Trailing spaces are removed.
 !!
 !!    In addition, trailing carriage returns and line feeds are removed
@@ -47853,7 +47843,7 @@ end function base
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 function base2(x) result(str)
-!  return string representing number as a binary number.  Fixed-length string:
+!  return string representing number as a binary number. Fixed-length string:
 integer, intent(in)                        :: x
 integer                                    :: i
 character(len=max(1,bit_size(x)-leadz(x))) :: str
@@ -48838,7 +48828,6 @@ logical                              :: trimit
          type is (real(kind=real32));      fmt_local='(1pg0,a)'
          type is (real(kind=real64));      fmt_local='(1pg0,a)'
 
-
          type is (real(kind=real128));     fmt_local='(1pg0,a)'
 
          type is (logical);                fmt_local='(l1,a)'
@@ -48861,7 +48850,6 @@ logical                              :: trimit
       type is (integer(kind=int64));    write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
       type is (real(kind=real32));      write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
       type is (real(kind=real64));      write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-
 
       type is (real(kind=real128));     write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
 
@@ -50253,11 +50241,11 @@ integer(kind=int32) :: val
 !!##LICENSE
 !!    Public Domain
 character(len=*), intent(in) :: string
-character(len=1)            :: c
-integer                     :: i
-integer                     :: j
-integer                     :: ilen
-logical                     :: neg
+character(len=1)             :: c
+integer                      :: i
+integer                      :: j
+integer                      :: ilen
+logical                      :: neg
 
    val = 0
    neg=.false.
@@ -50358,11 +50346,11 @@ integer(kind=int64) :: val
 !!##LICENSE
 !!    Public Domain
 character(len=*), intent(in) :: string
-character(len=1)            :: c
-integer                     :: i
-integer                     :: j
-integer                     :: ilen
-logical                     :: neg
+character(len=1)             :: c
+integer                      :: i
+integer                      :: j
+integer                      :: ilen
+logical                      :: neg
 
    val = 0
    neg=.false.
@@ -50958,9 +50946,7 @@ end function atoi_int64
 !===================================================================================================================================
 end module M_strings
 
-
 !>>>>> ./././/../GLINKS/M_attr/src/M_attr.f90
-
 
 !>
 !!##NAME
@@ -51196,7 +51182,6 @@ character(len=*),parameter  :: FG_INTENSE='9'
 character(len=*),parameter  :: BG_INTENSE='10'
 character(len=*),parameter  :: ON=''
 character(len=*),parameter  :: OFF='2'
-
 
 ! foreground colors
 character(len=*),parameter,public :: fg_red      =  CODE_START//FG//RED//CODE_END
@@ -52471,18 +52456,12 @@ end subroutine print_generic
 end function msg_one
 end module M_attr
 
-
 !>>>>> ./././/../GLINKS/M_io/src/M_io.F90
-
 
 !===================================================================================================================================
 MODULE M_io
 use, intrinsic :: iso_fortran_env, only : stdin=>input_unit, stdout=>output_unit, stderr=>error_unit
 use,intrinsic     :: iso_c_binding,   only : c_int, c_char
-
-
-
-
 
 implicit none
 private
@@ -56591,7 +56570,6 @@ doubleprecision function s2v(chars,ierr,onerr)
 
 !character(len=*),parameter::ident_43="@(#)M_strings::s2v(3f): returns doubleprecision number from string"
 
-
 character(len=*),intent(in)  :: chars
 integer,optional             :: ierr
 doubleprecision              :: valu
@@ -57890,7 +57868,6 @@ class(*),intent(in) :: generic
       type is (real(kind=real32));      write(line(istart:),'(1pg0)') generic
       type is (real(kind=real64));      write(line(istart:),'(1pg0)') generic
 
-
       type is (real(kind=real128));     write(line(istart:),'(1pg0)') generic
 
       type is (logical);                write(line(istart:),'(l1)') generic
@@ -57950,7 +57927,6 @@ integer :: i
       type is (real(kind=real32));      write(line(istart:),'("[",*(1pg0,1x))') generic
       type is (real(kind=real64));      write(line(istart:),'("[",*(1pg0,1x))') generic
 
-
       type is (real(kind=real128));     write(line(istart:),'("[",*(1pg0,1x))') generic
 
       !type is (real(kind=real256));     write(error_unit,'(1pg0)',advance='no') generic
@@ -57980,9 +57956,7 @@ end module m_io
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 
-
 !>>>>> app/fpm-man.f90
-
 
 program fman
 use, intrinsic :: iso_fortran_env, only : stderr=>ERROR_UNIT, stdout=>OUTPUT_UNIT, stdin=>INPUT_UNIT
@@ -57991,9 +57965,10 @@ use M_CLI2,       only : set_args, sget, iget, lget, specified, topics=>unnamed
 use M_CLI2,       only : set_mode
 use M_match,      only : getpat, match, regex_pattern
 use M_match,      only : YES, ERR
-use M_strings,    only : lower, indent, atleast, str
+use M_strings,    only : lower, indent, atleast, str, replace
 use M_attr,       only : attr, attr_update
 use M_io,         only : filewrite, fileread, get_env
+use M_vendor,     only : system_isatty
 implicit none
 type(regex_pattern)            :: p, start_p, end_p
 character(len=*),parameter     :: gen='(*(g0:))'
@@ -58006,6 +57981,7 @@ character(len=:),allocatable   :: filename
 character(len=:),allocatable   :: templine
 character(len=:),allocatable   :: last
 character(len=:),allocatable   :: editor
+character(len=:),allocatable   :: cmd
 real                           :: rm
 integer                        :: i, j, k, m
 integer                        :: ilines
@@ -58019,6 +57995,7 @@ integer                        :: ierr
 integer                        :: direction
 integer                        :: irestore
 integer                        :: search_end
+logical                        :: showblanks
 logical                        :: number
 logical                        :: topic
 logical                        :: cmdmode
@@ -58026,36 +58003,46 @@ logical                        :: prefix, ignorecase, demo, color
 character(len=512)             :: paws, remember
 character(len=20) ::  &
 &  bg=       '<E>                ',  &  ! initial background color
-&  fg=       '<w>                ',  &  ! text color
-&  prg=      '<c>                ',  &  ! demo program text color
-&  head=     '<y></bo>           ',  &  ! header line
+&  fg=       '<w><bo>            ',  &  ! text color
+&  prg=      '<c><bo>            ',  &  ! demo program text color
+&  head=     '<y><bo>            ',  &  ! header line
 &  head_=    '</bo>              ',  &
 &  fixed=    '<w>                ',  &  ! color of leading > in demo program output
-&  output=   '<y>                ',  &  ! demo program output
+&  output=   '<y><bo>            ',  &  ! demo program output
 &  output_=  '</bo>              '
 namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
    ! process command line
    number=.false.
-   remember=''
+   remember='f'
    cmdmode=.false.
+   showblanks=.true.
    iinf=0
    last='^NAME$'
    call setup()
    call set_mode('auto_response_file',.true.)
    call set_mode('lastonly')
-   call set_args(' --regex:e " " --ignorecase:i F --topic_only:t F --demo:d F --color:c F --query:Q " " &
-   & -start:S " " --end:E "^[A-Z][A-Z_ ]*$" --filename:f " " &
-   & --prefixoff:O F --lines:l '//get_env('LINES','0')//'',&
-   & help_text,version_text)
+   cmd=' --regex:e " " --ignorecase:i F --topic_only:t F --demo:d F &
+   & --color:c F --query:Q " " --start:S " " --end:E "^[A-Z][A-Z_ ]*$" &
+   & --filename:f " " --prefixoff:O F --lines:l '//get_env('LINES','0')
+   !write(*,*)'<DEBUG>',cmd
+   call set_args( cmd, help_text, version_text )
    regex=sget('regex')
    start=sget('start')
    end=sget('end')
    topic=lget('topic_only')
    ignorecase=lget('ignorecase')
    demo=lget('demo')
-   color=lget('color')
+   if(.not.demo) then
+      color=lget('color')
+      if(.not.specified('color'))then
+         color=merge(.false.,.true.,get_env('FMAN_COLORS').eq.'')
+      endif
+   else
+      color=.false.
+   endif
    query=sget('query')
    lines=iget('lines')
+   if(.not.system_isatty(stdout))lines=0
    filename=sget('filename')
    if(filename.ne.'')then
       call fileread(FILENAME,doc)
@@ -58068,7 +58055,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
          if(allocated(doc))deallocate(doc)
       endif
       if(size(topics).eq.0)then
-         topics=['manual']
+         topics=['    ']
       endif
    elseif(topic)then
       ! if -t then just show topic names and exit
@@ -58093,10 +58080,14 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
    ! normalize the topics list
    ! ensure there is at least one topic by applying a default
    if(size(topics).eq.0)then
-      topics=['toc']
+      topics=['manual']
+      topics=['toc3']
+      call shorttopics()
+      if(color)manual=crayons(manual)
    endif
 
-   if( ( size(topics).eq.1 .and. topics(1).eq.'toc') )then
+   if(len(topics).lt.5)topics=topics//'     '
+   if( ( size(topics).eq.1 .and. topics(1)(1:3).eq.'toc') )then
       prefix=.false.
       ignorecase=.true.
    endif
@@ -58130,10 +58121,11 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
       write(stdout,gen)attr(str('<INFO>START.......',start))
       write(stdout,gen)attr(str('<INFO>END.........',end))
       write(stdout,gen)attr(str('<INFO>LINES.......',lines))
+      write(stdout,gen)attr(str('<INFO>ISATTY......',system_isatty(stdout)))
       write(stdout,gen)attr(str('<INFO>COLOR.......',color))
       write(stdout,gen)attr(str('<INFO>FILENAME....',filename))
       write(stdout,gen,advance='no')'Continue...'
-      read(stdin,'(a)',iostat=iostat)paws
+      if(system_isatty(stdout)) read(stdin,'(a)',iostat=iostat)paws
    endif
    ! build text to display or search
    if(filename.eq.'')then
@@ -58165,13 +58157,15 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                else
                     write(stdout,'(g0)')trim(manual(i))
                endif
+               ilines=ilines+1
             endif
-         else
+         elseif(i.gt.0)then
             if(number)then
                write(stdout,'(i0.6,1x,g0)')i,trim(manual(i))
             else
                write(stdout,'(g0)')trim(manual(i))
             endif
+            ilines=ilines+1
          endif
          if(lines.gt.0)then
             if(ilines.eq.lines-1)then
@@ -58181,7 +58175,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                   if(iostat.ne.0)exit INFINITE
                   if(paws.eq.'')paws=remember
                   select case(paws(1:1))
-                  case('b');
+                  case('b','p');
                              if(i.ge.size(manual))then
                                 i=max(0,i-1*lines) ! back
                              else
@@ -58262,6 +58256,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              iinf=0
                              remember=paws
                   case('L')
+                             topics=['']
                              filename=adjustl(trim(paws(2:)))
                               if(filename.ne.'')then
                                  call fileread(FILENAME,doc)
@@ -58327,7 +58322,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              iinf=0
                              remember='f'
                              cycle ANOTHER
-                  case('.','x',' '); i=max(0,i-1)  ! execute command
+                  case('.','x',' ','!'); i=max(0,i-1)  ! execute command
                              if(paws.eq.'x')then
                                 cmdmode=.not.cmdmode
                              elseif(paws(2:).ne.'')then
@@ -58336,7 +58331,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              iinf=0
                              remember='f'
                              cycle ANOTHER
-                  case('!',':'); i=max(0,i-1)  ! comment
+                  case(':'); i=max(0,i-1)  ! comment
                              iinf=0
                              remember='f'
                              cycle ANOTHER
@@ -58380,6 +58375,12 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                              remember='f'
                   case('D'); i=0                       ! developer: toggle demo mode
                              demo=.not.demo
+                             call load_manual()
+                             if(color)manual=crayons(manual)
+                             iinf=0
+                             remember='f'
+                  case('B'); i=0                       ! developer: toggle showblanks mode
+                             showblanks=.not.showblanks
                              call load_manual()
                              if(color)manual=crayons(manual)
                              iinf=0
@@ -58434,16 +58435,16 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                      i=max(0,i-2*lines+2) ! back
                      remember='f'
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                  case('t','T')
+                  case('t','T','m')
                      i=0  ! developer: load a topic
                      if(paws.eq.'T')paws(2:)='toc'
-                        topics=[adjustl(paws(2:))]
+                     if(paws(1:4).eq.'man')paws(2:)=paws(5:)
+                     topics=[adjustl(paws(2:))]
                      if(paws.eq.'t')then
                         call shorttopics()
                         if(color)manual=crayons(manual)
                         topics=['']
                      else
-                        topics=[adjustl(paws(2:))]
                         call load_manual()
                         if(color)manual=crayons(manual)
                      endif
@@ -58466,7 +58467,6 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
                   exit ANOTHER
                enddo ANOTHER
             endif
-            ilines=ilines+1
          endif
       i=i+1
       if(i.gt.size(manual))then
@@ -58482,6 +58482,7 @@ namelist/fman_colors/bg,fg,prg,head,head_,fixed,output,output_
       enddo INFINITE
    endif
 contains
+
 subroutine cribsheet()
    ! '123456789 123456789 123456789 123456789 123456789 123456789 123456789 123456789 '
    write(stdout,'(a)')[character(len=80) :: &
@@ -58494,7 +58495,7 @@ subroutine cribsheet()
    & ' |SEARCH:     | /RE | search for expression| \RE  | backward search           | ', &
    & ' |            | n   | repeat last search   | N    | repeat last search upward | ', &
    & ' +------------+-----+----------------------+------+---------------------------+ ', &
-   & ' |SYSTEM:     | s F | save to filename     | xcmd | execute system_command    | ', &
+   & ' |SYSTEM:     | s F | save to filename     | !cmd | execute system_command    | ', &
    & ' +------------+-----+----------------------+------+---------------------------+ ', &
    & ' |OPTIONS:    | #   | toggle line numbers  | lNNN | change lines per page     | ', &
    & ' |            | i   | toggle search by case| c    | toggle color mode         | ', &
@@ -58511,11 +58512,11 @@ subroutine cribsheet()
    if(paws(1:1).eq.'X')then
    write(stdout,'(a)')[character(len=80) :: &
    & ' +------------+-----+----------------------+------+---------------------------+ ', &
-   & ' |DEVELOPER:  | C   | toggle color mode    | D    | toggle demo mode          | ', &
+   & ' |DEVELOPER:  | C   | toggle color mode    | D    | toggle demo program mode  | ', &
    & ' |            | Cstr| change colors        | P    | toggle prefix mode        | ', &
    & ' |            | C?  | show current colors  | X    | show developer help       | ', &
    & ' |            | H   | command help         | L    | load file                 | ', &
-   & ' |            | V   | version information  |      |                           | ', &
+   & ' |            | V   | version information  | B    | toggle showblanks         | ', &
    & ' +------------+-----+----------------------+------+---------------------------+ ', &
    & ' a loaded file cannot display a prefix string accept for the filename currently.']
    endif
@@ -58523,6 +58524,7 @@ subroutine cribsheet()
    write(stdout,gen,advance='no')'[',i,']Continue...'
    read(stdin,'(a)',iostat=iostat)paws
 end subroutine cribsheet
+
 subroutine load_manual()
 ! use topics list to load the manual variable
 integer :: i
@@ -58548,9 +58550,13 @@ integer :: i
       endif
 
       manual = [character(len=max(len(manual),len(section))) :: manual,section,'']
+      if(.not.showblanks)then
+         manual=pack(manual,mask=manual.ne.'')
+      endif
       clone_no_color=manual
    enddo
 end subroutine load_manual
+
 subroutine shorttopics()
 ! get list of topics, write 3 per line onto an internal character page
 integer :: m
@@ -58572,7 +58578,7 @@ end subroutine shorttopics
 
 subroutine go_to(direction)
 integer,intent(in) :: direction
-integer :: plusminus
+integer            :: plusminus
    paws=adjustl(paws)
    read(paws,'(i80)',iostat=iostat)m
    select case(paws(1:1))
@@ -58621,7 +58627,11 @@ integer                        :: start_keep, end_keep
       enddo
     endif
     if(size(newsection).eq.0)then
-       write(stdout,*)'!<ERROR> *fman* standard demo code format not found for ',trim(topics(i))
+       if(size(topics).lt.1.or.i.lt.1)then
+          write(stdout,*)'!<ERROR> *fman* missing topics. standard demo code format not found.'
+       else
+          write(stdout,*)'!<ERROR> *fman* standard demo code format not found for ',trim(topics(i))
+       endif
        section=['']
     else
        section=newsection
@@ -58677,11 +58687,11 @@ end subroutine find_start
 function crayons(oldblock) result(newblock)
 ! just playing. There is a lot of stuff not done robustly here
 character(len=256),intent(in),allocatable :: oldblock(:)
-character(len=256),allocatable :: newblock(:)
-integer :: ilen, gt, ipad
-integer :: lead
-integer :: width
-logical :: program_text, after_demo
+character(len=256),allocatable            :: newblock(:)
+integer                                   :: ilen, gt, ipad
+integer                                   :: lead
+integer                                   :: width
+logical                                   :: program_text, after_demo
    width=max(80,maxval(len_trim(oldblock)))
    line=get_env('FMAN_COLORS')
    if(line.eq.'?')then
@@ -58711,6 +58721,7 @@ logical :: program_text, after_demo
    after_demo=.false.
    newblock= oldblock
    lead=0
+   if(len(topics).lt.5)topics=topics//'     '
    do j=1,size(oldblock)
       ! test if entering demo program text
       if( index(oldblock(j),'end program demo_') .eq. 0 .and. index(oldblock(j),'program demo_') .ne. 0)then
@@ -58735,11 +58746,27 @@ logical :: program_text, after_demo
          newblock(j)=attr('<bg><fixed>'//oldblock(j)(:gt)//&
          & '<bg><output>'//trim(than(oldblock(j)(gt+1:)))//'</output>'//repeat(' ',max(0,width-ilen))//'<reset>')
        ! not header or demo program or demo program results
-       else
+      elseif(topics(1)(1:3).eq.'toc')then
+      ! table of contents header
+         if(oldblock(j)(1:1)=='[')then
+            ilen=len_trim(oldblock(j))
+            newblock(j)=attr('<bg><head>'//trim(oldblock(j))//'</head>'//repeat(' ',max(0,width-ilen))//'<reset>')
+         else
+            ipad=len_trim(oldblock(j))
+            ipad=len_trim(than(oldblock(j)))-ipad
+            if(index(oldblock(j),'(').ne.0)then
+               newblock(j)=replace(than(oldblock(j)),'(','<fg>(',occurrence=1,repeat=1)
+               ipad=ipad+4
+               newblock(j)=attr('<bg><prg>'//atleast(trim(newblock(j)),width+ipad)//'<reset>')
+            else
+               newblock(j)=attr('<bg><fg>'//atleast(than(oldblock(j)),width+ipad)//'<reset>')
+            endif
+         endif
+      else
          ipad=len_trim(oldblock(j))
          ipad=len_trim(than(oldblock(j)))-ipad
-          newblock(j)=attr('<bg><fg>'//atleast(than(oldblock(j)),width+ipad)//'<reset>')
-       endif
+         newblock(j)=attr('<bg><fg>'//atleast(than(oldblock(j)),width+ipad)//'<reset>')
+      endif
       if( index(oldblock(j),'end program demo_') .ne.0)then
          program_text=.false.
          after_demo=.true.
@@ -58769,11 +58796,11 @@ elemental impure function run(command)
 use, intrinsic :: iso_fortran_env, only : stderr=>ERROR_UNIT, stdout=>OUTPUT_UNIT
 implicit none
 character(len=*),intent(in) :: command
-integer                    :: run
-logical                    :: wait
-integer                    :: exitstat
-integer                    :: cmdstat
-character(len=256)         :: cmdmsg
+integer                     :: run
+logical                     :: wait
+integer                     :: exitstat
+integer                     :: cmdstat
+character(len=256)          :: cmdmsg
    wait=.false.
    exitstat=0
    cmdstat=0
@@ -58788,7 +58815,7 @@ character(len=256)         :: cmdmsg
       write(stderr,'(*(g0))')'exitstat=',exitstat,':',trim(command)
       flush(stderr)
    endif
-   run=merge(.true.,.false.,exitstat==0)
+   run=merge(0,1,exitstat==0)
 end function run
 
 subroutine setup()
@@ -58830,48 +58857,51 @@ help_text=[ CHARACTER(LEN=128) :: &
 '  --version         Output version information and exit                        ',&
 '                                                                               ',&
 'ENVIRONMENT                                                                    ',&
-'   Allows specifying the strings used by the M_attr module to select colors.   ',&
-'   FMAN_COLORS="bg=''<E>'',fg=''<w>'',prg=''<c>'',                             ',&
-'      head=''<y></bo>'',head_=''</bo>'',fixed=''<w>'',                         ',&
-'      output=''<y>'',output_=''</bo>''"                                        ',&
-'   LINES                                                                       ',&
-'      use "export LINES" from the bash shell to use the automatically generated',&
-'      value. Set to a numeric value it activates paging of the output.         ',&
+'   FMAN_COLORS  Allows specifying the strings used by the M_attr module        ',&
+'                to select colors. If set, fman(1) defaults to color mode.      ',&
+'                Default is                                                     ',&
+'                                                                               ',&
+'                    FMAN_COLORS="bg=''<E>'',fg=''<w>'',prg=''<c>'',            ',&
+'                    head=''<y><bo>'',head_=''</bo>'',fixed=''<w>'',            ',&
+'                    output=''<y>'',output_=''</bo>''"                          ',&
+'                                                                               ',&
+'   LINES   use "export LINES" from the bash shell to use the automatically     ',&
+'           generated value. Set to a numeric value it activates paging         ',&
+'           of the output.                                                      ',&
 'EXAMPLES                                                                       ',&
 '  Sample commands                                                              ',&
 '                                                                               ',&
-'   fman tan|less            # display a description of tan(3f)                 ',&
-'   fman                     # list table of contents                           ',&
-'   fman manual>fortran.txt  # create a copy of all descriptions                ',&
-'   fman -e character        # check TOC for string. try "trigo","size","complex"',&
-'                                                                                ',&
-'   fman --regex ''character''   # look for string in the TOC ignoring case      ',&
-'                                                                                ',&
-'   # list the topic "scan" if found and lines containing "scan" from the entire ',&
-'   # manual, prefixing the lines with the section name, while ignoring case.    ',&
-'   fman -e scan -i manual                                                       ',&
-'                                                                                ',&
-'   fman -d verify >demo_verify.f90 # get demo program to try VERIFY(3f).        ',&
-'                                                                                ',&
-'   # change background to blue, page every 30 lines                             ',&
-'   env FMAN_COLORS="bg=''<B>''" fman --color --lines 30 abs                     ',&
-'                                                                                ',&
-'   # Interactive mode                                                           ',&
-'   export LINES # in bash(1) sense terminal size                                ',&
-'   fman --color # bring up Table of Contents                                    ',&
-'   t cos        # load description of intrinsic "cos"                           ',&
-'   t verify     # load description of intrinsic "verify"                        ',&
-'   T            # reload TOC (Table of Contents)                                ',&
-'   /trig        # move forward to a line with "trig" in it                      ',&
-'   #            # toggle on line numbers                                        ',&
-'   h            # display crib sheet of commands                                ',&
+'   fman tan|less                   # display a description of tan(3f)          ',&
+'   fman -d verify >demo_verify.f90 # get demo program to try VERIFY(3f).       ',&
+'   fman                            # list table of contents                    ',&
+'   fman toc                        # annotated table of contents               ',&
+'   fman manual>fortran.txt         # create a copy of all descriptions         ',&
+'   fman -i --regex ''character''  # look for string in the TOC ignoring case   ',&
+'                                # for string. try "trigo","size","complex"     ',&
+'                                                                               ',&
+'   # list the topic "scan" if found and lines containing "scan" from the entire',&
+'   # manual, prefixing the lines with the section name, while ignoring case.   ',&
+'   fman -e scan -i manual                                                      ',&
+'                                                                               ',&
+'   # change background to blue, page every 30 lines                            ',&
+'   env FMAN_COLORS="bg=''<B>''" fman --color --lines 30 abs                    ',&
+'                                                                               ',&
+'   # Interactive session is tripped when LINES is set                          ',&
+'   export LINES # in bash(1) sense terminal size                               ',&
+'   fman --color # bring up Table of Contents                                   ',&
+'   t verify     # load description of intrinsic topic "verify"                 ',&
+'   t            # load short TOC (Table of Contents)                           ',&
+'   T            # load annotated TOC (Table of Contents)                       ',&
+'   /trig        # move forward to a line with "trig" in it                     ',&
+'   #            # toggle on line numbers                                       ',&
+'   h            # display crib sheet of commands                               ',&
 '']
 
 version_text=[ CHARACTER(LEN=128) :: &
 '@(#) PRODUCT:         GPF (General Purpose Fortran) utilities and examples     >',&
 '@(#) PROGRAM:         fman(1)                                                  >',&
 '@(#) DESCRIPTION:     output Fortran intrinsic descriptions                    >',&
-'@(#) VERSION:         2.0.0, 2024-10-25                                        >',&
+'@(#) VERSION:         3.0.0, 2025-03-14                                        >',&
 '@(#) AUTHOR:          John S. Urban                                            >',&
 '@(#) HOME PAGE:       http://www.urbanjost.altervista.org/index.html           >',&
 '@(#) LICENSE:         MIT License                                              >',&
@@ -58880,6 +58910,7 @@ version_text=[ CHARACTER(LEN=128) :: &
 end subroutine setup
 
 end program fman
+
 ! kludge1: older versions of gfortran do not handle character arrays with both line and size allocatable
 ! always make non-color and color and toggle between the two
 ! a search that shows topic prefix and line number in original file
