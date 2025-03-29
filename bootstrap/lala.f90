@@ -54621,6 +54621,7 @@ integer                    :: mn
       case(1)                                               ! command::exec
       EXEC_CMD : block
       character(len=:),allocatable :: filename
+      character(len=:),allocatable :: name
       if (lun .eq. 0) then                                  ! exec(0)
          G_RIO = G_INPUT_LUN
          G_ERR = 99
@@ -54642,7 +54643,8 @@ integer                    :: mn
 
          G_RIO = G_RIO + 1
 
-         filename=find_exec_file(ade2str(G_BUF))
+         name=ade2str(G_BUF)
+         filename=find_exec_file(name)
          call mat_str2buf(filename,G_BUF,GG_LINELEN)    ! convert input line to ADE buffer
          call mat_files(G_RIO,G_BUF,status='old')
          if(G_FILE_OPEN_ERROR)then
