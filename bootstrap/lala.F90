@@ -1,4 +1,3 @@
- 
 !>>>>> build/dependencies/M_framework/src/M_framework__msg.F90
 module M_framework__msg
 use,intrinsic :: iso_fortran_env, only : ERROR_UNIT,OUTPUT_UNIT    ! access computing environment
@@ -1244,8 +1243,7 @@ end subroutine assert
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 end module M_framework__msg
- 
- 
+
 !>>>>> build/dependencies/M_framework/src/M_framework__timing.f90
 module M_framework__timing
 use,intrinsic :: iso_fortran_env, only : int8,int16,int32,int64,real32,real64,real128
@@ -1342,8 +1340,7 @@ real                :: cpu_time
 end function clock_cputime
 
 end module M_framework__timing
- 
- 
+
 !>>>>> build/dependencies/M_framework/src/M_framework__utility.f90
 module M_framework__utility
 use, intrinsic :: iso_fortran_env,  only : int8, int16, int32, int64
@@ -1561,8 +1558,7 @@ end subroutine fstop
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 end module M_framework__utility
- 
- 
+
 !>>>>> build/dependencies/M_msg/src/M_msg.F90
 module M_msg
 use,intrinsic :: iso_fortran_env, only : ERROR_UNIT,OUTPUT_UNIT    ! access computing environment
@@ -2485,8 +2481,7 @@ end module M_msg
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_strings/src/M_strings.F90
 !>
 !!##NAME
@@ -16085,8 +16080,7 @@ end function atoi_int64
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 end module M_strings
- 
- 
+
 !>>>>> build/dependencies/M_history/src/M_history.f90
 !>
 !!##NAME
@@ -16311,7 +16305,6 @@ private :: help_                   !  produce help text for redo(3f) usage
 !  add option to read in and replace history file
 
 integer,parameter :: READLEN=1024  ! width of history file
-
 
 integer,save,private       :: stdout=OUTPUT_UNIT
 logical,save               :: debug=.false.
@@ -18195,8 +18188,7 @@ end function str_one
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
 end module M_history
- 
- 
+
 !>>>>> build/dependencies/M_CLI2/src/M_CLI2.F90
 !VERSION 1.0 2020-01-15
 !VERSION 2.0 2020-08-02
@@ -24090,8 +24082,7 @@ end module M_CLI2
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_list/src/M_list.f90
 !>
 !!##NAME
@@ -25889,8 +25880,7 @@ end module M_list
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_io/src/M_io.F90
 !===================================================================================================================================
 MODULE M_io
@@ -29835,7 +29825,6 @@ doubleprecision function s2v(chars,ierr,onerr)
 
 !character(len=*),parameter::ident_43="@(#)M_strings::s2v(3f): returns doubleprecision number from string"
 
-
 character(len=*),intent(in)  :: chars
 integer,optional             :: ierr
 doubleprecision              :: valu
@@ -31223,8 +31212,7 @@ end module m_io
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_LA/src/M_LA.f90
 module m_la
 use,intrinsic :: iso_fortran_env, only : stderr=>error_unit, stdin=>input_unit, stdout=>output_unit
@@ -36679,8 +36667,7 @@ end subroutine ml_wsvdc
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
- 
- 
+
 !>>>>> build/dependencies/M_intrinsics/src/M_intrinsics.f90
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
@@ -37214,7 +37201,6 @@ textblock=[character(len=256) :: &
 shortname="abs"
 call process()
 
-
 case('2','achar')
 
 textblock=[character(len=256) :: &
@@ -37372,7 +37358,6 @@ textblock=[character(len=256) :: &
 shortname="achar"
 call process()
 
-
 case('3','acos')
 
 textblock=[character(len=256) :: &
@@ -37466,7 +37451,6 @@ textblock=[character(len=256) :: &
 shortname="acos"
 call process()
 
-
 case('4','acosd')
 
 textblock=[character(len=256) :: &
@@ -37552,7 +37536,6 @@ textblock=[character(len=256) :: &
 shortname="acosd"
 call process()
 
-
 case('5','acosh')
 
 textblock=[character(len=256) :: &
@@ -37625,7 +37608,6 @@ textblock=[character(len=256) :: &
 
 shortname="acosh"
 call process()
-
 
 case('6','acospi')
 
@@ -37727,7 +37709,6 @@ textblock=[character(len=256) :: &
 shortname="acospi"
 call process()
 
-
 case('7','adjustl')
 
 textblock=[character(len=256) :: &
@@ -37817,7 +37798,6 @@ textblock=[character(len=256) :: &
 shortname="adjustl"
 call process()
 
-
 case('8','adjustr')
 
 textblock=[character(len=256) :: &
@@ -37902,7 +37882,6 @@ textblock=[character(len=256) :: &
 
 shortname="adjustr"
 call process()
-
 
 case('9','aimag')
 
@@ -38025,7 +38004,6 @@ textblock=[character(len=256) :: &
 shortname="aimag"
 call process()
 
-
 case('10','aint')
 
 textblock=[character(len=256) :: &
@@ -38117,7 +38095,6 @@ textblock=[character(len=256) :: &
 
 shortname="aint"
 call process()
-
 
 case('11','all')
 
@@ -38231,7 +38208,6 @@ textblock=[character(len=256) :: &
 shortname="all"
 call process()
 
-
 case('12','allocated')
 
 textblock=[character(len=256) :: &
@@ -38330,7 +38306,6 @@ textblock=[character(len=256) :: &
 
 shortname="allocated"
 call process()
-
 
 case('13','anint')
 
@@ -38449,7 +38424,6 @@ textblock=[character(len=256) :: &
 
 shortname="anint"
 call process()
-
 
 case('14','any')
 
@@ -38609,7 +38583,6 @@ textblock=[character(len=256) :: &
 shortname="any"
 call process()
 
-
 case('15','asin')
 
 textblock=[character(len=256) :: &
@@ -38723,7 +38696,6 @@ textblock=[character(len=256) :: &
 
 shortname="asin"
 call process()
-
 
 case('16','asind')
 
@@ -38849,7 +38821,6 @@ textblock=[character(len=256) :: &
 shortname="asind"
 call process()
 
-
 case('17','asinh')
 
 textblock=[character(len=256) :: &
@@ -38922,7 +38893,6 @@ textblock=[character(len=256) :: &
 
 shortname="asinh"
 call process()
-
 
 case('18','asinpi')
 
@@ -39054,7 +39024,6 @@ textblock=[character(len=256) :: &
 
 shortname="asinpi"
 call process()
-
 
 case('19','associate')
 
@@ -39556,7 +39525,6 @@ textblock=[character(len=256) :: &
 shortname="associate"
 call process()
 
-
 case('20','associated')
 
 textblock=[character(len=256) :: &
@@ -39675,7 +39643,6 @@ textblock=[character(len=256) :: &
 
 shortname="associated"
 call process()
-
 
 case('21','atan2')
 
@@ -39856,7 +39823,6 @@ textblock=[character(len=256) :: &
 shortname="atan2"
 call process()
 
-
 case('22','atan2d')
 
 textblock=[character(len=256) :: &
@@ -40028,7 +39994,6 @@ textblock=[character(len=256) :: &
 shortname="atan2d"
 call process()
 
-
 case('23','atan2pi')
 
 textblock=[character(len=256) :: &
@@ -40186,7 +40151,6 @@ textblock=[character(len=256) :: &
 shortname="atan2pi"
 call process()
 
-
 case('24','atan')
 
 textblock=[character(len=256) :: &
@@ -40271,7 +40235,6 @@ textblock=[character(len=256) :: &
 
 shortname="atan"
 call process()
-
 
 case('25','atand')
 
@@ -40359,7 +40322,6 @@ textblock=[character(len=256) :: &
 shortname="atand"
 call process()
 
-
 case('26','atanh')
 
 textblock=[character(len=256) :: &
@@ -40424,7 +40386,6 @@ textblock=[character(len=256) :: &
 
 shortname="atanh"
 call process()
-
 
 case('27','atanpi')
 
@@ -40513,7 +40474,6 @@ textblock=[character(len=256) :: &
 shortname="atanpi"
 call process()
 
-
 case('28','atomic_add')
 
 textblock=[character(len=256) :: &
@@ -40582,7 +40542,6 @@ textblock=[character(len=256) :: &
 
 shortname="atomic_add"
 call process()
-
 
 case('29','atomic_and')
 
@@ -40654,7 +40613,6 @@ textblock=[character(len=256) :: &
 shortname="atomic_and"
 call process()
 
-
 case('30','atomic_cas')
 
 textblock=[character(len=256) :: &
@@ -40716,7 +40674,6 @@ textblock=[character(len=256) :: &
 
 shortname="atomic_cas"
 call process()
-
 
 case('31','atomic_define')
 
@@ -40786,7 +40743,6 @@ textblock=[character(len=256) :: &
 shortname="atomic_define"
 call process()
 
-
 case('32','atomic_fetch_add')
 
 textblock=[character(len=256) :: &
@@ -40849,7 +40805,6 @@ textblock=[character(len=256) :: &
 
 shortname="atomic_fetch_add"
 call process()
-
 
 case('33','atomic_fetch_and')
 
@@ -40915,7 +40870,6 @@ textblock=[character(len=256) :: &
 shortname="atomic_fetch_and"
 call process()
 
-
 case('34','atomic_fetch_or')
 
 textblock=[character(len=256) :: &
@@ -40980,7 +40934,6 @@ textblock=[character(len=256) :: &
 shortname="atomic_fetch_or"
 call process()
 
-
 case('35','atomic_fetch_xor')
 
 textblock=[character(len=256) :: &
@@ -41044,7 +40997,6 @@ textblock=[character(len=256) :: &
 
 shortname="atomic_fetch_xor"
 call process()
-
 
 case('36','atomic_or')
 
@@ -41118,7 +41070,6 @@ textblock=[character(len=256) :: &
 
 shortname="atomic_or"
 call process()
-
 
 case('37','atomic_ref')
 
@@ -41196,7 +41147,6 @@ textblock=[character(len=256) :: &
 shortname="atomic_ref"
 call process()
 
-
 case('38','atomic_xor')
 
 textblock=[character(len=256) :: &
@@ -41267,7 +41217,6 @@ textblock=[character(len=256) :: &
 
 shortname="atomic_xor"
 call process()
-
 
 case('39','backspace')
 
@@ -41397,7 +41346,6 @@ textblock=[character(len=256) :: &
 shortname="backspace"
 call process()
 
-
 case('40','bessel_j0')
 
 textblock=[character(len=256) :: &
@@ -41459,7 +41407,6 @@ textblock=[character(len=256) :: &
 shortname="bessel_j0"
 call process()
 
-
 case('41','bessel_j1')
 
 textblock=[character(len=256) :: &
@@ -41519,7 +41466,6 @@ textblock=[character(len=256) :: &
 
 shortname="bessel_j1"
 call process()
-
 
 case('42','bessel_jn')
 
@@ -41615,7 +41561,6 @@ textblock=[character(len=256) :: &
 shortname="bessel_jn"
 call process()
 
-
 case('43','bessel_y0')
 
 textblock=[character(len=256) :: &
@@ -41676,7 +41621,6 @@ textblock=[character(len=256) :: &
 shortname="bessel_y0"
 call process()
 
-
 case('44','bessel_y1')
 
 textblock=[character(len=256) :: &
@@ -41735,7 +41679,6 @@ textblock=[character(len=256) :: &
 
 shortname="bessel_y1"
 call process()
-
 
 case('45','bessel_yn')
 
@@ -41830,7 +41773,6 @@ textblock=[character(len=256) :: &
 
 shortname="bessel_yn"
 call process()
-
 
 case('46','bge')
 
@@ -41989,7 +41931,6 @@ textblock=[character(len=256) :: &
 shortname="bge"
 call process()
 
-
 case('47','bgt')
 
 textblock=[character(len=256) :: &
@@ -42094,7 +42035,6 @@ textblock=[character(len=256) :: &
 shortname="bgt"
 call process()
 
-
 case('48','bit_size')
 
 textblock=[character(len=256) :: &
@@ -42179,7 +42119,6 @@ textblock=[character(len=256) :: &
 
 shortname="bit_size"
 call process()
-
 
 case('49','ble')
 
@@ -42273,7 +42212,6 @@ textblock=[character(len=256) :: &
 
 shortname="ble"
 call process()
-
 
 case('50','block')
 
@@ -42398,7 +42336,6 @@ textblock=[character(len=256) :: &
 shortname="block"
 call process()
 
-
 case('51','blt')
 
 textblock=[character(len=256) :: &
@@ -42485,7 +42422,6 @@ textblock=[character(len=256) :: &
 
 shortname="blt"
 call process()
-
 
 case('52','btest')
 
@@ -42617,7 +42553,6 @@ textblock=[character(len=256) :: &
 shortname="btest"
 call process()
 
-
 case('53','c_associated')
 
 textblock=[character(len=256) :: &
@@ -42687,7 +42622,6 @@ textblock=[character(len=256) :: &
 
 shortname="c_associated"
 call process()
-
 
 case('54','ceiling')
 
@@ -42924,7 +42858,6 @@ textblock=[character(len=256) :: &
 shortname="ceiling"
 call process()
 
-
 case('55','c_f_pointer')
 
 textblock=[character(len=256) :: &
@@ -42993,7 +42926,6 @@ textblock=[character(len=256) :: &
 shortname="c_f_pointer"
 call process()
 
-
 case('56','c_f_procpointer')
 
 textblock=[character(len=256) :: &
@@ -43061,7 +42993,6 @@ textblock=[character(len=256) :: &
 shortname="c_f_procpointer"
 call process()
 
-
 case('57','c_funloc')
 
 textblock=[character(len=256) :: &
@@ -43128,7 +43059,6 @@ textblock=[character(len=256) :: &
 
 shortname="c_funloc"
 call process()
-
 
 case('58','char')
 
@@ -43258,7 +43188,6 @@ textblock=[character(len=256) :: &
 shortname="char"
 call process()
 
-
 case('59','c_loc')
 
 textblock=[character(len=256) :: &
@@ -43312,7 +43241,6 @@ textblock=[character(len=256) :: &
 
 shortname="c_loc"
 call process()
-
 
 case('60','close')
 
@@ -43443,7 +43371,6 @@ textblock=[character(len=256) :: &
 
 shortname="close"
 call process()
-
 
 case('61','cmplx')
 
@@ -43709,7 +43636,6 @@ textblock=[character(len=256) :: &
 shortname="cmplx"
 call process()
 
-
 case('62','co_broadcast')
 
 textblock=[character(len=256) :: &
@@ -43771,7 +43697,6 @@ textblock=[character(len=256) :: &
 shortname="co_broadcast"
 call process()
 
-
 case('63','co_lbound')
 
 textblock=[character(len=256) :: &
@@ -43817,7 +43742,6 @@ textblock=[character(len=256) :: &
 
 shortname="co_lbound"
 call process()
-
 
 case('64','co_max')
 
@@ -43885,7 +43809,6 @@ textblock=[character(len=256) :: &
 shortname="co_max"
 call process()
 
-
 case('65','co_min')
 
 textblock=[character(len=256) :: &
@@ -43947,7 +43870,6 @@ textblock=[character(len=256) :: &
 
 shortname="co_min"
 call process()
-
 
 case('66','command_argument_count')
 
@@ -44018,7 +43940,6 @@ textblock=[character(len=256) :: &
 
 shortname="command_argument_count"
 call process()
-
 
 case('67','comment')
 
@@ -44148,7 +44069,6 @@ textblock=[character(len=256) :: &
 shortname="comment"
 call process()
 
-
 case('68','compiler_options')
 
 textblock=[character(len=256) :: &
@@ -44229,7 +44149,6 @@ textblock=[character(len=256) :: &
 shortname="compiler_options"
 call process()
 
-
 case('69','compiler_version')
 
 textblock=[character(len=256) :: &
@@ -44296,7 +44215,6 @@ textblock=[character(len=256) :: &
 
 shortname="compiler_version"
 call process()
-
 
 case('70','conjg')
 
@@ -44419,7 +44337,6 @@ textblock=[character(len=256) :: &
 
 shortname="conjg"
 call process()
-
 
 case('71','continuation')
 
@@ -44796,7 +44713,6 @@ textblock=[character(len=256) :: &
 shortname="continuation"
 call process()
 
-
 case('72','continue')
 
 textblock=[character(len=256) :: &
@@ -44872,7 +44788,6 @@ textblock=[character(len=256) :: &
 
 shortname="continue"
 call process()
-
 
 case('73','co_reduce')
 
@@ -44971,7 +44886,6 @@ textblock=[character(len=256) :: &
 
 shortname="co_reduce"
 call process()
-
 
 case('74','cos')
 
@@ -45177,7 +45091,6 @@ textblock=[character(len=256) :: &
 shortname="cos"
 call process()
 
-
 case('75','cosd')
 
 textblock=[character(len=256) :: &
@@ -45262,7 +45175,6 @@ textblock=[character(len=256) :: &
 shortname="cosd"
 call process()
 
-
 case('76','cosh')
 
 textblock=[character(len=256) :: &
@@ -45328,7 +45240,6 @@ textblock=[character(len=256) :: &
 
 shortname="cosh"
 call process()
-
 
 case('77','cospi')
 
@@ -45420,7 +45331,6 @@ textblock=[character(len=256) :: &
 shortname="cospi"
 call process()
 
-
 case('78','co_sum')
 
 textblock=[character(len=256) :: &
@@ -45491,7 +45401,6 @@ textblock=[character(len=256) :: &
 shortname="co_sum"
 call process()
 
-
 case('79','co_ubound')
 
 textblock=[character(len=256) :: &
@@ -45537,7 +45446,6 @@ textblock=[character(len=256) :: &
 
 shortname="co_ubound"
 call process()
-
 
 case('80','count')
 
@@ -45775,7 +45683,6 @@ textblock=[character(len=256) :: &
 shortname="count"
 call process()
 
-
 case('81','cpu_time')
 
 textblock=[character(len=256) :: &
@@ -45880,7 +45787,6 @@ textblock=[character(len=256) :: &
 
 shortname="cpu_time"
 call process()
-
 
 case('82','cshift')
 
@@ -46012,7 +45918,6 @@ textblock=[character(len=256) :: &
 shortname="cshift"
 call process()
 
-
 case('83','c_sizeof')
 
 textblock=[character(len=256) :: &
@@ -46071,7 +45976,6 @@ textblock=[character(len=256) :: &
 
 shortname="c_sizeof"
 call process()
-
 
 case('84','date_and_time')
 
@@ -46254,7 +46158,6 @@ textblock=[character(len=256) :: &
 shortname="date_and_time"
 call process()
 
-
 case('85','dble')
 
 textblock=[character(len=256) :: &
@@ -46325,7 +46228,6 @@ textblock=[character(len=256) :: &
 
 shortname="dble"
 call process()
-
 
 case('86','deallocate')
 
@@ -46495,7 +46397,6 @@ textblock=[character(len=256) :: &
 shortname="deallocate"
 call process()
 
-
 case('87','digits')
 
 textblock=[character(len=256) :: &
@@ -46563,7 +46464,6 @@ textblock=[character(len=256) :: &
 
 shortname="digits"
 call process()
-
 
 case('88','dim')
 
@@ -46667,7 +46567,6 @@ textblock=[character(len=256) :: &
 shortname="dim"
 call process()
 
-
 case('89','dot_product')
 
 textblock=[character(len=256) :: &
@@ -46763,7 +46662,6 @@ textblock=[character(len=256) :: &
 
 shortname="dot_product"
 call process()
-
 
 case('90','dprod')
 
@@ -46870,7 +46768,6 @@ textblock=[character(len=256) :: &
 
 shortname="dprod"
 call process()
-
 
 case('91','dshiftl')
 
@@ -47013,7 +46910,6 @@ textblock=[character(len=256) :: &
 
 shortname="dshiftl"
 call process()
-
 
 case('92','dshiftr')
 
@@ -47160,7 +47056,6 @@ textblock=[character(len=256) :: &
 shortname="dshiftr"
 call process()
 
-
 case('93','endfile')
 
 textblock=[character(len=256) :: &
@@ -47251,7 +47146,6 @@ textblock=[character(len=256) :: &
 
 shortname="endfile"
 call process()
-
 
 case('94','eoshift')
 
@@ -47430,7 +47324,6 @@ textblock=[character(len=256) :: &
 shortname="eoshift"
 call process()
 
-
 case('95','epsilon')
 
 textblock=[character(len=256) :: &
@@ -47555,7 +47448,6 @@ textblock=[character(len=256) :: &
 shortname="epsilon"
 call process()
 
-
 case('96','erf')
 
 textblock=[character(len=256) :: &
@@ -47619,7 +47511,6 @@ textblock=[character(len=256) :: &
 
 shortname="erf"
 call process()
-
 
 case('97','erfc')
 
@@ -47700,7 +47591,6 @@ textblock=[character(len=256) :: &
 shortname="erfc"
 call process()
 
-
 case('98','erfc_scaled')
 
 textblock=[character(len=256) :: &
@@ -47774,7 +47664,6 @@ textblock=[character(len=256) :: &
 
 shortname="erfc_scaled"
 call process()
-
 
 case('99','event_query')
 
@@ -47858,7 +47747,6 @@ textblock=[character(len=256) :: &
 
 shortname="event_query"
 call process()
-
 
 case('100','execute_command_line')
 
@@ -48039,7 +47927,6 @@ textblock=[character(len=256) :: &
 
 shortname="execute_command_line"
 call process()
-
 
 case('101','exit')
 
@@ -48349,7 +48236,6 @@ textblock=[character(len=256) :: &
 shortname="exit"
 call process()
 
-
 case('102','exp')
 
 textblock=[character(len=256) :: &
@@ -48459,7 +48345,6 @@ textblock=[character(len=256) :: &
 shortname="exp"
 call process()
 
-
 case('103','exponent')
 
 textblock=[character(len=256) :: &
@@ -48533,7 +48418,6 @@ textblock=[character(len=256) :: &
 
 shortname="exponent"
 call process()
-
 
 case('104','extends_type_of')
 
@@ -48707,7 +48591,6 @@ textblock=[character(len=256) :: &
 
 shortname="extends_type_of"
 call process()
-
 
 case('105','findloc')
 
@@ -48997,7 +48880,6 @@ textblock=[character(len=256) :: &
 shortname="findloc"
 call process()
 
-
 case('106','floor')
 
 textblock=[character(len=256) :: &
@@ -49104,7 +48986,6 @@ textblock=[character(len=256) :: &
 shortname="floor"
 call process()
 
-
 case('107','flush')
 
 textblock=[character(len=256) :: &
@@ -49196,7 +49077,6 @@ textblock=[character(len=256) :: &
 shortname="flush"
 call process()
 
-
 case('108','fraction')
 
 textblock=[character(len=256) :: &
@@ -49269,7 +49149,6 @@ textblock=[character(len=256) :: &
 
 shortname="fraction"
 call process()
-
 
 case('109','gamma')
 
@@ -49416,7 +49295,6 @@ textblock=[character(len=256) :: &
 shortname="gamma"
 call process()
 
-
 case('110','get_command')
 
 textblock=[character(len=256) :: &
@@ -49517,7 +49395,6 @@ textblock=[character(len=256) :: &
 
 shortname="get_command"
 call process()
-
 
 case('111','get_command_argument')
 
@@ -49650,7 +49527,6 @@ textblock=[character(len=256) :: &
 
 shortname="get_command_argument"
 call process()
-
 
 case('112','get_environment_variable')
 
@@ -49803,7 +49679,6 @@ textblock=[character(len=256) :: &
 shortname="get_environment_variable"
 call process()
 
-
 case('113','huge')
 
 textblock=[character(len=256) :: &
@@ -49941,7 +49816,6 @@ textblock=[character(len=256) :: &
 shortname="huge"
 call process()
 
-
 case('114','hypot')
 
 textblock=[character(len=256) :: &
@@ -50053,7 +49927,6 @@ textblock=[character(len=256) :: &
 
 shortname="hypot"
 call process()
-
 
 case('115','iachar')
 
@@ -50169,7 +50042,6 @@ textblock=[character(len=256) :: &
 shortname="iachar"
 call process()
 
-
 case('116','iall')
 
 textblock=[character(len=256) :: &
@@ -50252,7 +50124,6 @@ textblock=[character(len=256) :: &
 
 shortname="iall"
 call process()
-
 
 case('117','iand')
 
@@ -50338,7 +50209,6 @@ textblock=[character(len=256) :: &
 
 shortname="iand"
 call process()
-
 
 case('118','iany')
 
@@ -50450,7 +50320,6 @@ textblock=[character(len=256) :: &
 shortname="iany"
 call process()
 
-
 case('119','ibclr')
 
 textblock=[character(len=256) :: &
@@ -50548,7 +50417,6 @@ textblock=[character(len=256) :: &
 
 shortname="ibclr"
 call process()
-
 
 case('120','ibits')
 
@@ -50651,7 +50519,6 @@ textblock=[character(len=256) :: &
 shortname="ibits"
 call process()
 
-
 case('121','ibset')
 
 textblock=[character(len=256) :: &
@@ -50748,7 +50615,6 @@ textblock=[character(len=256) :: &
 
 shortname="ibset"
 call process()
-
 
 case('122','ichar')
 
@@ -50860,7 +50726,6 @@ textblock=[character(len=256) :: &
 shortname="ichar"
 call process()
 
-
 case('123','ieor')
 
 textblock=[character(len=256) :: &
@@ -50965,7 +50830,6 @@ textblock=[character(len=256) :: &
 
 shortname="ieor"
 call process()
-
 
 case('124','if')
 
@@ -51147,7 +51011,6 @@ textblock=[character(len=256) :: &
 shortname="if"
 call process()
 
-
 case('125','image_index')
 
 textblock=[character(len=256) :: &
@@ -51197,7 +51060,6 @@ textblock=[character(len=256) :: &
 
 shortname="image_index"
 call process()
-
 
 case('126','implicit')
 
@@ -51476,7 +51338,6 @@ textblock=[character(len=256) :: &
 shortname="implicit"
 call process()
 
-
 case('127','include')
 
 textblock=[character(len=256) :: &
@@ -51660,7 +51521,6 @@ textblock=[character(len=256) :: &
 shortname="include"
 call process()
 
-
 case('128','index')
 
 textblock=[character(len=256) :: &
@@ -51761,7 +51621,6 @@ textblock=[character(len=256) :: &
 
 shortname="index"
 call process()
-
 
 case('129','inquire')
 
@@ -52333,7 +52192,6 @@ textblock=[character(len=256) :: &
 shortname="inquire"
 call process()
 
-
 case('130','int')
 
 textblock=[character(len=256) :: &
@@ -52462,7 +52320,6 @@ textblock=[character(len=256) :: &
 shortname="int"
 call process()
 
-
 case('131','ior')
 
 textblock=[character(len=256) :: &
@@ -52543,7 +52400,6 @@ textblock=[character(len=256) :: &
 
 shortname="ior"
 call process()
-
 
 case('132','iparity')
 
@@ -52631,7 +52487,6 @@ textblock=[character(len=256) :: &
 
 shortname="iparity"
 call process()
-
 
 case('133','is_contiguous')
 
@@ -52762,7 +52617,6 @@ textblock=[character(len=256) :: &
 shortname="is_contiguous"
 call process()
 
-
 case('134','ishft')
 
 textblock=[character(len=256) :: &
@@ -52857,7 +52711,6 @@ textblock=[character(len=256) :: &
 
 shortname="ishft"
 call process()
-
 
 case('135','ishftc')
 
@@ -53000,7 +52853,6 @@ textblock=[character(len=256) :: &
 shortname="ishftc"
 call process()
 
-
 case('136','is_iostat_end')
 
 textblock=[character(len=256) :: &
@@ -53127,7 +52979,6 @@ textblock=[character(len=256) :: &
 shortname="is_iostat_end"
 call process()
 
-
 case('137','is_iostat_eor')
 
 textblock=[character(len=256) :: &
@@ -53244,7 +53095,6 @@ textblock=[character(len=256) :: &
 shortname="is_iostat_eor"
 call process()
 
-
 case('138','kind')
 
 textblock=[character(len=256) :: &
@@ -53326,7 +53176,6 @@ textblock=[character(len=256) :: &
 
 shortname="kind"
 call process()
-
 
 case('139','lbound')
 
@@ -53496,7 +53345,6 @@ textblock=[character(len=256) :: &
 shortname="lbound"
 call process()
 
-
 case('140','lcobound')
 
 textblock=[character(len=256) :: &
@@ -53542,7 +53390,6 @@ textblock=[character(len=256) :: &
 
 shortname="lcobound"
 call process()
-
 
 case('141','leadz')
 
@@ -53628,7 +53475,6 @@ textblock=[character(len=256) :: &
 
 shortname="leadz"
 call process()
-
 
 case('142','len')
 
@@ -53771,7 +53617,6 @@ textblock=[character(len=256) :: &
 shortname="len"
 call process()
 
-
 case('143','len_trim')
 
 textblock=[character(len=256) :: &
@@ -53876,7 +53721,6 @@ textblock=[character(len=256) :: &
 
 shortname="len_trim"
 call process()
-
 
 case('144','lge')
 
@@ -53988,7 +53832,6 @@ textblock=[character(len=256) :: &
 shortname="lge"
 call process()
 
-
 case('145','lgt')
 
 textblock=[character(len=256) :: &
@@ -54099,7 +53942,6 @@ textblock=[character(len=256) :: &
 
 shortname="lgt"
 call process()
-
 
 case('146','lle')
 
@@ -54236,7 +54078,6 @@ textblock=[character(len=256) :: &
 shortname="lle"
 call process()
 
-
 case('147','llt')
 
 textblock=[character(len=256) :: &
@@ -54351,7 +54192,6 @@ textblock=[character(len=256) :: &
 shortname="llt"
 call process()
 
-
 case('148','log10')
 
 textblock=[character(len=256) :: &
@@ -54429,7 +54269,6 @@ textblock=[character(len=256) :: &
 
 shortname="log10"
 call process()
-
 
 case('149','log')
 
@@ -54512,7 +54351,6 @@ textblock=[character(len=256) :: &
 shortname="log"
 call process()
 
-
 case('150','log_gamma')
 
 textblock=[character(len=256) :: &
@@ -54574,7 +54412,6 @@ textblock=[character(len=256) :: &
 
 shortname="log_gamma"
 call process()
-
 
 case('151','logical')
 
@@ -54748,7 +54585,6 @@ textblock=[character(len=256) :: &
 shortname="logical"
 call process()
 
-
 case('152','maskl')
 
 textblock=[character(len=256) :: &
@@ -54837,7 +54673,6 @@ textblock=[character(len=256) :: &
 
 shortname="maskl"
 call process()
-
 
 case('153','maskr')
 
@@ -54945,7 +54780,6 @@ textblock=[character(len=256) :: &
 
 shortname="maskr"
 call process()
-
 
 case('154','matmul')
 
@@ -55186,7 +55020,6 @@ textblock=[character(len=256) :: &
 shortname="matmul"
 call process()
 
-
 case('155','max')
 
 textblock=[character(len=256) :: &
@@ -55345,7 +55178,6 @@ textblock=[character(len=256) :: &
 shortname="max"
 call process()
 
-
 case('156','maxexponent')
 
 textblock=[character(len=256) :: &
@@ -55409,7 +55241,6 @@ textblock=[character(len=256) :: &
 
 shortname="maxexponent"
 call process()
-
 
 case('157','maxloc')
 
@@ -55532,7 +55363,6 @@ textblock=[character(len=256) :: &
 
 shortname="maxloc"
 call process()
-
 
 case('158','maxval')
 
@@ -55664,7 +55494,6 @@ textblock=[character(len=256) :: &
 
 shortname="maxval"
 call process()
-
 
 case('159','merge')
 
@@ -55844,7 +55673,6 @@ textblock=[character(len=256) :: &
 shortname="merge"
 call process()
 
-
 case('160','merge_bits')
 
 textblock=[character(len=256) :: &
@@ -55975,7 +55803,6 @@ textblock=[character(len=256) :: &
 shortname="merge_bits"
 call process()
 
-
 case('161','min')
 
 textblock=[character(len=256) :: &
@@ -56080,7 +55907,6 @@ textblock=[character(len=256) :: &
 shortname="min"
 call process()
 
-
 case('162','minexponent')
 
 textblock=[character(len=256) :: &
@@ -56143,7 +55969,6 @@ textblock=[character(len=256) :: &
 
 shortname="minexponent"
 call process()
-
 
 case('163','minloc')
 
@@ -56254,7 +56079,6 @@ textblock=[character(len=256) :: &
 
 shortname="minloc"
 call process()
-
 
 case('164','minval')
 
@@ -56458,7 +56282,6 @@ textblock=[character(len=256) :: &
 shortname="minval"
 call process()
 
-
 case('165','mod')
 
 textblock=[character(len=256) :: &
@@ -56571,7 +56394,6 @@ textblock=[character(len=256) :: &
 shortname="mod"
 call process()
 
-
 case('166','modulo')
 
 textblock=[character(len=256) :: &
@@ -56654,7 +56476,6 @@ textblock=[character(len=256) :: &
 
 shortname="modulo"
 call process()
-
 
 case('167','move_alloc')
 
@@ -56762,7 +56583,6 @@ textblock=[character(len=256) :: &
 
 shortname="move_alloc"
 call process()
-
 
 case('168','mvbits')
 
@@ -56916,7 +56736,6 @@ textblock=[character(len=256) :: &
 
 shortname="mvbits"
 call process()
-
 
 case('169','namelist')
 
@@ -57512,7 +57331,6 @@ textblock=[character(len=256) :: &
 shortname="namelist"
 call process()
 
-
 case('170','nearest')
 
 textblock=[character(len=256) :: &
@@ -57603,7 +57421,6 @@ textblock=[character(len=256) :: &
 
 shortname="nearest"
 call process()
-
 
 case('171','new_line')
 
@@ -57775,7 +57592,6 @@ textblock=[character(len=256) :: &
 shortname="new_line"
 call process()
 
-
 case('172','nint')
 
 textblock=[character(len=256) :: &
@@ -57927,7 +57743,6 @@ textblock=[character(len=256) :: &
 shortname="nint"
 call process()
 
-
 case('173','norm2')
 
 textblock=[character(len=256) :: &
@@ -58046,7 +57861,6 @@ textblock=[character(len=256) :: &
 shortname="norm2"
 call process()
 
-
 case('174','not')
 
 textblock=[character(len=256) :: &
@@ -58136,7 +57950,6 @@ textblock=[character(len=256) :: &
 
 shortname="not"
 call process()
-
 
 case('175','null')
 
@@ -58265,7 +58078,6 @@ textblock=[character(len=256) :: &
 shortname="null"
 call process()
 
-
 case('176','num_images')
 
 textblock=[character(len=256) :: &
@@ -58350,7 +58162,6 @@ textblock=[character(len=256) :: &
 
 shortname="num_images"
 call process()
-
 
 case('177','open')
 
@@ -58674,7 +58485,6 @@ textblock=[character(len=256) :: &
 shortname="open"
 call process()
 
-
 case('178','out_of_range')
 
 textblock=[character(len=256) :: &
@@ -58828,7 +58638,6 @@ textblock=[character(len=256) :: &
 shortname="out_of_range"
 call process()
 
-
 case('179','pack')
 
 textblock=[character(len=256) :: &
@@ -58959,7 +58768,6 @@ textblock=[character(len=256) :: &
 shortname="pack"
 call process()
 
-
 case('180','parity')
 
 textblock=[character(len=256) :: &
@@ -59068,7 +58876,6 @@ textblock=[character(len=256) :: &
 shortname="parity"
 call process()
 
-
 case('181','popcnt')
 
 textblock=[character(len=256) :: &
@@ -59153,7 +58960,6 @@ textblock=[character(len=256) :: &
 
 shortname="popcnt"
 call process()
-
 
 case('182','poppar')
 
@@ -59246,7 +59052,6 @@ textblock=[character(len=256) :: &
 shortname="poppar"
 call process()
 
-
 case('183','precision')
 
 textblock=[character(len=256) :: &
@@ -59313,7 +59118,6 @@ textblock=[character(len=256) :: &
 
 shortname="precision"
 call process()
-
 
 case('184','present')
 
@@ -59439,7 +59243,6 @@ textblock=[character(len=256) :: &
 shortname="present"
 call process()
 
-
 case('185','print')
 
 textblock=[character(len=256) :: &
@@ -59537,7 +59340,6 @@ textblock=[character(len=256) :: &
 
 shortname="print"
 call process()
-
 
 case('186','product')
 
@@ -59774,7 +59576,6 @@ textblock=[character(len=256) :: &
 shortname="product"
 call process()
 
-
 case('187','program')
 
 textblock=[character(len=256) :: &
@@ -59865,7 +59666,6 @@ textblock=[character(len=256) :: &
 shortname="program"
 call process()
 
-
 case('188','radix')
 
 textblock=[character(len=256) :: &
@@ -59936,7 +59736,6 @@ textblock=[character(len=256) :: &
 
 shortname="radix"
 call process()
-
 
 case('189','random_init')
 
@@ -60016,7 +59815,6 @@ textblock=[character(len=256) :: &
 
 shortname="random_init"
 call process()
-
 
 case('190','random_number')
 
@@ -60116,7 +59914,6 @@ textblock=[character(len=256) :: &
 shortname="random_number"
 call process()
 
-
 case('191','random_seed')
 
 textblock=[character(len=256) :: &
@@ -60196,7 +59993,6 @@ textblock=[character(len=256) :: &
 shortname="random_seed"
 call process()
 
-
 case('192','range')
 
 textblock=[character(len=256) :: &
@@ -60275,7 +60071,6 @@ textblock=[character(len=256) :: &
 
 shortname="range"
 call process()
-
 
 case('193','rank')
 
@@ -60445,7 +60240,6 @@ textblock=[character(len=256) :: &
 shortname="rank"
 call process()
 
-
 case('194','read')
 
 textblock=[character(len=256) :: &
@@ -60508,7 +60302,6 @@ textblock=[character(len=256) :: &
 
 shortname="read"
 call process()
-
 
 case('195','real')
 
@@ -60617,7 +60410,6 @@ textblock=[character(len=256) :: &
 
 shortname="real"
 call process()
-
 
 case('196','reduce')
 
@@ -60821,7 +60613,6 @@ textblock=[character(len=256) :: &
 shortname="reduce"
 call process()
 
-
 case('197','repeat')
 
 textblock=[character(len=256) :: &
@@ -60896,7 +60687,6 @@ textblock=[character(len=256) :: &
 
 shortname="repeat"
 call process()
-
 
 case('198','reshape')
 
@@ -61111,7 +60901,6 @@ textblock=[character(len=256) :: &
 shortname="reshape"
 call process()
 
-
 case('199','return')
 
 textblock=[character(len=256) :: &
@@ -61236,7 +61025,6 @@ textblock=[character(len=256) :: &
 shortname="return"
 call process()
 
-
 case('200','rewind')
 
 textblock=[character(len=256) :: &
@@ -61333,7 +61121,6 @@ textblock=[character(len=256) :: &
 shortname="rewind"
 call process()
 
-
 case('201','rrspacing')
 
 textblock=[character(len=256) :: &
@@ -61422,7 +61209,6 @@ textblock=[character(len=256) :: &
 
 shortname="rrspacing"
 call process()
-
 
 case('202','same_type_as')
 
@@ -61558,7 +61344,6 @@ textblock=[character(len=256) :: &
 shortname="same_type_as"
 call process()
 
-
 case('203','scale')
 
 textblock=[character(len=256) :: &
@@ -61660,7 +61445,6 @@ textblock=[character(len=256) :: &
 shortname="scale"
 call process()
 
-
 case('204','scan')
 
 textblock=[character(len=256) :: &
@@ -61758,7 +61542,6 @@ textblock=[character(len=256) :: &
 
 shortname="scan"
 call process()
-
 
 case('205','select_case')
 
@@ -61922,7 +61705,6 @@ textblock=[character(len=256) :: &
 shortname="select_case"
 call process()
 
-
 case('206','selected_char_kind')
 
 textblock=[character(len=256) :: &
@@ -62083,7 +61865,6 @@ textblock=[character(len=256) :: &
 shortname="selected_char_kind"
 call process()
 
-
 case('207','selected_int_kind')
 
 textblock=[character(len=256) :: &
@@ -62163,7 +61944,6 @@ textblock=[character(len=256) :: &
 
 shortname="selected_int_kind"
 call process()
-
 
 case('208','selected_real_kind')
 
@@ -62284,7 +62064,6 @@ textblock=[character(len=256) :: &
 shortname="selected_real_kind"
 call process()
 
-
 case('209','set_exponent')
 
 textblock=[character(len=256) :: &
@@ -62360,7 +62139,6 @@ textblock=[character(len=256) :: &
 
 shortname="set_exponent"
 call process()
-
 
 case('210','shape')
 
@@ -62471,7 +62249,6 @@ textblock=[character(len=256) :: &
 
 shortname="shape"
 call process()
-
 
 case('211','shifta')
 
@@ -62598,7 +62375,6 @@ textblock=[character(len=256) :: &
 
 shortname="shifta"
 call process()
-
 
 case('212','shiftl')
 
@@ -62728,7 +62504,6 @@ textblock=[character(len=256) :: &
 
 shortname="shiftl"
 call process()
-
 
 case('213','shiftr')
 
@@ -62861,7 +62636,6 @@ textblock=[character(len=256) :: &
 shortname="shiftr"
 call process()
 
-
 case('214','sign')
 
 textblock=[character(len=256) :: &
@@ -62954,7 +62728,6 @@ textblock=[character(len=256) :: &
 
 shortname="sign"
 call process()
-
 
 case('215','sin')
 
@@ -63090,7 +62863,6 @@ textblock=[character(len=256) :: &
 shortname="sin"
 call process()
 
-
 case('216','sind')
 
 textblock=[character(len=256) :: &
@@ -63222,7 +62994,6 @@ textblock=[character(len=256) :: &
 shortname="sind"
 call process()
 
-
 case('217','sinh')
 
 textblock=[character(len=256) :: &
@@ -63319,7 +63090,6 @@ textblock=[character(len=256) :: &
 
 shortname="sinh"
 call process()
-
 
 case('218','sinpi')
 
@@ -63425,7 +63195,6 @@ textblock=[character(len=256) :: &
 
 shortname="sinpi"
 call process()
-
 
 case('219','size')
 
@@ -63598,7 +63367,6 @@ textblock=[character(len=256) :: &
 shortname="size"
 call process()
 
-
 case('220','spacing')
 
 textblock=[character(len=256) :: &
@@ -63677,7 +63445,6 @@ textblock=[character(len=256) :: &
 
 shortname="spacing"
 call process()
-
 
 case('221','split')
 
@@ -63814,7 +63581,6 @@ textblock=[character(len=256) :: &
 
 shortname="split"
 call process()
-
 
 case('222','spread')
 
@@ -63997,7 +63763,6 @@ textblock=[character(len=256) :: &
 shortname="spread"
 call process()
 
-
 case('223','sqrt')
 
 textblock=[character(len=256) :: &
@@ -64101,7 +63866,6 @@ textblock=[character(len=256) :: &
 
 shortname="sqrt"
 call process()
-
 
 case('224','stop')
 
@@ -64221,7 +63985,6 @@ textblock=[character(len=256) :: &
 shortname="stop"
 call process()
 
-
 case('225','storage_size')
 
 textblock=[character(len=256) :: &
@@ -64324,7 +64087,6 @@ textblock=[character(len=256) :: &
 
 shortname="storage_size"
 call process()
-
 
 case('226','sum')
 
@@ -64545,7 +64307,6 @@ textblock=[character(len=256) :: &
 shortname="sum"
 call process()
 
-
 case('227','system_clock')
 
 textblock=[character(len=256) :: &
@@ -64702,7 +64463,6 @@ textblock=[character(len=256) :: &
 shortname="system_clock"
 call process()
 
-
 case('228','tan')
 
 textblock=[character(len=256) :: &
@@ -64762,7 +64522,6 @@ textblock=[character(len=256) :: &
 
 shortname="tan"
 call process()
-
 
 case('229','tand')
 
@@ -64824,7 +64583,6 @@ textblock=[character(len=256) :: &
 
 shortname="tand"
 call process()
-
 
 case('230','tanh')
 
@@ -64894,7 +64652,6 @@ textblock=[character(len=256) :: &
 
 shortname="tanh"
 call process()
-
 
 case('231','tanpi')
 
@@ -64972,7 +64729,6 @@ textblock=[character(len=256) :: &
 
 shortname="tanpi"
 call process()
-
 
 case('232','this_image')
 
@@ -65058,7 +64814,6 @@ textblock=[character(len=256) :: &
 shortname="this_image"
 call process()
 
-
 case('233','tiny')
 
 textblock=[character(len=256) :: &
@@ -65124,7 +64879,6 @@ textblock=[character(len=256) :: &
 
 shortname="tiny"
 call process()
-
 
 case('234','tokenize')
 
@@ -65314,7 +65068,6 @@ textblock=[character(len=256) :: &
 shortname="tokenize"
 call process()
 
-
 case('235','trailz')
 
 textblock=[character(len=256) :: &
@@ -65414,7 +65167,6 @@ textblock=[character(len=256) :: &
 
 shortname="trailz"
 call process()
-
 
 case('236','transfer')
 
@@ -65541,7 +65293,6 @@ textblock=[character(len=256) :: &
 shortname="transfer"
 call process()
 
-
 case('237','transpose')
 
 textblock=[character(len=256) :: &
@@ -65660,7 +65411,6 @@ textblock=[character(len=256) :: &
 shortname="transpose"
 call process()
 
-
 case('238','trim')
 
 textblock=[character(len=256) :: &
@@ -65760,7 +65510,6 @@ textblock=[character(len=256) :: &
 
 shortname="trim"
 call process()
-
 
 case('239','ubound')
 
@@ -65938,7 +65687,6 @@ textblock=[character(len=256) :: &
 shortname="ubound"
 call process()
 
-
 case('240','ucobound')
 
 textblock=[character(len=256) :: &
@@ -65982,7 +65730,6 @@ textblock=[character(len=256) :: &
 
 shortname="ucobound"
 call process()
-
 
 case('241','unpack')
 
@@ -66141,7 +65888,6 @@ textblock=[character(len=256) :: &
 
 shortname="unpack"
 call process()
-
 
 case('242','use')
 
@@ -66399,7 +66145,6 @@ textblock=[character(len=256) :: &
 
 shortname="use"
 call process()
-
 
 case('243','verify')
 
@@ -66781,7 +66526,6 @@ textblock=[character(len=256) :: &
 shortname="verify"
 call process()
 
-
 case('244','wait')
 
 textblock=[character(len=256) :: &
@@ -66857,7 +66601,6 @@ textblock=[character(len=256) :: &
 
 shortname="wait"
 call process()
-
 
 case('245','where')
 
@@ -67071,7 +66814,6 @@ textblock=[character(len=256) :: &
 shortname="where"
 call process()
 
-
 case('246','write')
 
 textblock=[character(len=256) :: &
@@ -67180,8 +66922,7 @@ end module M_intrinsics
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_time/src/M_time__duplicate.f90
 module M_time__duplicate
 use, intrinsic :: iso_fortran_env, only : stderr=>ERROR_UNIT
@@ -69164,8 +68905,7 @@ integer           :: ierr
   endif ALL
 end function decodebase
 end module M_time__duplicate
- 
- 
+
 !>>>>> build/dependencies/M_framework/src/M_framework__journal.f90
 !>
 !!##NAME
@@ -70253,8 +69993,7 @@ end module M_framework__journal
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_framework/src/M_framework__verify.F90
 !>
 !!##NAME
@@ -70923,7 +70662,6 @@ logical,save                         :: called=.false.
       endif
       matched=.true.
    endif
-
 
    if(present(opts))then
       if(G_command /= '') call run(G_command//' type="start" name="'//trim(name)//'" msg="'//ndq(msg_local)//'" '//opts)
@@ -71745,7 +71483,6 @@ character(len=*), optional, intent(in) :: match
 !integer,parameter,public   :: EXIT_SUCCESS=0
 !integer,parameter,public   :: EXIT_FAILURE=1
 
-
 end subroutine unit_test_mode
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -72328,8 +72065,7 @@ end module M_framework__verify
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_msg/src/M_journal.f90
 !>
 !!##NAME
@@ -73608,8 +73344,7 @@ end module M_journal
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_time/src/M_time.F90
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -78820,7 +78555,6 @@ months(3)(2:2)=char(228)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_deutsch
 
-
 subroutine locale_slovak()
 ! LANG=slovak
 ! AM= PM=
@@ -78849,7 +78583,6 @@ months_abbr(6)(2:2)=char(250)
 months_abbr(7)(2:2)=char(250)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_slovak
-
 
 subroutine locale_czech()
 ! LANG=czech
@@ -78917,7 +78650,6 @@ months_abbr(3)(4:4)=char(231)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_catalan
 
-
 subroutine locale_spanish()
 ! LANG=spanish
 ! AM= PM=
@@ -78938,7 +78670,6 @@ weekdays_abbr(6)(2:2)=char(225)
  ! ASCII months_abbr
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_spanish
-
 
 subroutine locale_russian()
 ! LANG=russian
@@ -79129,7 +78860,6 @@ months_abbr(12)(3:3)=char(218)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_russian
 
-
 subroutine locale_norwegian()
 ! LANG=norwegian
 ! AM= PM=
@@ -79151,7 +78881,6 @@ weekdays_abbr(7)(2:2)=char(248)
  ! ASCII months_abbr
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_norwegian
-
 
 subroutine locale_bokmal()
 ! LANG=bokmal
@@ -79200,7 +78929,6 @@ weekdays_abbr(7)(2:2)=char(248)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_dansk
 
-
 subroutine locale_nynorsk()
 ! LANG=nynorsk
 ! AM= PM=
@@ -79222,8 +78950,6 @@ weekdays_abbr(7)(2:2)=char(248)
  ! ASCII months_abbr
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_nynorsk
-
-
 
 subroutine locale_swedish()
 ! LANG=swedish
@@ -79249,7 +78975,6 @@ weekdays_abbr(7)(2:2)=char(246)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_swedish
 
-
 subroutine locale_dutch()
 ! LANG=dutch
 ! AM= PM=
@@ -79265,7 +78990,6 @@ character(len=20),save :: months(12)=[character(len=20) :: &
 & "juli","augustus","september","oktober","november","december" ]
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_dutch
-
 
 subroutine locale_finnish()
 ! LANG=finnish
@@ -79288,7 +79012,6 @@ months_abbr(6)(4:4)=char(228)
 months_abbr(7)(5:5)=char(228)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_finnish
-
 
 subroutine locale_french()
 ! LANG=french
@@ -79313,7 +79036,6 @@ months_abbr(8)(3:3)=char(251)
 months_abbr(12)(2:2)=char(233)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_french
-
 
 subroutine locale_galego()
 ! LANG=galego
@@ -79563,7 +79285,6 @@ months_abbr(12)(3:3)=char(234)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_greek
 
-
 subroutine locale_hebrew()
 ! LANG=hebrew
 ! AM= PM=
@@ -79763,7 +79484,6 @@ months_abbr(12)(3:3)=char(238)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_hebrew
 
-
 subroutine locale_hrvatski()
 ! LANG=hrvatski
 ! AM= PM=
@@ -79786,7 +79506,6 @@ weekdays_abbr(4)(1:1)=char(232)
 months_abbr(3)(2:2)=char(190)
 
 end subroutine locale_hrvatski
-
 
 subroutine locale_hungarian()
 ! LANG=hungarian
@@ -79824,7 +79543,6 @@ months_abbr(5)(2:2)=char(225)
 months_abbr(6)(2:2)=char(250)
 months_abbr(7)(2:2)=char(250)
 end subroutine locale_hungarian
-
 
 subroutine locale_icelandic()
 ! LANG=icelandic
@@ -79869,7 +79587,6 @@ months_abbr(8)(3:3)=char(250)
 months_abbr(11)(2:2)=char(243)
 end subroutine locale_icelandic
 
-
 subroutine locale_italian()
 ! LANG=italian
 ! AM= PM=
@@ -79893,7 +79610,6 @@ weekdays(5)(7:7)=char(236)
  ! ASCII months_abbr
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_italian
-
 
 subroutine locale_japanese()
 ! LANG=japanese
@@ -80015,7 +79731,6 @@ months_abbr(12)(4:4)=char(238)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_japanese
 
-
 subroutine locale_korean()
 ! LANG=korean
 ! AM= PM=
@@ -80136,7 +79851,6 @@ months_abbr(12)(4:4)=char(249)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_korean
 
-
 subroutine locale_lithuanian()
 ! LANG=lithuanian
 ! AM= PM=
@@ -80162,7 +79876,6 @@ weekdays_abbr(6)(1:1)=char(240)
 months_abbr(6)(4:4)=char(254)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_lithuanian
-
 
 subroutine locale_polish()
 ! LANG=polish
@@ -80191,7 +79904,6 @@ months_abbr(10)(3:3)=char(188)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_polish
 
-
 subroutine locale_portuguese()
 ! LANG=portuguese
 ! AM= PM=
@@ -80212,7 +79924,6 @@ weekdays_abbr(6)(2:2)=char(225)
  ! ASCII months_abbr
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_portuguese
-
 
 subroutine locale_romanian()
 ! LANG=romanian
@@ -80237,7 +79948,6 @@ weekdays_abbr(6)(2:2)=char(226)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_romanian
 
-
 subroutine locale_slovene()
 ! LANG=slovene
 ! AM= PM=
@@ -80257,7 +79967,6 @@ weekdays_abbr(4)(1:1)=char(232)
  ! ASCII months_abbr
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_slovene
-
 
 subroutine locale_thai()
 ! LANG=thai
@@ -80437,7 +80146,6 @@ months_abbr(12)(3:3)=char(164)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_thai
 
-
 subroutine locale_turkish()
 ! LANG=turkish
 ! AM= PM=
@@ -80467,7 +80175,6 @@ months_abbr(8)(2:2)=char(240)
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_turkish
 
-
 subroutine locale_POSIX()
 ! LANG=POSIX
 ! AM= PM=
@@ -80483,7 +80190,6 @@ character(len=20),save :: months(12)=[character(len=20) :: &
 & "July","August","September","October","November","December" ]
    call locale("user",months,weekdays,months_abbr,weekdays_abbr)
 end subroutine locale_POSIX
-
 
 subroutine locale_eesti()
 ! LANG=eesti
@@ -81011,8 +80717,7 @@ end module M_time
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_framework/src/M_framework__approx.F90
 #ifdef __NVCOMPILER
 #undef HAS_REAL128
@@ -82295,8 +82000,7 @@ end module M_framework__approx
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
- 
- 
+
 !>>>>> build/dependencies/M_msg/src/M_help.f90
 module M_help
 use,intrinsic :: iso_fortran_env, only : stderr=>error_unit, stdin=>input_unit, stdout=>output_unit
@@ -82945,8 +82649,7 @@ integer,parameter             :: diff = iachar('A')-iachar('a')
 end function lower
 
 end module M_help
- 
- 
+
 !>>>>> build/dependencies/M_framework/src/M_framework.f90
 module M_framework
 use M_framework__journal
@@ -83607,20 +83310,19 @@ implicit none(type,external)
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 end module M_framework
- 
- 
+
 !>>>>> ././src/M_matrix.F90
-! 
+!
 ! NAME
 !    M_matrix(3f) - [M_matrix::INTRO] The Los Alamos-inspired Linear Algebra Fortran Facility (LALA)
 !    LICENSE(MIT)
-! 
+!
 ! DESCRIPTION
 ! The M_matrix module contains the Linear Algebra Fortran Facility (LALA)
 ! which allows for interacting with a Fortran program using Matlab
 ! or Octave-like commands. LALA is also usable as a simple one-line
 ! language. It is a WIP (Work In Progress) but is already useful.
-! 
+!
 !   * You can pass intrinsic-type data easily between your Fortran
 !     program and the LALA utility.
 !   * blocks of LALA commands may be passed to lala(3f) as well.
@@ -83633,15 +83335,15 @@ end module M_framework
 !     a flexible calculator utility all by itself.
 !   * a built-in help command describes the many functions and commands
 !   * a user-added Fortran routine may be called via the USER() function.
-! 
+!
 ! All together, this allows lala(3f) to be used for self-describing
 ! configuration and data files, inspecting data in existing programs,
 ! transferring small amounts of data between programs or assisting in
 ! debugging and development, unit testing and macro-level timing.
-! 
+!
 ! EXAMPLES
 !   Sample program:
-! 
+!
 !     program demo_M_matrix
 !     use M_matrix, only : lala, put_into_lala, get_from_lala, ifin_lala
 !     !real,allocatable             :: r
@@ -83650,12 +83352,12 @@ end module M_framework
 !     character(len=:),allocatable :: t(:)
 !     integer                      :: ierr
 !     integer                      :: i
-! 
+!
 !     ! store some data into lala(3)
 !     call put_into_lala('A',[1,2,3,4,5]*10.5,ierr)
 !     write(*,*)'is A defined in LALA?',ifin_lala('A')
 !     call lala('A/2.0')
-! 
+!
 !     ! pass some commands to lala(3f)
 !     call lala([character(len=80) :: &
 !     &'PI=atan(1)*4               ', &
@@ -83670,21 +83372,21 @@ end module M_framework
 !     &'B=littlearray*sin(PI/3)    ', &
 !     &"save('keepB',B)            ", &
 !     &''])
-! 
+!
 !     ! read a file containing lala(3f) commands
 !     call lala("exec('mycommands');")
-! 
+!
 !     ! interactively interact with lala(3f) interpreter
 !     call lala()
-! 
+!
 !     ! get some data from LALA into the calling program
 !     call get_from_lala('littlearray',iarr,ierr)
 !     write(*,'(a)')'IN CALLING PROGRAM IARR='
 !     write(*,'(1x,*(g0,1x))')(IARR(i,:),new_line('A'),i=1,size(iarr,dim=1))
-! 
+!
 !     call get_from_lala('mytitle',t,ierr)
 !     write(*,*)'IN CALLING PROGRAM T=',t
-! 
+!
 !     end program demo_M_matri
 module M_matrix
 ! https://orcid.org/0009-0000-9717-3407
@@ -83709,27 +83411,27 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !use M_LA, only : mat_wdiv,   mat_wlog, mat_watan
 
 !matx_waxpy,ml_comqr3,ml_corth,ml_htribk,ml_htridi,ml_imtql2,ml_wgeco,ml_wgedi,ml_wgefa,ml_wgesl,ml_wqrdc,ml_wqrsl,ml_wsvdc_
-! 
+!
 ! SYNTAX DIAGRAMS (9)
-! 
+!
 !    A formal description of the language acceptable to LALA, as well as
 !    a flow chart of the lala program, is provided by the syntax diagrams
 !    or syntax graphs of wirth [6]. There are eleven non-terminal symbols
 !    in the language:
-! 
+!
 !       LINE, STATEMENT, CLAUSE, EXPRESSION, TERM,
 !       FACTOR, NUMBER, INTEGER, NAME, COMMAND, TEXT .
-! 
+!
 !    The diagrams define each of the non-terminal symbols using the others
 !    and the terminal symbols:
-! 
+!
 !       LETTER -- A THROUGH Z,
 !       DIGIT  -- 0 THROUGH 9,
 !       CHAR   -- ( ) ; : + - * / \ = . , < >
 !       QUOTE  -- '
-! 
+!
 !    LINE
-! 
+!
 !           |-----> STATEMENT >----|
 !           |                      |
 !           |-----> CLAUSE >-------|
@@ -83745,9 +83447,9 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !         |        |-< ; <-|         |
 !         |--------|       |---------|
 !                  |-< , <-|
-! 
+!
 !    STATEMENT
-! 
+!
 !         |-> NAME >--------------------------------|
 !         |          |                              |
 !         |          |         |--> : >---|         |
@@ -83759,9 +83461,9 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !         |       |--< , <---|                      |
 !         |       |          |                      |
 !         |-> < >---> NAME >---> > >----------------|
-! 
+!
 !    CLAUSE
-! 
+!
 !         |---> FOR   >---> NAME >---> = >---> EXPR >--------------|
 !         |                                                        |
 !         | |-> WHILE >-|                                          |
@@ -83774,9 +83476,9 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !         |---> ELSE  >--------------------------------------------|
 !         |                                                        |
 !         |---> END   >--------------------------------------------|
-! 
+!
 !    EXPR
-! 
+!
 !           |-> + >-|
 !           |       |
 !    -------|-------|-------> TERM >---------->
@@ -83786,9 +83488,9 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !                        |--|-< - <-|--|
 !                           |       |
 !                           |-< : <-|
-! 
+!
 !    TERM
-! 
+!
 !    ---------------------> FACTOR >---------------------->
 !            |                                   |
 !            |             |-< ^ <-|             |
@@ -83798,9 +83500,9 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !            |--|       |--|-< / <-|--|       |--|
 !               |-< . <-|  |       |  |-< . <-|
 !                          |-< \ <-|
-! 
+!
 !    FACTOR
-! 
+!
 !         |----------------> NUMBER >---------------|
 !         |                                         |
 !         |-> NAME >--------------------------------|
@@ -83830,9 +83532,9 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !         |                  | ** |                 |           |
 !         |                                                     |
 !         |------------> ' >-----> TEXT >-----> ' >-------------|
-! 
+!
 !    NUMBER
-! 
+!
 !        |----------|                          |-> + >-|
 !        |          |                          |       |
 !    -----> INT >-----> . >---> INT >-----> E >---------> INT >---->
@@ -83840,23 +83542,23 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !                 |                   | |      |-> - >-|        |
 !                 |                   | |                       |
 !                 |---------------------------------------------|
-! 
+!
 !    INT
-! 
+!
 !    ------------> DIGIT >----------->
 !              |           |
 !              |-----------|
-! 
+!
 !    NAME
-! 
+!
 !                      |--< LETTER <--|
 !                      |              |
 !    ------> LETTER >--|--------------|----->
 !                      |              |
 !                      |--< DIGIT  <--|
-! 
+!
 !    COMMAND
-! 
+!
 !                            |--> NAME >--|
 !                            |            |
 !    --------> NAME >--------|------------|---->
@@ -83864,9 +83566,9 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !                            |--> CHAR >--|
 !                            |            |
 !                            |---> ' >----|
-! 
+!
 !    TEXT
-! 
+!
 !                    |-> LETTER >--|
 !                    |             |
 !                    |-> DIGIT >---|
@@ -83876,43 +83578,43 @@ use M_LA, only : mat_wpofa,  mat_wrscal,           mat_wscal,   mat_wset,    mat
 !                |   |-> ' >-> ' >-|   |
 !                |                     |
 !                |---------------------|
-! 
+!
 ! Originally based on a routine called MATLAB, although heavily modified
 ! since. The original stated ...
-! 
+!
 !    MATLAB stands for MATrix LABoratory. It is a FORTRAN package
 !    developed by Argonne National Laboratories for in-house use. It
 !    provides comprehensive vector and tensor operations in a package
 !    which may be programmed, either through a macro language or through
 !    execution of script files.
-! 
+!
 !    Matlab is reentrant and recursive. Functions supported include (but
 !    are not by any means limited to) sin, cos, tan, arc functions, upper
 !    triangular, lower triangular, determinants, matrix multiplication,
 !    identity, Hilbert matrices, eigenvalues and eigenvectors, matrix
 !    roots and products, inversion and so on and so forth.
-! 
+!
 !    The file available on the bulletin board as Matlab.arc contains an
 !    Amiga-ized executable copy of MATLAB and the online help file, as
 !    well as this intro.
-! 
+!
 !    If you want the source code (over 300K) and a manual, or if your
 !    bulletin board only has this message and not the package, send $5.00
 !    and a 3.5" disk to:
-! 
+!
 !                               Jim Locker
 !                               4443 N. Hyland Ave.
 !                               Dayton, OH 45424
-! 
+!
 !    The package is public domain, but of course postage and reproduction
 !    cost money. Believe me, this package is a bargain at the price.
 !    Please feel free to distribute the package.
-! 
+!
 !    The source was taken off a VAX 11/780. It ran without modification
 !    (except the file handler and some minor error handling) on an Amiga
 !    1000 using ABSoft Fortran v2.2. It will run in 512K environment.
 !    I have seen it on IBM mainframes and IBM PCs.
-! 
+!
 !    Subsequent changes per John S. Urban: see change log and git(1) histor
 implicit none
 !private
@@ -84341,33 +84043,33 @@ end subroutine usersub_placeholder
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
-! 
+!
 ! NAME
 !    LALA(3f) - [M_matrix] initialize and/or pass commands to matrix
 !    laboratory interpreter
 !    LICENSE(MIT)
 ! SYNOPSIS
-! 
+!
 !     subroutine lala(init,cmd)
-! 
+!
 !      integer,intent(in),optional :: init
 !      character(len=*),intent(in),optional :: cmd
 !         or
 !      character(len=*),intent(in),optional :: cmd(:)
-! 
+!
 ! DESCRIPTION
 !    LALA(3f) is modeled on MATLAB(3f) (MATrix LABoratory), a FORTRAN
 !    package developed by Argonne National Laboratories for in-house use.
 !    It provides comprehensive vector and tensor operations in a package
 !    which may be programmed, either through a macro language or through
 !    execution of script files.
-! 
+!
 !    LALA(3f) Functions supported include (but are not by any means limited
 !    to) sin, cos, tan, arcfunctions, upper triangular, lower triangular,
 !    determinants, matrix multiplication, identity, Hilbert matrices,
 !    eigenvalues and eigenvectors, matrix roots and products, inversion
 !    and so on and so forth.
-! 
+!
 !    LALA() can be used
 !       + as a stand-alone utility for working with lala() files and
 !         for basic computations.
@@ -84377,57 +84079,57 @@ end subroutine usersub_placeholder
 !         and conditionally selected values.
 !       + for interactively inspecting data generated by the calling program.
 !       + for creating unit tests that allow for further interactive examination.
-! 
+!
 !    The HELP command describes using the interpreter.
-! 
+!
 ! OPTIONS
 !    INIT    indicate size of scratch space to allocate and (re)initialize
 !            LALA.
-! 
+!
 !    CMD     LALA command(s) to perform. May be CHARACTER scalar or vector
-! 
+!
 !    INIT and CMD cannot be combined on a single call.
-! 
+!
 !    The first call may be an initialization declaring the number of
 !    doubleprecision complex values to allocate for the combined scratch
 !    and variable storage area. This form may be repeated and reinitializes
 !    the utility at each call. A size of zero will deallocate any allocated
 !    storage (after which the routine cannot be called with commands until
 !    reallocated by another call to lala()).
-! 
+!
 !    If no parameters are supplied interactive mode is entered.
-! 
+!
 !    If a CMD is passed and no previous initialization call was made the
 !    scratch space will be allocated to 200000.
-! 
+!
 ! EXAMPLES
-! 
+!
 !   Example 1:
-! 
+!
 !       program demo_LALA
 !       use M_matrix, only : lala
-! 
+!
 !          write(*,'(a)')'optionally initialize scratch area size'
 !          call LALA(20000)
-! 
+!
 !          write(*,'(a)')'do some commands'
 !          call LALA([character(len=80) :: &
 !          & 'semi;                         ',&
 !          & 'a=magic(4),b=-a               ',&
 !          & 'a+b;a;b                       ',&
 !          & "display('That is all Folks!') "])
-! 
+!
 !          write(*,'(a)')'do a single command'
 !          call LALA('who')
-! 
+!
 !          write(*,'(a)')'enter interactive mode'
 !          call LALA()
-! 
+!
 !          write(*,'(a)')'ending program'
 !       end program demo_LALA
-! 
+!
 !   Example 2:
-! 
+!
 !    program bigmat
 !    use M_matrix, only : lala
 !       ! pass strings to LALA but do not enter interactive mode
@@ -84446,9 +84148,9 @@ end subroutine usersub_placeholder
 !        & '// and show again to show the variables are restored  ',&
 !        & "who;load('sample.laf');who                            "])
 !    end program bigmat
-! 
+!
 !   Example 3: Sample program with custom user function
-! 
+!
 !       program custom_user
 !       use M_matrix
 !       implicit none
@@ -84503,16 +84205,16 @@ end subroutine usersub_placeholder
 !          enddo
 !       end subroutine lala_user
 !       end program custom_user
-! 
+!
 !  Example inputs
-! 
+!
 !      >:avg:
-! 
+!
 !      >for i = 2:2:n, for j = 2:2:n, t = (a(i-1,j-1)+a(i-1,j)+a(i,j-1)+a(i,j))/4; ...
 !      >a(i-1,j-1) = t; a(i,j-1) = t; a(i-1,j) = t; a(i,j) = t;
-! 
+!
 !      >:cdiv:
-! 
+!
 !      >// ======================================================
 !      >// cdiv
 !      >a=sqrt(random(8))
@@ -84535,12 +84237,12 @@ end subroutine usersub_placeholder
 !      >ci3 = (ais*brs - ars*bis)/s;
 !      >[cr ci; cr2 ci2; cr3 ci3]
 !      >// ======================================================
-! 
+!
 !      >:exp:
-! 
+!
 !      >t = 0*x + eye; s = 0*eye(x); n = 1;
 !      >while abs(s+t-s) > 0, s = s+t, t = x*t/n, n = n + 1
-! 
+!
 !      >:four:
 !      > n
 !      > pi = 4*atan(1);
@@ -84557,11 +84259,11 @@ end subroutine usersub_placeholder
 !      > serr = serr + norm(S-S',1)
 !      > S = (S + S')/2;
 !      > ferr = norm(F-exp(i*S),1)
-! 
+!
 !      > :gs:
 !      > for k = 1:n, for j = 1:k-1, d = x(k,:)*x(j,:)'; x(k,:) = x(k,:) - d*x(j,:); ...
 !      > end, s = norm(x(k,:)), x(k,:) = x(k,:)/s;
-! 
+!
 !      > :jacobi:
 !      > [n, n] = shape(A);
 !      > X = eye(n);
@@ -84579,9 +84281,9 @@ end subroutine usersub_placeholder
 !      >   end, ...
 !      >   display(rat(A)), ...
 !      > end
-! 
+!
 !      > :jacstep:
-! 
+!
 !      > d = (a(q,q)-a(p,p))*0.5/a(p,q);
 !      > t = 1/(abs(d)+sqrt(d*d+1));
 !      > if d < 0, t = -t; end;
@@ -84589,27 +84291,27 @@ end subroutine usersub_placeholder
 !      > R = eye(n); r(p,p)=c; r(q,q)=c; r(p,q)=s; r(q,p)=-s;
 !      > X = X*R;
 !      > A = R'*A*R;
-! 
+!
 !      > :kron:
-! 
+!
 !      > //  C = Kronecker product of A and B
 !      > [m, n] = shape(A);
 !      > for i = 1:m, ...
 !      >    ci = a(i,1)*B; ...
 !      >    for j = 2:n, ci = [ci a(i,j)*B]; end ...
 !      >    if i = 1, C = ci; else, C = [C; ci];
-! 
+!
 !      > :lanczos:
-! 
+!
 !      > [n,n] = shape(A);
 !      > q1 = randu(n,1);
 !      > ort
 !      > alpha = []; beta = [];
 !      > q = q1/norm(q1); r = A*q(:,1);
 !      > for j = 1:n, exec('lanstep',0);
-! 
+!
 !      > :lanstep:
-! 
+!
 !      > alpha(j) = q(:,j)'*r;
 !      > r = r - alpha(j)*q(:,j);
 !      > if ort <> 0, for k = 1:j-1, r = r - r'*q(:,k)*q(:,k);
@@ -84617,14 +84319,14 @@ end subroutine usersub_placeholder
 !      > q(:,j+1) = r/beta(j);
 !      > r = A*q(:,j+1) - beta(j)*q(:,j);
 !      > if j > 1, T = diag(beta(1:j-1),1); T = diag(alpha) + T + T'; eig(T)
-! 
+!
 !      > :mgs:
-! 
+!
 !      > for k = 1:n, s = norm(x(k,:)), x(k,:) = x(k,:)/s; ...
 !      >    for j = k+1:n, d = x(j,:)*x(k,:)'; x(j,:) = x(j,:) - d*x(k,:);
-! 
+!
 !      > :net:
-! 
+!
 !      > C = [
 !      > 1   2   15  .   .   .
 !      > 2   1   3   .   .   .
@@ -84674,16 +84376,16 @@ end subroutine usersub_placeholder
 !      > D = diag(D);  D = D(n:-1:1)
 !      > X = X(:,n:-1:1);
 !      > [x(:,1)/sum(x(:,1)) x(:,2) x(:,3) x(:,19)]
-! 
+!
 !      > :pascal:
-! 
+!
 !      > //Generate next Pascal matrix
 !      > [k,k] = shape(L);
 !      > k = k + 1;
 !      > L(k,1:k) = [L(k-1,:) 0] + [0 L(k-1,:)];
-! 
+!
 !      > :pdq:
-! 
+!
 !      > alpha = []; beta = 0; q = []; p = p(:,1)/norm(p(:,1));
 !      > t = A'*p(:,1);
 !      > alpha(1) = norm(t);
@@ -84693,9 +84395,9 @@ end subroutine usersub_placeholder
 !      > for j = 2:r, exec('pdqstep',ip); ...
 !      >    X = X + p(:,j)*(alpha(j)*q(:,j)+beta(j)*q(:,j-1))', ...
 !      >    e(j) = norm(A-X,1)
-! 
+!
 !      > :pdqstep:
-! 
+!
 !      > t = A*q(:,j-1) - alpha(j-1)*p(:,j-1);
 !      >    if ort>0, for i = 1:j-1, t = t - t'*p(:,i)*p(:,i);
 !      > beta(j) = norm(t);
@@ -84704,9 +84406,9 @@ end subroutine usersub_placeholder
 !      >    if ort>0, for i = 1:j-1, t = t - t'*q(:,i)*q(:,i);
 !      > alpha(j) = norm(t);
 !      > q(:,j) = t/alpha(j);
-! 
+!
 !      > :pop:
-! 
+!
 !      > y = [ 75.995   91.972  105.711  123.203   ...
 !      >      131.669  150.697  179.323  203.212]'
 !      > t = [ 1900:10:1970 ]'
@@ -84714,9 +84416,9 @@ end subroutine usersub_placeholder
 !      > n = 8;  A(:,1) = ones(t);  for j = 2:n, A(:,j) = t .* A(:,j-1);
 !      > A
 !      > c = A\y
-! 
+!
 !      > :qr:
-! 
+!
 !      > scale = s(m);
 !      > sm = s(m)/scale; smm1 = s(m-1)/scale; emm1 = e(m-1)/scale;
 !      > sl = s(l)/scale; el = e(l)/scale;
@@ -84728,9 +84430,9 @@ end subroutine usersub_placeholder
 !      > g = sl*el
 !      > for k = l: m-1, exec('qrstep',ip)
 !      > e(m-1) = f
-! 
+!
 !      > :qrstep:
-! 
+!
 !      > exec('rot');
 !      > if k <> l, e(k-1) = f
 !      > f = cs*s(k) + sn*e(k)
@@ -84743,9 +84445,9 @@ end subroutine usersub_placeholder
 !      > s(k+1) = -sn*e(k) + cs*s(k+1)
 !      > g = sn*e(k+1)
 !      > e(k+1) = cs*e(k+1)
-! 
+!
 !      > :rho:
-! 
+!
 !      > //Conductivity example.
 !      > //Parameters ---
 !      >    rho       //radius of cylindrical inclusion
@@ -84786,9 +84488,9 @@ end subroutine usersub_placeholder
 !      >    sigma = sum(c)
 !      > //output total operation count
 !      >    ops = flop(2)
-! 
+!
 !      > :rogers.exec:
-! 
+!
 !      > exec('d.boug');                // reads data
 !      > [g,k] = shape(p);              // p is matrix of gene frequencies
 !      > wv = ncen/sum(ncen);           // ncen contains population sizes
@@ -84798,9 +84500,9 @@ end subroutine usersub_placeholder
 !      > h = diag(pbar); h = h*(eye-h); // diagonal contains binomial variance: p*(1-p)
 !      > r = p*inv(h)*p'/k;             // normalized covariance matrix
 !      > eig(r)'
-! 
+!
 !      > :rosser:
-! 
+!
 !      > A  = [
 !      >   611.  196. -192.  407.   -8.  -52.  -49.   29.
 !      >   196.  899.  113. -192.  -71.  -43.   -8.  -44.
@@ -84810,9 +84512,9 @@ end subroutine usersub_placeholder
 !      >   -52.  -43.   49.   44. -599.  411.  208.  208.
 !      >   -49.   -8.    8.   59.  208.  208.   99. -911.
 !      >    29.  -44.   52.  -23.  208.  208. -911.   99.  ];
-! 
+!
 !      > :rot:
-! 
+!
 !      > // subexec rot(f,g,cs,sn)
 !      >    rho = g; if abs(f) > abs(g), rho = f;
 !      >    cs = 1.0; sn = 0.0; z = 1.0;
@@ -84823,27 +84525,27 @@ end subroutine usersub_placeholder
 !      >    if abs(g) >= abs(f), if cs <> 0, z = 1/cs;
 !      >    f = r;
 !      >    g = z;
-! 
+!
 !      > :rqi:
-! 
+!
 !      > rho = (x'*A*x)
 !      > x = (A-rho*eye)\x;
 !      > x = x/norm(x)
-! 
+!
 !      > :setup:
-! 
+!
 !      > diary('xxx')
 !      > !tail -f xxx > /dev/tty1 &
 !      > !tail -f xxx > /dev/tty2 &
-! 
+!
 !      > :sigma:
-! 
+!
 !      > RHO = .5  M = 20  N = 10   SIGMA =  1.488934271883534
 !      > RHO = .5  M = 40  N = 20   SIGMA =  1.488920312974229
 !      > RHO = .5  M = 60  N = 30   SIGMA =  1.488920697912116
-! 
+!
 !      > :strut.laf:
-! 
+!
 !      > // Structure problem, Forsythe, Malcolm and Moler, p. 62
 !      > s =  sqrt(2)/2;
 !      > A = [
@@ -84866,9 +84568,9 @@ end subroutine usersub_placeholder
 !      >  .  .  .  .  .   .  .  .  .  .  .  .  .  .  . -s -1];
 !      > b = [
 !      >  .  .  . 10  .   .  . 15  .  .  .  .  .  .  . 10  .]';
-! 
+!
 !      > :test1:
-! 
+!
 !      > // -----------------------------------------------------------------
 !      > // start a new log file
 !      > sh rm -fv log.txt
@@ -84917,9 +84619,9 @@ end subroutine usersub_placeholder
 !      >     1.829151464612817D+00
 !      > ]
 !      > display('EXPE and BETA should be the same')
-! 
+!
 !      > :tryall:
-! 
+!
 !      > diary('log.txt')
 !      > a=magic(8)
 !      > n=3
@@ -84953,9 +84655,9 @@ end subroutine usersub_placeholder
 !      > exec('w5')
 !      > exec('rogers.exec
 !      > exec('rogers.load
-! 
+!
 !      > :w5:
-! 
+!
 !      > w5 = [
 !      >         1.     1.      0.      0.      0.
 !      >       -10.     1.      1.      0.      0.
@@ -85907,7 +85609,6 @@ character(len=80) :: message
          call mat_err(39) ! Incorrect number of arguments
          return
       endif
-
 
       M = G_VAR_ROWS(G_ARGUMENT_POINTER)
       N = G_VAR_COLS(G_ARGUMENT_POINTER)
@@ -87041,15 +86742,15 @@ end subroutine MAT_STACK_PUT
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
-! 
+!
 ! THE PARSER-INTERPRETER (10)
-! 
+!
 !    The structure of the parser-interpreter is similar to that of Wirth's
 !    compiler [6] for his simple language, PL/0 , except that LALA is
 !    programmed in Fortran, which does not have explicit recursion. The
 !    interrelation of the primary subroutines is shown in the following
 !    diagram.
-! 
+!
 !          MAIN
 !            |
 !          LALA     |--CLAUSE
@@ -87098,7 +86799,7 @@ end subroutine MAT_STACK_PUT
 !                    |          |--FILES
 !                    |--MATFN5--|
 !                               |--SAVLOD
-! 
+!
 !    Subroutine MAT_PARSE controls the interpretation of each statement. It
 !    calls subroutines that process the various syntactic quantities such
 !    as command, expression, term and factor. A fairly simple program
@@ -87106,7 +86807,7 @@ end subroutine MAT_STACK_PUT
 !    each other along the lines allowed by the syntax diagrams. The four
 !    STACK subroutines manage the variable memory and perform elementary
 !    operations, such as matrix addition and transposition.
-! 
+!
 !    The subroutines MATFN1 though MATFN6 are called whenever "serious"
 !    matrix computations are required. They are interface routines which
 !    call the various LINPACK and EISPACK subroutines. MATFN5 primarily
@@ -90944,31 +90645,31 @@ end function mat_eqid
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
-! 
+!
 ! NAME
 !    ifin_lala(3f) - [M_matrix] test if variable name exists in lala()
 !    LICENSE(MIT)
 ! SYNOPSIS
 !      logical function ifin_lala(varname)
-! 
+!
 !      character(len=*),intent(in) :: varname
 ! DESCRIPTION
 !    Determine if a variable name currently exists in lala().
-! 
+!
 ! RETURNS
 !     ifin_lala  TRUE if varname exists in lala, else FALSE.
 ! EXAMPLES
 !   sample program:
-! 
+!
 !      program demo_ifin_lala
 !      use M_matrix, only : ifin_lala
 !      implicit none
 !         write(*,*)'eps ',ifin_lala('eps')
 !         write(*,*)'unknown ',ifin_lala('unknown')
 !      end program demo_ifin_lala
-! 
+!
 !   Results:
-! 
+!
 !     eps  T
 !     unknown  F
 function ifin_lala(varname)
@@ -91005,25 +90706,25 @@ end function ifin_lala
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
-! 
+!
 ! NAME
 !     get_from_lala(3f) - [M_matrix] return data from lala(3f) to calling program
 !     LICENSE(MIT)
 ! SYNOPSIS
 !     subroutine get_from_lala(varname,A,IERR,fixed)
-! 
+!
 !      character(len=*),intent(in)               :: varname
 !      [INTRINSIC_TYPE],allocatable,intent(out)  :: a(:,:)
 !      integer,intent(out)                       :: ierr
 !      logical,intent(in),optional               :: fixed
-! 
+!
 ! DESCRIPTION
 !    Given the name of a variable defined with lala(3f) commands return
 !    the values to the calling program.
-! 
+!
 ! OPTIONS
 !    VARNAME Name of lala(3f) variable to retrieve
-! 
+!
 !    FIXED   If .true., A is assumed to be a fixed size. It should only
 !            be specified if the value is .true.! It is up to the user
 !            at this point to ensure the size is correct at this point.
@@ -91031,10 +90732,10 @@ end function ifin_lala
 !      A    May be of TYPE INTEGER, REAL, CHARACTER, LOGICAL or COMPLEX.
 !           May be a scalar, vector, or MxN matrix.
 !    IERR   Zero if no error occurred
-! 
+!
 ! EXAMPLES
 !   sample program:
-! 
+!
 !    program demo_get_from_lala
 !    use M_matrix, only : lala, get_from_lala, put_into_lala
 !    implicit none
@@ -91044,36 +90745,36 @@ end function ifin_lala
 !    integer                     :: ierr
 !    integer                     :: i
 !    character(len=*),parameter  :: gen='(*(g0,1x))'
-! 
+!
 !       ! create an array in LALA so have something to get
 !       call lala('A=randu(4,5)*10.5,long,A')
-! 
+!
 !       ! get the array as a REAL array
 !       call get_from_lala('A',rarr,ierr)
 !       write(*,gen)'in calling program RARR=',shape(rarr)
 !       write(*,gen)(rarr(i,:),new_line('A'),i=1,size(rarr,dim=1))
-! 
+!
 !       ! get the array as a DOUBLEPRECISION  array
 !       call get_from_lala('A',darr,ierr)
 !       write(*,gen)'in calling program darr=',shape(darr)
 !       write(*,gen)(darr(i,:),new_line('A'),i=1,size(darr,dim=1))
-! 
+!
 !       ! get the array as an INTEGER vector, much like the
 !       ! PUSH(3f) intrinsic
 !       call get_from_lala('A',ivec,ierr)
 !       write(*,gen)'in calling program ivec=',shape(ivec)
 !       write(*,gen)ivec
-! 
+!
 !    end program demo_get_from_lala
-! 
+!
 !   Results:
-! 
+!
 !    >A  =
 !    >   2.2189  6.9865  9.2213  7.6267  2.4278
 !    >   7.9385  6.5981  0.7179  2.0844  2.2729
 !    >   0.0023  8.9223  5.8889  5.7147  9.2756
 !    >   3.4684  7.2002  6.9547  2.4368  6.8514
-! 
+!
 !    >A  =
 !    >    COLUMNS     1 THRU     4
 !    >  2.218911087373272 6.986501594306901 9.221273053670302 7.626682105707005
@@ -91090,7 +90791,7 @@ end function ifin_lala
 !    > 7.93846035 6.59811401 0.717927396 2.08440113 2.27286434
 !    > 0.232191361E-2 8.92232513 5.88891029 5.71470165 9.27558231
 !    > 3.46843457 7.20017576 6.95474768 2.43678522 6.85139179
-! 
+!
 !    >in calling program darr= 4 5
 !    > 2.2189110873732716 6.9865015943069011 9.2212730536703020 ..
 !    > 7.6266821057070047 2.4278490564320236
@@ -91100,7 +90801,7 @@ end function ifin_lala
 !    > 5.7147018208634108 9.2755822052713484
 !    > 3.4684344632551074 7.2001757081598043 6.9547478416934609 ..
 !    > 2.4367852918803692 6.8513916945084929
-! 
+!
 !    >in calling program ivec= 20
 !    > 2 8 0 3 7 7 9 7 9 1 6 7 8 2 6 2 2 2 9 7
 subroutine get_double_from_lala(varname,A,type,IERR)
@@ -91167,53 +90868,53 @@ end function rowpack
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
-! 
+!
 ! NAME
 !     put_from_lala(3f) - [M_matrix] return data from lala(3f) to calling program
 !     LICENSE(MIT)
 ! SYNOPSIS
 !   subroutine put_into_lala(varname,A,IERR)
-! 
+!
 !    character(len=*),intent(in)              :: varname
 !    [INTRINSIC_TYPE],allocatable,intent(in)  :: a(:,:)
 !    integer,intent(out)                      :: ierr
-! 
+!
 ! DESCRIPTION
 !    Define a variable in the lala(3f) utility with a variable declared
 !    in the calling program.
-! 
+!
 ! OPTIONS
 !    VARNAME Name of lala(3f) variable to retrieve
 !      A     May be of TYPE INTEGER, REAL, CHARACTER, LOGICAL or COMPLEX.
 !            May be a scalar, vector, or MxN matrix.
-! 
+!
 ! RETURNS
 !    IERR   Zero if no error occurred
-! 
+!
 ! EXAMPLES
 !   sample program:
-! 
+!
 !    program demo_put_into_lala
 !    use M_matrix, only : lala, get_from_lala, put_into_lala
 !    implicit none
 !    integer :: ierr
-! 
+!
 !       ! store some data from the program into lala(3f)
 !       call put_into_lala('A',[1,2,3,4,5,6,7,8,9],ierr)
 !       call put_into_lala('B',[1.1,2.2,3.3],ierr)
 !       call put_into_lala('C',"This is my title",ierr)
-! 
+!
 !       ! call lala(3f) and display the values
 !       call lala([character(len=80) :: &
 !       & 'who,A,B', &
 !       & 'display(C);', &
 !       & '', &
 !       & ''])
-! 
+!
 !    end program demo_put_into_lala
-! 
+!
 !   Results:
-! 
+!
 !      > Your current variables are...
 !      > C  B  A  eps  flops  eye  rand
 !      >using 33 out of 200000 elements
@@ -95651,8 +95352,7 @@ end module M_matrix
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
- 
- 
+
 !>>>>> app/lala.f90
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -95810,4 +95510,4 @@ end program bigmat
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
- 
+
