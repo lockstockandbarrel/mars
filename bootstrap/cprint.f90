@@ -1,4 +1,4 @@
- 
+! d7997ccd-145b-4ca1-9d13-aa166affe43f
 !>>>>> build/dependencies/M_strings/src/M_strings.f90
 !>
 !!##NAME

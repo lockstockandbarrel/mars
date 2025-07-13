@@ -1,3 +1,4 @@
+! d7997ccd-145b-4ca1-9d13-aa166affe43f
 !
 ! #!/bin/bash
 ! lynx -dump https://fpm.fortran-lang.org/spec/manifest.html >manifest.txt
