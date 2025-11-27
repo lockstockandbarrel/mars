@@ -1,4 +1,26 @@
+#define  __INTEL_COMP        1
+#define  __GFORTRAN_COMP     2
+#define  __NVIDIA_COMP       3
+#define  __NAG_COMP          4
+#define  __flang__           5
+#define  __UNKNOWN_COMP   9999
 
+#define FLOAT128
+
+#ifdef __INTEL_COMPILER
+#   define __COMPILER__ __INTEL_COMP
+#elif __GFORTRAN__ == 1
+#   define __COMPILER__ __GFORTRAN_COMP
+#elif __flang__
+#   undef FLOAT128
+#   define __COMPILER__ __LLVM_FLANG_COMP
+#elif __NVCOMPILER
+#   undef FLOAT128
+#   define __COMPILER__ __NVIDIA_COMP
+#else
+#   define __COMPILER__ __UNKNOWN_COMP
+#   warning  NOTE: UNKNOWN COMPILER
+#endif
 !>>>>> build/dependencies/M_CLI2/src/M_CLI2.F90
 !VERSION 1.0 2020-01-15
 !VERSION 2.0 2020-08-02
@@ -217,6 +239,9 @@ integer,parameter,private :: dp=kind(0.0d0)
 integer,parameter,private :: sp=kind(0.0)
 
 character(len=*),parameter          :: gen='(*(g0))'
+character(len=1),parameter          :: slash=achar(47)
+character(len=1),parameter          :: bslash=achar(92)
+
 character(len=:),allocatable,public :: unnamed(:)
 character(len=:),allocatable,public :: args(:)
 character(len=:),allocatable,public :: remaining
@@ -1748,6 +1773,7 @@ character(len=:),allocatable          :: val_local
 character(len=:),allocatable          :: short
 character(len=:),allocatable          :: long
 character(len=:),allocatable          :: long_short(:)
+character(len=:),allocatable          :: kludge(:)
 integer                               :: isize
 logical                               :: set_mandatory
    set_mandatory=.false.
@@ -1762,7 +1788,8 @@ logical                               :: set_mandatory
    if(isize > 0)then                     ! very special-purpose syntax where if ends in :: next field is a value even
       if(long_short(isize) == '')then    ! if it starts with a dash, for --flags option on fpm(1).
          set_mandatory=.true.
-         long_short=long_short(:isize-1)
+         kludge=long_short(:isize-1)     ! use kludge to avoid nvfortran bug
+         long_short=kludge
       endif
    endif
 
@@ -2130,7 +2157,7 @@ integer                      :: ios
    prototype=''
    ! look for NAME.rsp
    ! assume if have / or \ a full filename was supplied to support ifort(1)
-   if((index(rname,'/') /= 0.or.index(rname,'\') /= 0) .and. len(rname) > 1 )then
+   if((index(rname,'/') /= 0.or.index(rname,bslash) /= 0) .and. len(rname) > 1 )then
       filename=rname
       lun=fileopen(filename,message)
       if(lun /= -1)then
@@ -2412,7 +2439,7 @@ integer :: iend
       return_with_suffix = keep_suffix
    endif
 
-   call split(path,file_parts,delimiters='\/')
+   call split(path,file_parts,delimiters=bslash//slash)
    if(size(file_parts) > 0)then
       base = trim(file_parts(size(file_parts)))
    else
@@ -2499,8 +2526,8 @@ character(len=:),allocatable :: envnames(:)
     ! POSIX filenames in the environment.
     envnames=[character(len=10) :: 'PATH', 'HOME']
     do i=1,size(envnames)
-       if(index(get_env(envnames(i)),'\') /= 0)then
-          sep='\'
+       if(index(get_env(envnames(i)),bslash) /= 0)then
+          sep=bslash
           exit FOUND
        elseif(index(get_env(envnames(i)),'/') /= 0)then
           sep='/'
@@ -2509,7 +2536,7 @@ character(len=:),allocatable :: envnames(:)
     enddo
 
     write(*,*)'<WARNING>unknown system directory path separator'
-    sep='\'
+    sep=bslash
     endblock FOUND
     !x!IFORT BUG:sep_cache=sep
     isep=ichar(sep)
@@ -4539,7 +4566,7 @@ character(len=20)                    :: local_mode
    case('double')
       quoted_str=double_quote//trim(replace_str(quoted_str,'"','""'))//double_quote
    case('escape')
-      quoted_str=double_quote//trim(replace_str(quoted_str,'"','\"'))//double_quote
+      quoted_str=double_quote//trim(replace_str(quoted_str,'"',bslash//'"'))//double_quote
    case default
       call journal('*quote* ERROR: unknown quote mode ',local_mode)
       quoted_str=str
@@ -4590,7 +4617,7 @@ end function quote
 !!       implicit none
 !!       character(len=128)           :: quoted_str
 !!       character(len=:),allocatable :: unquoted_str
-!!       character(len=1),parameter   :: esc='\'
+!!       character(len=1),parameter   :: esc=bslash
 !!       character(len=1024)          :: msg
 !!       integer                      :: ios
 !!       character(len=1024)          :: dummy
@@ -5916,29 +5943,6 @@ end module M_CLI2
 !>>>>> build/dependencies/M_io/src/M_io.F90
 !===================================================================================================================================
 !-----------------------------------------------------------------------------------------------------------------------------------
-#define  __INTEL_COMP        1
-#define  __GFORTRAN_COMP     2
-#define  __NVIDIA_COMP       3
-#define  __NAG_COMP          4
-#define  __LLVM_FLANG_COMP   5
-#define  __UNKNOWN_COMP   9999
-
-#define FLOAT128
-
-#ifdef __INTEL_COMPILER
-#   define __COMPILER__ __INTEL_COMP
-#elif __GFORTRAN__ == 1
-#   define __COMPILER__ __GFORTRAN_COMP
-#elif __flang__
-#   undef FLOAT128
-#   define __COMPILER__ __LLVM_FLANG_COMP
-#elif __NVCOMPILER
-#   undef FLOAT128
-#   define __COMPILER__ __NVIDIA_COMP
-#else
-#   define __COMPILER__ __UNKNOWN_COMP
-#   warning  NOTE: UNKNOWN COMPILER
-#endif
 !-----------------------------------------------------------------------------------------------------------------------------------
 !===================================================================================================================================
 MODULE M_io
@@ -11275,30 +11279,6 @@ end module m_io
 
 
 !>>>>> build/dependencies/M_strings/src/M_strings.F90
-!-----------------------------------------------------------------------------------------------------------------------------------
-#define  __INTEL_COMP        1
-#define  __GFORTRAN_COMP     2
-#define  __NVIDIA_COMP       3
-#define  __NAG_COMP          4
-#define  __LLVM_FLANG_COMP   5
-#define  __UNKNOWN_COMP   9999
-
-#define FLOAT128
-
-#ifdef __INTEL_COMPILER
-#   define __COMPILER__ __INTEL_COMP
-#elif __GFORTRAN__ == 1
-#   define __COMPILER__ __GFORTRAN_COMP
-#elif __flang__
-#   undef FLOAT128
-#   define __COMPILER__ __LLVM_FLANG_COMP
-#elif __NVCOMPILER
-#   undef FLOAT128
-#   define __COMPILER__ __NVIDIA_COMP
-#else
-#   define __COMPILER__ __UNKNOWN_COMP
-#   warning  NOTE: UNKNOWN COMPILER
-#endif
 !-----------------------------------------------------------------------------------------------------------------------------------
 !>
 !!##NAME
@@ -29984,30 +29964,6 @@ end module M_match
 
 !>>>>> build/dependencies/M_attr/src/M_attr.F90
 !-----------------------------------------------------------------------------------------------------------------------------------
-#define  __INTEL_COMP        1
-#define  __GFORTRAN_COMP     2
-#define  __NVIDIA_COMP       3
-#define  __NAG_COMP          4
-#define  __LLVM_FLANG_COMP   5
-#define  __UNKNOWN_COMP   9999
-
-#define FLOAT128
-
-#ifdef __INTEL_COMPILER
-#   define __COMPILER__ __INTEL_COMP
-#elif __GFORTRAN__ == 1
-#   define __COMPILER__ __GFORTRAN_COMP
-#elif __flang__
-#   undef FLOAT128
-#   define __COMPILER__ __LLVM_FLANG_COMP
-#elif __NVCOMPILER
-#   undef FLOAT128
-#   define __COMPILER__ __NVIDIA_COMP
-#else
-#   define __COMPILER__ __UNKNOWN_COMP
-#   warning  NOTE: UNKNOWN COMPILER
-#endif
-!-----------------------------------------------------------------------------------------------------------------------------------
 !>
 !!##NAME
 !!    M_attr(3f) - [M_attr::INTRO] control text attributes on terminals
@@ -32563,13 +32519,12 @@ integer,save                         :: G_scratch_lun=-1
 
 type(regex_pattern)                  :: G_pattern_start
 type(regex_pattern)                  :: G_pattern_stop
-logical,save                         :: G_extract
+logical,save                         :: G_extract                      ! flag to only process delimited sections
 character(len=:),allocatable,save    :: G_extract_start
 character(len=:),allocatable,save    :: G_extract_stop
-character(len=:),allocatable,save    :: G_extract_start0
-character(len=:),allocatable,save    :: G_extract_stop0
-logical,save                         :: G_extract_auto
+logical,save                         :: G_extract_auto                 ! start and end are selected based on file suffix
 logical,save                         :: G_extract_writeflag=.false.
+
 logical,save                         :: G_underscore=.false.
 character(len=:),allocatable,save    :: G_cmd
 character(len=:),allocatable,save    :: G_file
@@ -33272,7 +33227,7 @@ character(len=:),allocatable :: name
    endif
 
    ! parse options on input line
-   call dissect2('block','--file --cmd sh --varname textblock --length 128 --width 0 --style "#N#" --append F',opts)
+   call dissect2('block','--file " " --cmd sh --varname textblock --length 128 --width 0 --style "#N#" --append F',opts)
    ! if a previous command has opened a --file FILENAME flush it, because a new one is being opened or this is an END command
    ! and if a --file FILENAME has been selected open it
    call print_comment_block()
@@ -33434,7 +33389,6 @@ integer                      :: ios,iend,lun
       else
          filename=trim(varvalue)//'doc/'//trim(G_MAN_FILE)
       endif
-
       open(newunit=lun,file=filename,iostat=ios,action='write',position=G_MAN_FILE_POSITION)
 
       if(ios /= 0)then
@@ -34186,8 +34140,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '                                                                                ',&
 '   --type FILETYPE  This flag indicates to skip input lines until after a       ',&
 '                    specific start string is encountered and to stop once a     ',&
-'                    specific end string is found, left-justified on lines by    ',&
-'                    themselves.                                                 ',&
+'                    specific end string is found  on lines by themselves.       ',&
 '                        FileType     Start_String              Stop_String      ',&
 '                        --------     ------------              -----------      ',&
 '                        md           ```fortran                ```              ',&
@@ -34206,13 +34159,15 @@ help_text=[ CHARACTER(LEN=128) :: &
 '                    file suffix, treating supported file suffixes               ',&
 '                    ("md","markdownMML","html","tex") appropriately.            ',&
 '                                                                                ',&
-'   --start STRING   Same as --type except along with --stop allows for custom   ',&
-'                    strings to be specified. The string is a BRE (Basic Regular ',&
-'                    Expression).                                                ',&
+'   --start STRING   Along with --stop allows for custom delimiter strings to be ',&
+'                    specified. The string is a BRE (Basic Regular Expression).  ',&
+'                    Match the entire line to prevent inadvertent matches.       ',&
+'                    Note --type overrides --start and --stop.                   ',&
 '                                                                                ',&
-'   --stop STRING    Same as --type except along with --start allows for custom  ',&
-'                    strings to be specified. The string is a BRE (Basic Regular ',&
-'                    Expression).                                                ',&
+'   --stop STRING    Along with --start allows for custom delimiter strings to be',&
+'                    specified. The string is a BRE (Basic Regular Expression).  ',&
+'                    Match the entire line to prevent inadvertent matches.       ',&
+'                    Note --type overrides --start and --stop.                   ',&
 '                                                                                ',&
 '   --comment        Try to style comments generated in $BLOCK COMMENT blocks    ',&
 '                    for other utilities such as doxygen. Default is to          ',&
@@ -35343,7 +35298,7 @@ end module prep__internal
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 program prep                                              !@(#)prep(1f): preprocessor for Fortran/Fortran source code
-use M_CLI2,    only : set_args, lget, rget, iget, sget
+use M_CLI2,    only : set_args, lget, rget, iget, sget, specified
 use M_strings, only : notabs, isdigit, switch, sep, lower
 use M_io,      only : getname, basename
 use M_attr,    only : attr, attr_mode
@@ -35469,45 +35424,35 @@ logical                      :: isscratch
    else
       call put('SYSTEMON=.FALSE.')
    endif
-   G_extract_start0=''
-   G_extract_stop0=''
-   if(sget('type').eq.'')then
-      G_extract_auto=.true.  ! auto mode where start and end are selected based on file suffix
-      G_extract=.false.
+   G_extract_auto=.false. ! auto mode where start and end are selected based on file suffix
+   select case(sget('type'))
+   case('md','.md')
+      G_extract_start='```fortran'
+      G_extract_stop='```'
+   case('markdownMML','.markdownMML','MML','.MML','mml','.mml')
+      G_extract_start='^ *~~~~* *{: *lang=fortran *}[ ~]*$'
+      G_extract_stop='^ *~~~~* *$'
+   case('html','.html','htm','.htm')
+      ! flaw is HTML is not case sensitive
+      G_extract_start=' *<[xX][mM][pP]>'
+      G_extract_stop=' *</[xX][mM][pP]>'
+   case('tex')
+      G_extract_start='^\\begin{minted}{Fortran}$'
+      G_extract_stop='^\\end{minted}$'
+   case('auto')
       ! if these are set use them instead of auto mode
       G_extract_start=trim(sget('start'))
       G_extract_stop=trim(sget('stop'))
-      G_extract_start0=G_extract_start
-      G_extract_stop0=G_extract_stop
-   else
-      G_extract_auto=.false.
-      G_extract=.true.
-      select case(sget('type'))
-      case('md','.md')
-         G_extract_start='```fortran'
-         G_extract_stop='```'
-      case('markdownMML','.markdownMML','MML','.MML','mml','.mml')
-         G_extract_start='^ *~~~~* *{: *lang=fortran *}[ ~]*$'
-         G_extract_stop='^ *~~~~* *$'
-      case('html','.html','htm','.htm')
-         ! flaw is HTML is not case sensitive
-         G_extract_start=' *<[xX][mM][pP]>'
-         G_extract_stop=' *</[xX][mM][pP]>'
-      case('tex')
-         G_extract_start='\\begin{minted}{Fortran}'
-         G_extract_stop='\\end{minted}'
-      case('auto')
-         G_extract_start=''
-         G_extract_stop=''
-         G_extract_auto=.true.
-      case('none')
-         G_extract_start=''
-         G_extract_stop=''
-         G_extract=.false.
-      case default
-         call stop_prep('61a446d7-7e3e-418a-a2df-cd50dc89148a','unknown type:',sget('type'))
-      end select
-   endif
+      G_extract_auto=.true.
+      if(specified('start'))G_extract_auto=.false.
+      if(specified('stop'))G_extract_auto=.false.
+   case('none')
+      G_extract_start=''
+      G_extract_stop=''
+   case default
+      call stop_prep('61a446d7-7e3e-418a-a2df-cd50dc89148a','unknown type:',sget('type'))
+   end select
+
    if(G_extract_start /= ''.or.G_extract_stop /= '')then
       G_extract=.true.
       if (getpat(trim(G_extract_start), G_pattern_start%pat) .eq. ERR) then
@@ -35516,6 +35461,8 @@ logical                      :: isscratch
       if (getpat(trim(G_extract_stop), G_pattern_stop%pat) .eq. ERR) then
          call stop_prep('f12d13a2-b397-4b59-a857-381994f47bc6','Illegal stop pattern ',G_extract_stop)
       endif
+   else
+      G_extract=.false.
    endif
 
    call get_os_type()
@@ -35526,7 +35473,7 @@ logical                      :: isscratch
 !cpp>==============================================================================
    call opens()                                            ! convert input filenames into $include directives
 !<cpp==============================================================================
-   if(G_extract) call auto()
+   call auto()
 
    READLINE: do                                            ! read loop to read input file
       read(G_file_dictionary(G_iocount)%unit_number,'(a)',end=7) line
@@ -35607,6 +35554,7 @@ logical                      :: isscratch
    contains
 
 subroutine auto()
+   ! if --type was not specified and --start and --stop are not specified
    if(G_extract_auto)then
       select case(ends_in(G_file_dictionary(G_iocount)%filename) )
       case('md','.md')
@@ -35618,25 +35566,21 @@ subroutine auto()
          G_extract_stop='^ *~~~~* *$'
          !NOT WORKING G_extract_stop='^ *[~`][~`][~`][~`]* *$'
       case('tex')
-         G_extract_start='\\begin{minted}{Fortran}'
-         G_extract_stop='\\end{minted}'
+         G_extract_start='^\\begin{minted}{Fortran}$'
+         G_extract_stop='^\\end{minted}$'
       case('html','.html','htm','.htm')
          G_extract_start=' *<[xX][mM][pP]>'
          G_extract_stop=' *</[xX][mM][pP]>'
       case default
-         G_extract_start=G_extract_start0
-         G_extract_stop=G_extract_stop0
-      end select
-      if(G_extract_start == ''.and.G_extract_stop == '')then
          G_extract=.false.
-      else
-         G_extract=.true.
-         if (getpat(trim(G_extract_start), G_pattern_start%pat) .eq. ERR) then
-            call stop_prep('fd4cb3f6-1878-44bc-8ab6-f5ae33ef845e','Illegal start pattern ',G_extract_start)
-         endif
-         if (getpat(trim(G_extract_stop), G_pattern_stop%pat) .eq. ERR) then
-            call stop_prep('cd883e90-894a-47ec-9c6f-644b99848ca6','Illegal stop pattern ',G_extract_stop)
-         endif
+         return
+      end select
+      G_extract=.true.
+      if (getpat(trim(G_extract_start), G_pattern_start%pat) .eq. ERR) then
+         call stop_prep('fd4cb3f6-1878-44bc-8ab6-f5ae33ef845e','Illegal start pattern ',G_extract_start)
+      endif
+      if (getpat(trim(G_extract_stop), G_pattern_stop%pat) .eq. ERR) then
+         call stop_prep('cd883e90-894a-47ec-9c6f-644b99848ca6','Illegal stop pattern ',G_extract_stop)
       endif
    endif
 end subroutine auto
