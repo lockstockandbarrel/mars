@@ -1,4 +1,3 @@
-
 !>>>>> build/dependencies/M_unicode/src/M_unicode.F90
 !-----------------------------------------------------------------------------------------------------------------------------------
 !===================================================================================================================================
@@ -18882,9 +18881,10 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   (LICENSE:PD)                                                                 ',&
 '                                                                                ',&
 'SYNOPSIS                                                                        ',&
-'    uni [--escape|--noescape] [--lcase|--ucase] [-html] |                       ',&
-'    --box STYLE | --border STYLE | --entities |                                 ',&
-'    [--start STARTCODE --finish ENDCODE [--styles NAME] ] |                     ',&
+'    uni [--escape|--noescape] [--lcase|--ucase] --html |                        ',&
+'    [ [--box STYLE | --border STYLE] --styles NAME] |                           ',&
+'    --entities |                                                                ',&
+'    --start STARTCODE --finish ENDCODE |                                        ',&
 '    --code |                                                                    ',&
 '    --wide | --length infile(s)                                                 ',&
 '                                                                                ',&
