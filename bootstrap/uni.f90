@@ -85,6 +85,7 @@
 !!
 !!     pound_to_box  create simple boxes using pound character
 !!     add_border    add border to an array of strings
+!!     reverse       reverse order of glyphs on a line
 !!
 !!    CASE
 !!
@@ -325,6 +326,7 @@ public :: character
 public :: sort
 public :: upper
 public :: lower
+public :: reverse
 public :: expandtabs
 public :: escape
 public :: expand_html
@@ -381,6 +383,7 @@ private  ::  concat_complex64_g,  concat_g_complex64
 private  ::  concat_l_g,          concat_g_l
 private  ::  concat_character_g,  concat_g_character
 
+private ::  reverse_u,  reverse_a
 private :: a2s, s2a
 private :: binary_search_int
 private :: binary_search_chr
@@ -389,15 +392,12 @@ private :: section_ua
 private :: section_au
 private :: section_aa
 
-interface isascii
-   module procedure isascii_a,isascii_u
-end interface isascii
-interface isblank
-   module procedure isblank_a,isblank_u
-end interface isblank
-interface isspace
-   module procedure isspace_a,isspace_u
-end interface isspace
+interface  isascii;  module  procedure  isascii_a,isascii_u;  end  interface  isascii
+interface  isblank;  module  procedure  isblank_a,isblank_u;  end  interface  isblank
+interface  isspace;  module  procedure  isspace_a,isspace_u;  end  interface  isspace
+interface  reverse;  module  procedure  reverse_a,reverse_u;  end  interface  reverse
+interface  upper;    module  procedure  upper_a,upper_u;      end  interface  upper
+interface  lower;    module  procedure  lower_a,lower_u;      end  interface  lower
 
 interface utf8_to_codepoints
    module procedure utf8_to_codepoints_str,utf8_to_codepoints_chars
@@ -599,6 +599,7 @@ contains
    ! transform
    procedure :: upper      => oop_upper
    procedure :: lower      => oop_lower
+   procedure :: reverse    => oop_reverse
    procedure :: html       => oop_expand_html
    procedure :: expandtabs => oop_expandtabs
    procedure :: escape     => oop_escape
@@ -4996,14 +4997,83 @@ end subroutine sort_quick_rx
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-impure elemental function reverse(string) result (rev)
+!>
+!!##NAME
+!!  reverse(3f) - [M_unicode:CASE] reverse order of glyphs on a line
+!!  (LICENSE:MIT)
+!!
+!!##SYNOPSIS
+!!
+!!
+!!     impure elemental function reverse(str) result (string)
+!!
+!!      type(unicode_type),intent(in) :: str
+!!      type(unicode_type)            :: string
+!!
+!!##DESCRIPTION
+!!    reverse(string) returns a copy of the input string with all characters
+!!    in reverse position on the line.
+!!
+!!
+!!##OPTIONS
+!!     str    string to reverse
+!!
+!!##RETURNS
+!!     reverse  copy of the input string with order of characters on the
+!!              line reversed.
+!!
+!!##EXAMPLES
+!!
+!!
+!!   Sample program:
+!!
+!!    program demo_reverse
+!!    use iso_fortran_env, only : stdout => output_unit
+!!    use M_unicode,       only : reverse, ch=>character
+!!    use M_unicode,       only : unicode_type, assignment(=)
+!!    use M_unicode,       only : ut => unicode_type, operator(==)
+!!    implicit none
+!!    character(len=*),parameter :: g='(g0)'
+!!    type(unicode_type)         :: original(3)
+!!       original(1)='abcde'
+!!       original(2)='한국말'
+!!       original(3)='五十七'
+!!       write(stdout,g)ch(original)
+!!       write(stdout,*)
+!!       write(stdout,g)ch(reverse(original))
+!!    end program demo_reverse
+!!
+!!  Expected output
+!!
+!!   > abcde
+!!   > 한국말
+!!   > 五十七
+!!
+!!   > edcba
+!!   > 말국한
+!!   > 七十五
+!!
+!!##AUTHOR
+!!     John S. Urban
+!!
+!!##LICENSE
+!!     MIT
+impure elemental function reverse_u(string) result (rev)
 
 ! ident_9="@(#) M_unicode reverse(3f) Return a string reversed"
 
 type(unicode_type),intent(in)  :: string   ! string to reverse
 type(unicode_type)             :: rev      ! return value (reversed string)
    rev=string%sub(len(string),1,-1)
-end function reverse
+end function reverse_u
+!-----------------------------------------------------------------------------------------------------------------------------------
+impure elemental function reverse_a(string) result(res)
+character(len=*),intent(in) :: string
+type(unicode_type)          :: string_u
+type(unicode_type)          :: res
+   call assign_str_char( string_u,string ) !  string_u=string
+   res=reverse_u(string_u)
+end function reverse_a
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -6080,7 +6150,7 @@ end function join
 !!
 !!##LICENSE
 !!     MIT
-pure elemental function upper(str) result (string)
+pure elemental function upper_u(str) result (string)
 
 ! ident_12="@(#) M_unicode upper(3f) returns an uppercase string"
 
@@ -6106,7 +6176,15 @@ integer,parameter             :: diff = iachar('A') - iachar('a')
 
    if(len(str).eq.0)string = str
 
-end function upper
+end function upper_u
+!-----------------------------------------------------------------------------------------------------------------------------------
+elemental function upper_a(string) result(res)
+character(len=*),intent(in) :: string
+type(unicode_type)          :: string_u
+type(unicode_type)          :: res
+   call assign_str_char ( string_u,string ) !  string_u=string
+   res=upper_u(string_u)
+end function upper_a
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -6212,7 +6290,7 @@ end function upper
 !!
 !!##LICENSE
 !!     MIT
-pure elemental function lower(str) result (string)
+pure elemental function lower_u(str) result (string)
 
 ! ident_13="@(#) M_unicode lower(3f) returns a lowercase string"
 
@@ -6238,7 +6316,15 @@ integer, parameter             :: diff = iachar('A') - iachar('a')
 
    if(len(str).eq.0)string = str
 
-end function lower
+end function lower_u
+!-----------------------------------------------------------------------------------------------------------------------------------
+elemental function lower_a(string) result(res)
+character(len=*),intent(in) :: string
+type(unicode_type)          :: string_u
+type(unicode_type)          :: res
+   call assign_str_char ( string_u,string ) !  string_u=string
+   res=lower_u(string_u)
+end function lower_a
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -11309,6 +11395,12 @@ class(unicode_type),intent(in)       :: self
 type(unicode_type)                   :: string_out
    call assign_str_char ( string_out, add_backslash_u(self) )
 end function oop_add_backslash
+!===================================================================================================================================
+impure function oop_reverse(self) result (string_out)
+class(unicode_type),intent(in) :: self
+type(unicode_type)             :: string_out
+   string_out=reverse_u(self)
+end function oop_reverse
 !===================================================================================================================================
 function oop_upper(self) result (string_out)
 class(unicode_type),intent(in) :: self
@@ -18742,13 +18834,15 @@ end module M_CLI2
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
+!===================================================================================================================================
+
 !>>>>> app/uni.f90
 program uni
 ! @(#) convert UTF-8 to backslash escape sequences, vice-versa, convert case, ...
 use, intrinsic :: iso_fortran_env, only: stdin => input_unit, stderr => error_unit, stdout => output_unit
 use, intrinsic :: iso_fortran_env, only: iostat_end, iostat_eor
 use M_unicode, only : readline, split, lower, upper, len, trim, isascii
-use M_unicode, only : expand_html
+use M_unicode, only : expand_html, reverse_line=>reverse
 use M_unicode, only : add_backslash, remove_backslash=>escape
 use M_unicode, only : isascii, slurp, repeat, pound_to_box, add_border
 use M_unicode, only : ut => unicode_type, assignment(=), ch=>character
@@ -18759,7 +18853,7 @@ integer,allocatable          :: ints(:)
 type(ut)                     :: line
 type(ut),allocatable         :: text(:)
 logical                      :: verbose, debug, length, escape, noescape, ucase, lcase, wide
-logical                      :: code, allascii, border, html, entities, example
+logical                      :: code, allascii, border, html, entities, example, reverse
 character(len=:),allocatable :: filenames(:), style, styles(:)
 character(len=*),parameter   :: g0='(*(g0))'
 character(len=*),parameter   :: formu= '("char(int(z''",z0,"''),kind=ucs4)":,"// &")'
@@ -18792,9 +18886,12 @@ character(len=256)           :: iomsg
       INFINITE: do linenum=1,huge(0)-1
          line=readline(lun,iostat=iostat)
          if(iostat.ne.0)exit
-         if(html)line=expand_html(line)
-         if(lcase)line=lower(line)
-         if(ucase)line=upper(line)
+         if(html)     line=expand_html(line)
+         if(lcase)    line=lower(line)
+         if(ucase)    line=upper(line)
+         if(noescape) line=remove_backslash(line)
+         if(reverse)  line=reverse_line(line)
+         if(escape)   line=add_backslash(line)
          if(code.and.knd==2) then
             ! @(#) generate Fortran statements using KIND='iso_10464' that represents the lines
             if(line.eq.'')then
@@ -18811,7 +18908,6 @@ character(len=256)           :: iomsg
                write(stdout,g0)'],kind=ucs4)'
                write(stdout,g0)
             endif
-            cycle
          elseif(code) then
             ! @(#) generate Fortran statements using KIND='iso_10464' that represents the lines
             if(line.eq.'')then
@@ -18827,11 +18923,7 @@ character(len=256)           :: iomsg
                write(stdout,formu)(line%codepoint(j,j),j=1,len(line))
                write(stdout,g0)
             endif
-            cycle
-         endif
-         if(escape)   line=add_backslash(line)
-         if(noescape) line=remove_backslash(line)
-         if(length)then
+         elseif(length)then
             ulen=len(line)
             alen=len(line%character())
             allascii=isascii(line)
@@ -18879,7 +18971,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   (LICENSE:PD)                                                                 ',&
 '                                                                                ',&
 'SYNOPSIS                                                                        ',&
-'    uni [--escape|--noescape] [--lcase|--ucase] --html |                        ',&
+'    uni [--escape|--noescape] [--lcase|--ucase] --html --reverse |              ',&
 '    [ [--box STYLE | --border STYLE] --styles NAME] |                           ',&
 '    --entities |                                                                ',&
 '    --start STARTCODE --finish ENDCODE |                                        ',&
@@ -18940,10 +19032,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   --html,H      expand HTML character entities of the form &NAME; and          ',&
 '                 &#NNNNN;.                                                      ',&
 '                                                                                ',&
-'   --entities,e  display table of HTML character entities and stop.             ',&
-'                 Other parameters are ignored.                                  ',&
-'   --example,x   display sample input file and stop.                            ',&
-'                 Other parameters are ignored.                                  ',&
+'   --reverse,R   reverse the glyphs on a line                                   ',&
 '                                                                                ',&
 '   --lcase,L     convert uppercase to lowercase                                 ',&
 '   --ucase,U     convert lowercase to uppercase                                 ',&
@@ -18984,6 +19073,11 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   --verbose     echo the input as well as the computed values                  ',&
 '                                                                                ',&
 '   INFORMATION                                                                  ',&
+'                                                                                ',&
+'   --entities,e  display table of HTML character entities and stop.             ',&
+'                 Other parameters are ignored.                                  ',&
+'   --example,x   display sample input file and stop.                            ',&
+'                 Other parameters are ignored.                                  ',&
 '   --help        display this help and exit                                     ',&
 '   --usage       display state of command options and exit                      ',&
 '   --version     output version information and exit                            ',&
@@ -19089,19 +19183,23 @@ version_text=[ CHARACTER(LEN=128) :: &
    ! text and version information, and crack command line.
    border=.FALSE.
    call set_args( '&
-    & --escape:E F --noescape:N F &
-    & --html:H F &
-    & --escape:x F &
-    & --entities:e F &
-    & --lcase:L F --ucase:U F &
-    & --start:S 0 --finish:F 1114111 --styles:s &
-    & "decimal,utf8,c,standard,htmlx,htmld,ucs4,codex,hex"&
-    & --length:l F &
-    & --wide:W F &
-    & --box:B " " &
     & --border:b " " &
+    & --box:B " " &
     & --code:C F &
+    & --entities:e F &
+    & --escape:E F &
+    & --noescape:N F &
+    & --example:x F &
+    & --html:H F &
     & --kind:K 1 &
+    & --lcase:L F &
+    & --ucase:U F &
+    & --length:l F &
+    & --reverse:R F &
+    & --start:S 0 &
+    & --finish:F 1114111 &
+    & --styles:s "decimal,utf8,c,standard,htmlx,htmld,ucs4,codex,hex" &
+    & --wide:W F &
     & --debug:D F', &
     & help_text, version_text)
    call get_args('border',   style )
@@ -19115,6 +19213,7 @@ version_text=[ CHARACTER(LEN=128) :: &
    call get_args('kind',     knd )
    call get_args('lcase',    lcase,      'ucase',    ucase    )
    call get_args('length',   length )
+   call get_args('reverse',  reverse )
    call get_args('start',    startrange, 'finish',   endrange )
    call get_args('verbose',  verbose )
    call get_args('wide',     wide )
@@ -19132,10 +19231,10 @@ version_text=[ CHARACTER(LEN=128) :: &
       filenames=files
    endif
    if(size(filenames).eq.0)filenames=['-']
-   ! process --start and --finish
    if(example)then
       call example_file()
    endif
+   ! process --start and --finish
    if( specified('start')  .and. (.not.specified('finish')) ) endrange=startrange
    if( specified('start') .or. specified('finish') )then
       styles=to_lower(styles)
@@ -19169,8 +19268,8 @@ version_text=[ CHARACTER(LEN=128) :: &
 end subroutine setup
 
 subroutine example_file()
-integer                                                           :: i
-character(len=128),parameter example_data(*)=[ CHARACTER(LEN=128) :: &
+integer                                                              :: i
+character(len=128),parameter :: example_data(*)=[ CHARACTER(LEN=128) :: &
 'The Greek alphabet consists of 24 letters, from Alpha to Omega, widely',&
 'used in mathematics, science, and engineering. The letters are        ',&
 '                                                                      ',&
