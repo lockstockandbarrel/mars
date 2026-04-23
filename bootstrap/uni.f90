@@ -18976,7 +18976,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '    --entities |                                                                ',&
 '    --start STARTCODE --finish ENDCODE |                                        ',&
 '    --code |                                                                    ',&
-'    --sample |                                                                  ',&
+'    --example |                                                                 ',&
 '    --wide | --length infile(s)                                                 ',&
 '                                                                                ',&
 'To see short names and defaults enter "uni --usage"                             ',&
