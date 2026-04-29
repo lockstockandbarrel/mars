@@ -19298,7 +19298,7 @@ character(len=128),parameter :: example_data(*)=[ CHARACTER(LEN=128) :: &
 '&Nu;,&nu;, &Xi;,&xi;, &Omicron;,&omicron;,                                                                                ',&
 '&Pi;,&pi;, &Rho;,&rho;, &Sigma;,&sigma;,                                                                                  ',&
 '&Tau;,&tau;, &Upsilon;,&upsilon;, &Phi;,&phi;,                                                                            ',&
-'&Chi;,&chi;, &Psi;,&psi;, &Omega;&omega;                                                                                  ',&
+'&Chi;,&chi;, &Psi;,&psi;, &Omega;,&omega;                                                                                 ',&
 '                                                                                                                          ',&
 '']
    write(stdout,'(a)')(trim(example_data(i)),i=1,size(example_data))
