@@ -1,5 +1,4 @@
 !>>>>> build/dependencies/M_unicode/src/M_unicode.F90
-!-----------------------------------------------------------------------------------------------------------------------------------
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -5246,6 +5245,11 @@ logical            :: ignorecase_local
 logical            :: flip
 type(unicode_type) :: target_local   ! input line to be changed
 
+   kludge: block
+   type(force_keywords),volatile :: quiet_
+      if(present(force_))quiet_=force_  ! so compiler does not complain about force_ being unused
+   endblock kludge
+
    flip=.false.
    ignorecase_local=.false.
    original_input_length=len_trim(target)          ! get non-blank length of input line
@@ -5763,7 +5767,6 @@ end function pound_to_box_ascii
 !!    type(ut),allocatable       :: textout(:)
 !!    type(ut)                   :: uline
 !!    type(ut),allocatable       :: uparagraph(:)
-!!    character(len=*),parameter :: line='WARNING, WARNING, Will Robinson'
 !!    character(len=*),parameter :: paragraph(*)=[character(len=10) :: &
 !!    &'one',&
 !!    &'two',&
@@ -7794,8 +7797,6 @@ end function expandtabs
 !!    use M_unicode,       only : ch => character
 !!    implicit none
 !!    character(len=*),parameter :: g='(*(g0))'
-!!    type(unicode_type)         :: input
-!!    type(unicode_type)         :: output
 !!    integer                    :: i
 !!    character(len=*),parameter :: data(*)=[character(len=132) :: &
 !!    '             HTML Character Entity Test Page', &
@@ -10142,7 +10143,8 @@ end function expand_html_au
 !!    use M_unicode,       only : assignment(=), trim
 !!    implicit none
 !!    type(ut),allocatable  :: poem(:)
-!!    type(ut)              :: test(5)
+!!    !type(ut)              :: test(5)
+!!    type(ut),allocatable  :: test(:)
 !!    integer               :: i
 !!       !
 !!       ! “The Crow and the Fox” by Jean de la Fontaine
@@ -10218,7 +10220,6 @@ character(len=:),allocatable :: temp
 
 integer            :: esc    ! Default is backslash
 integer            :: i
-integer            :: j
 integer            :: lgth
 character(len=3)   :: thr
 character(len=4)   :: four
@@ -18834,8 +18835,6 @@ end module M_CLI2
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-!===================================================================================================================================
-
 !>>>>> app/uni.f90
 program uni
 ! @(#) convert UTF-8 to backslash escape sequences, vice-versa, convert case, ...
@@ -18984,7 +18983,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '    --start STARTCODE --finish ENDCODE |                                        ',&
 '    --code |                                                                    ',&
 '    --example |                                                                 ',&
-'    --text SOME TEXT|                                                           ',&
+'    --text |                                                                    ',&
 '    --wide | --length infile(s)                                                 ',&
 '                                                                                ',&
 'To see short names and defaults enter "uni --usage"                             ',&
@@ -19084,8 +19083,9 @@ help_text=[ CHARACTER(LEN=128) :: &
 '                 If no other parameters are specified this is the default.      ',&
 '                                                                                ',&
 '   MODES                                                                        ',&
-'   --verbose     echo the input as well as the computed values                  ',&
-'   --text        What would normally be filenames are interpreted as input data ',&
+'   --text,t      strings on the command that would be treated as filenames      ',&
+'                 are treated as text instead.                                   ',&
+'   --verbose,V   echo the input as well as the computed values                  ',&
 '                                                                                ',&
 '   INFORMATION                                                                  ',&
 '                                                                                ',&
