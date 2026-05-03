@@ -18846,6 +18846,7 @@ use M_unicode, only : add_backslash, remove_backslash=>escape
 use M_unicode, only : isascii, slurp, repeat, pound_to_box, add_border
 use M_unicode, only : ut => unicode_type, assignment(=), ch=>character
 use M_unicode, only : operator(==), operator(//)
+use M_CLI2,    only : set_mode, set_args, get_args, sgets, specified, files=>unnamed
 implicit none
 integer                      :: i, j, ulen, alen, iostat, lun, linenum, knd
 integer,allocatable          :: ints(:)
@@ -18853,7 +18854,7 @@ type(ut)                     :: line
 type(ut),allocatable         :: text(:)
 logical                      :: verbose, debug, length, escape, noescape, ucase, lcase, wide
 logical                      :: code, allascii, border, html, entities, example, reverse, nofile
-character(len=:),allocatable :: filenames(:), style, styles(:)
+character(len=:),allocatable :: filenames(:), style_box, style_border, styles(:)
 character(len=*),parameter   :: g0='(*(g0))'
 character(len=*),parameter   :: formu= '("char(int(z''",z0,"''),kind=ucs4)":,"// &")'
 character(len=*),parameter   :: form2= '("char([",*(i0:,","))'
@@ -18862,27 +18863,33 @@ character(len=256)           :: iomsg
    open (unit=stdin, pad='yes')
    call setup()
    DATUM: do i=1,size(filenames)
-      if(style.ne.'')then
-         if(border)then
-            text=add_border(get_text(filenames(i)),style=style)
-            call print_text(text)
-         else
-            text=pound_to_box(get_text(filenames(i)),style=style)
-            call print_text(text)
-         endif
+
+      if(specified('box'))then
+            text=pound_to_box(get_text(filenames(i)),style=style_box)
+      endif
+      if(specified('border'))then
+            if(specified('box'))then
+               text=add_border(text,style=style_border)
+            else
+               text=add_border(get_text(filenames(i)),style=style_border)
+            endif
+      endif
+      if(specified('border').or.specified('box'))then
+         call print_text(text)
          cycle DATUM
       endif
+
       if(nofile)then
          lun=-1
       elseif(filenames(i).eq.'-'.or.filenames(i).eq.'')then
          lun=stdin
       else
-        open(newunit=lun,file=filenames(i),action='read',pad='yes',iostat=iostat,iomsg=iomsg)
-        if(iostat.ne.0)then
-           write(stderr,g0)'<ERROR>*uni*:',trim(iomsg)
-           iomsg=''
-           cycle
-        endif
+         open(newunit=lun,file=filenames(i),action='read',pad='yes',iostat=iostat,iomsg=iomsg)
+         if(iostat.ne.0)then
+            write(stderr,g0)'<ERROR>*uni*:',trim(iomsg)
+            iomsg=''
+            cycle
+         endif
       endif
       INFINITE: do linenum=1,huge(0)-1
          if(nofile)then
@@ -18955,7 +18962,6 @@ character(len=256)           :: iomsg
 contains
 subroutine setup()
 !! Put everything to do with command parsing here
-use M_CLI2,  only : set_mode, set_args, get_args, sgets, specified, files=>unnamed
 character(len=:),allocatable :: help_text(:), version_text(:)
 integer                      :: startrange, endrange
 integer                      :: i
@@ -18969,44 +18975,44 @@ character(len=*),parameter   :: &
 type(ut)                     :: ustr
 help_text=[ CHARACTER(LEN=128) :: &
 'NAME                                                                            ',&
-'   uni(1f) - [CONVERSION] Unicode-related text operations such as               ',&
-'   converting between UTF-8 and ASCII-7 C-style escape sequences, changing      ',&
-'   case of multi-byte characters, drawing box characters, displaying            ',&
-'   ranges of Unicode characters, locating multi-byte characters in what         ',&
-'   should be an ASCII file, ...                                                 ',&
+'   uni(1f) - [CONVERSION] identify and convert and format Unicode-related text  ',&
 '   (LICENSE:PD)                                                                 ',&
 '                                                                                ',&
 'SYNOPSIS                                                                        ',&
 '    uni [--escape|--noescape] [--lcase|--ucase] --html --reverse |              ',&
-'    [ [--box STYLE | --border STYLE] --styles NAME] |                           ',&
-'    --entities |                                                                ',&
+'    [ [--box STYLE | --border STYLE]                                            ',&
 '    --start STARTCODE --finish ENDCODE |                                        ',&
-'    --code |                                                                    ',&
+'    --code [--styles NAME] |                                                    ',&
+'    --wide |                                                                    ',&
+'    --length |                                                                  ',&
+'    --entities |                                                                ',&
 '    --example |                                                                 ',&
 '    --text |                                                                    ',&
-'    --wide | --length infile(s)                                                 ',&
+'    infile(s)                                                                   ',&
 '                                                                                ',&
 'To see short names and defaults enter "uni --usage"                             ',&
 '                                                                                ',&
 'DESCRIPTION                                                                     ',&
-'   uni(1) is a handy filter for converting UTF-8 encoded text to and from       ',&
-'   ASCII-7 C-style escape sequences, converting the case of multi-byte          ',&
-'   text, converting pound characters to box characters, and identifying         ',&
-'   sundry properties of lines of UTF-8 encoded text.                            ',&
+'   uni performs operations such as                                              ',&
 '                                                                                ',&
-'   In addition when given a range of codepoint values uni(1) displays           ',&
-'   the characters in several common formats for use in generating code          ',&
-'   or text or HTML.                                                             ',&
+'   + converting between UTF-8 and ASCII-7 C-style escape sequences              ',&
+'   + changing case of multi-byte characters                                     ',&
+'   + drawing box characters using "#" characters                                ',&
+'   + displaying ranges of Unicode characters in several common formats          ',&
+'     for use in generating code or text or HTML                                 ',&
+'   + locating multi-byte characters in what is primarily an ASCII file          ',&
+'   + converting html entity characters to UTF-8                                 ',&
+'   + identifying sundry UTF-8 encoded text.                                     ',&
 '                                                                                ',&
 '   uni(1) defaults to displaying only lines containing a wide                   ',&
 '   (ie. multi-byte) character along with the line number; with each line        ',&
 '   as-is and then with wide characters converted to C++-style escape            ',&
 '   sequences. That is, the default is "uni --wide".                             ',&
 '                                                                                ',&
-'   For example, the primary Unicode block for the Greek alphabet is the         ',&
-'   Greek and Coptic section (U+0370–U+03FF; standard letters, numbers,        ',&
-'   and symbols) which contains most modern monotonic Greek letters while        ',&
-'   the Greek Extended block (U+1F00–U+1FFF; additional characters with        ',&
+'   The primary Unicode block for the Greek alphabet is the Greek                ',&
+'   and Coptic section (U+0370-U+03FF; standard letters, numbers, and            ',&
+'   symbols) which contains most modern monotonic Greek letters while            ',&
+'   the Greek Extended block (U+1F00-U+1FFF; additional characters with          ',&
 '   diacritics). is used for polytonic Greek. So to see the basic Greek          ',&
 '   alphabet enter                                                               ',&
 '                                                                                ',&
@@ -19014,29 +19020,23 @@ help_text=[ CHARACTER(LEN=128) :: &
 '                                                                                ',&
 '   Key details about the Unicode codespace:                                     ',&
 '                                                                                ',&
-'   Valid vs. Assigned: Not all code points within this range are assigned       ',&
-'   to characters or are valid for use. Some ranges are reserved for             ',&
-'   private use and non-characters.                                              ',&
-'                                                                                ',&
-'   As of January 2024, only a small fraction (fewer than 4%) of the             ',&
-'   possible code points had assigned meanings.                                  ',&
-'                                                                                ',&
-'   Encoding Limits:                                                             ',&
-'                                                                                ',&
 '   While the UTF-8 encoding scheme is theoretically capable of                  ',&
 '   representing much larger codepoints (up to 0x7FFFFFFF), it was               ',&
 '   restricted by RFC 3629 to stop at U+10FFFF (1 114 111, in decimal)           ',&
 '   to match the Unicode standard''s UTF-16 constraint.                          ',&
 '                                                                                ',&
+'   **Valid vs. Assigned**: Not all code points within the supported             ',&
+'   range are assigned to characters or are valid for use. Some ranges           ',&
+'   are reserved for private use and non-characters. As of January 2024,         ',&
+'   only a small fraction (fewer than 4%) of the possible code points            ',&
+'   had assigned meanings.                                                       ',&
+'                                                                                ',&
 '   This limit ensures compatibility with the UTF-16 encoding, which uses        ',&
 '   surrogate pairs to represent characters beyond the Basic Multilingual        ',&
 '   Plane (BMP).                                                                 ',&
 '                                                                                ',&
-'   That is, 1 114 111, is the highest value that can be represented using       ',&
-'   a single or a pair of 16-bit code units in the UTF-16 encoding.              ',&
-'                                                                                ',&
 'OPTIONS                                                                         ',&
-'   CONVERSION                                                                   ',&
+'   BASIC CONVERSION                                                             ',&
 '                                                                                ',&
 '   --escape,E    convert non-ASCII7 characters to C-style escape sequences      ',&
 '   --noescape,N  convert C-style escape sequences to UTF8 encoded data          ',&
@@ -19049,53 +19049,62 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   --lcase,L     convert uppercase to lowercase                                 ',&
 '   --ucase,U     convert lowercase to uppercase                                 ',&
 '                                                                                ',&
-'   --code,C      write as Fortran code using KIND=ISO_10646                     ',&
-'                                                                                ',&
-'   --box,B       box style choice from set {"light","bold","double"}.           ',&
-'                 Causes pound character to be used to construct boxes           ',&
-'                 using box characters. If specified other options are           ',&
-'                 ignored.                                                       ',&
-'                                                                                ',&
-'                 Input characters are assumed to be monospaced.                 ',&
-'                                                                                ',&
-'   --border,b    place box around text, choosing box style from set             ',&
-'                 {"light","bold","double"}. If specified other options          ',&
-'                 are ignored.                                                   ',&
-'                                                                                ',&
-'                 Input characters are assumed to be monospaced.                 ',&
-'                                                                                ',&
-'   RANGE                                                                        ',&
-'   --start,S     starting codepoint to generate a list of glyphs from.          ',&
-'                 If specified conversion options are ignored.                   ',&
-'   --finish,F    ending codepoint to generate a list of glyphs from             ',&
-'                 If specified conversion options are ignored.                   ',&
-'   --styles,s    Display style name(s). Default is all styles. The              ',&
-'                 "test" style just streams the UTF-8 values of the              ',&
-'                 specified values. For other allowed names ("decimal",          ',&
-'                 "utf8", "c", "standard", "htmlx", "htmld", "ucs4",             ',&
-'                 "codex", "hex") see the following section "STYLES".            ',&
-'                                                                                ',&
-'   INFORMATIVE                                                                  ',&
+'   IDENTIFY AND QUANTIFY INPUT                                                  ',&
 '   --length,L    prefix lines with line number, glyph and byte count            ',&
 '                 of input line.                                                 ',&
 '                                                                                ',&
 '   --wide,W      identify and write lines not composed entirely of ASCII-7.     ',&
-'                 If no other parameters are specified this is the default.      ',&
+'                 If no parameters are specified this is the default.            ',&
+'   FORMATTING                                                                   ',&
+'   --code,C      write as Fortran code using KIND=ISO_10646                     ',&
 '                                                                                ',&
+'   --styles,s STYLE  Display style name(s) for "--code" option. Default         ',&
+'                     is all styles. The "test" style just streams the           ',&
+'                     UTF-8 values of the specified values. For other            ',&
+'                     allowed names ("decimal", "utf8", "c", "standard",         ',&
+'                     "htmlx", "htmld", "ucs4", "codex", "hex") see the          ',&
+'                     following section "STYLES".                                ',&
+'                                                                                ',&
+'   --box,B STYLE box style choice from set {"light","bold","double"}.           ',&
+'                 Causes pound character to be used to construct boxes           ',&
+'                 using box characters.                                          ',&
+'                                                                                ',&
+'                 Input characters are assumed to be monospaced.                 ',&
+'                                                                                ',&
+'                 If specified other non-conversion options are ignored          ',&
+'                 except --border.                                               ',&
+'                                                                                ',&
+'   --border,b STYLE  place box around text, choosing box style from set         ',&
+'                     {"light","bold","double"}.  Input characters are           ',&
+'                     assumed to be monospaced.                                  ',&
+'                                                                                ',&
+'                     If specified other non-conversion options are ignored.     ',&
+'                     except --box.                                              ',&
 '   MODES                                                                        ',&
+'   --verbose,V   echo the input as well as the computed values                  ',&
 '   --text,t      strings on the command that would be treated as filenames      ',&
 '                 are treated as text instead.                                   ',&
-'   --verbose,V   echo the input as well as the computed values                  ',&
 '                                                                                ',&
 '   INFORMATION                                                                  ',&
+'   --start,S     starting codepoint to generate a list of glyphs from.          ',&
+'                                                                                ',&
+'                 If specified other options are ignored except --finish.        ',&
+'                                                                                ',&
+'   --finish,F    ending codepoint to generate a list of glyphs from.            ',&
+'                 1 114 111, is the highest value that can be represented        ',&
+'                 using a single or a pair of 16-bit code units in the           ',&
+'                 UTF-16 encoding.                                               ',&
+'                                                                                ',&
+'                 If specified other options are ignored except --start.         ',&
 '                                                                                ',&
 '   --entities,e  display table of HTML character entities and stop.             ',&
 '                 Other parameters are ignored.                                  ',&
 '   --example,x   display sample input file and stop.                            ',&
 '                 Other parameters are ignored.                                  ',&
-'   --help        display this help and exit                                     ',&
-'   --usage       display state of command options and exit                      ',&
-'   --version     output version information and exit                            ',&
+'   STANDARD                                                                     ',&
+'   --help,h      display this help and exit                                     ',&
+'   --usage,u     display state of command options and exit                      ',&
+'   --version,v   output version information and exit                            ',&
 '                                                                                ',&
 'STYLES                                                                          ',&
 '                                                                                ',&
@@ -19182,6 +19191,13 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓',&
 '   ┃ Warning: proceed with caution ┃                                                              ',&
 '   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛',&
+'                                                                                                      ',&
+'   uni -t "Warning. Warning Will Robinson!" --border double                                           ',&
+'   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓',&
+'   ┃Warning. Warning Will Robinson!┃                                                              ',&
+'   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛',&
+'   uni -t ''&#128512; &#128516; &#128525; &#128151;'' -H                                              ',&
+'   😀 😄 😍 💗                                                                                ',&
 'SEE ALSO                                                                                              ',&
 '   dos2unix(1)/unix2dos(1), iconv(1)                                                                  ',&
 '                                                                                                      ',&
@@ -19218,8 +19234,10 @@ version_text=[ CHARACTER(LEN=128) :: &
     & --wide:W F &
     & --debug:D F', &
     & help_text, version_text)
-   call get_args('border',   style )
-   call get_args('box',      style )
+
+   if(specified('border')) call get_args('border', style_border )
+   if(specified('box'))    call get_args('box',    style_box )
+
    call get_args('code',     code )
    call get_args('debug',    debug )
    call get_args('entities', entities )
@@ -19236,8 +19254,8 @@ version_text=[ CHARACTER(LEN=128) :: &
    call get_args('text',     nofile )
    styles=sgets('styles')
    if( specified('border') ) border=.TRUE.
-   if( specified('box') .and. style==' ') style='bold'
-   if( specified('border') .and. style==' ') style='bold'
+   if( specified('box') .and. style_box==' ') style_box='bold'
+   if( specified('border') .and. style_border==' ') style_border='bold'
    if(entities)then
       line=expand_html()
       stop
