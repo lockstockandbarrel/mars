@@ -7855,14 +7855,14 @@ integer                                :: lngth
 integer                                :: nerr
 
 type html_entities
-   character(len=33)   :: name
+   character(len=31)   :: name
    integer,allocatable :: codes(:)
 end type html_entities
 
 type(html_entities),save               :: entities(2125)
 
 logical,save                           :: virgin=.true.
-character(len=33),save                 :: tokens(2125)
+character(len=31),save                 :: tokens(2125)
 character(len=80)                      :: line
    if(virgin)then
       virgin=.false.
