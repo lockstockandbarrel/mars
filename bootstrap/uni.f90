@@ -18982,7 +18982,7 @@ help_text=[ CHARACTER(LEN=128) :: &
 '    uni [--escape|--noescape] [--lcase|--ucase] --html --reverse |              ',&
 '    [ [--box STYLE | --border STYLE]                                            ',&
 '    --start STARTCODE --finish ENDCODE |                                        ',&
-'    --code [--styles NAME] |                                                    ',&
+'    --code [--styles NAMES] |                                                   ',&
 '    --wide |                                                                    ',&
 '    --length |                                                                  ',&
 '    --entities |                                                                ',&
@@ -19058,12 +19058,12 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   FORMATTING                                                                   ',&
 '   --code,C      write as Fortran code using KIND=ISO_10646                     ',&
 '                                                                                ',&
-'   --styles,s STYLE  Display style name(s) for "--code" option. Default         ',&
-'                     is all styles. The "test" style just streams the           ',&
-'                     UTF-8 values of the specified values. For other            ',&
-'                     allowed names ("decimal", "utf8", "c", "standard",         ',&
-'                     "htmlx", "htmld", "ucs4", "codex", "hex") see the          ',&
-'                     following section "STYLES".                                ',&
+'   --styles,s STYLES  Display style name(s) for "--code" option. Default        ',&
+'                      is all styles. The "test" style just streams the          ',&
+'                      UTF-8 values of the specified values. For other           ',&
+'                      allowed names ("decimal", "utf8", "c", "standard",        ',&
+'                      "htmlx", "htmld", "ucs4", "codex", "hex") see the         ',&
+'                      following section "STYLES".                               ',&
 '                                                                                ',&
 '   --box,B STYLE box style choice from set {"light","bold","double"}.           ',&
 '                 Causes pound character to be used to construct boxes           ',&
