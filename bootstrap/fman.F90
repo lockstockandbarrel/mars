@@ -19587,8 +19587,8 @@ textblock=[character(len=256) :: &
 '     of the result is the same as I unless the result size is specified by', &
 '     KIND. That is, these Fortran statements must be .true. :', &
 '', &
-'        i >= 0 .and. i < bitsize(i) ! if KIND is not specified', &
-'        i >= 0 .and. i < bitsize(0_KIND) ! if KIND is specified', &
+'        i >= 0 .and. i <= bitsize(i) ! if KIND is not specified', &
+'        i >= 0 .and. i <= bitsize(0_KIND) ! if KIND is specified', &
 '', &
 '  o  KIND : designates the kind of the integer result.', &
 '', &
@@ -19675,8 +19675,8 @@ textblock=[character(len=256) :: &
 '     kind of the result is the same as I unless the result size is specified', &
 '     by KIND. That is, these Fortran statements must be .true. :', &
 '', &
-'        i >= 0 .and. i < bitsize(i) ! if KIND is not specified', &
-'        i >= 0 .and. i < bitsize(0_KIND) ! if KIND is specified', &
+'        i >= 0 .and. i <= bitsize(i) ! if KIND is not specified', &
+'        i >= 0 .and. i <= bitsize(0_KIND) ! if KIND is specified', &
 '', &
 '  o  KIND : designates the kind of the integer result.', &
 '', &
