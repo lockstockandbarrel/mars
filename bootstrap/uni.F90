@@ -1,4 +1,57 @@
 !>>>>> build/dependencies/M_unicode/src/M_unicode.F90
+!-----------------------------------------------------------------------------------------------------------------------------------
+#ifndef __COMPILER__
+#define  __INTEL_COMP        1
+#define  __GFORTRAN_COMP     2
+#define  __NVIDIA_COMP       3
+#define  __NAG_COMP          4
+#define  __LLVM_FLANG_COMP   5
+#define  __FLANG_COMP        6
+#define  __LFORTRAN_COMP     7
+#define  __UNKNOWN_COMP   9999
+
+#define FLOAT128
+#undef  HAS_DT
+
+#ifdef __INTEL_COMPILER
+#   define __COMPILER__ __INTEL_COMP
+#   define HAS_DT
+#elif __GFORTRAN__ == 1
+#   define __COMPILER__ __GFORTRAN_COMP
+#   define HAS_DT
+#elif __FLANG
+#   undef FLOAT128
+#   warning  NOTE: FLOAT128 not supported
+#   undef HAS_DT
+#   define __COMPILER__ __FLANG_COMP
+#elif __flang__
+#   undef FLOAT128
+#   warning  NOTE: FLOAT128 not supported
+#   undef HAS_DT
+#   define __COMPILER__ __LLVM_FLANG_COMP
+#elif __NVCOMPILER
+#   undef HAS_DT
+#   undef FLOAT128
+#   warning  NOTE: FLOAT128 not supported
+#   define __COMPILER__ __NVIDIA_COMP
+#elif __NVCOMPILER_LLVM__
+#   undef FLOAT128
+#   warning  NOTE: FLOAT128 not supported
+#   define __COMPILER__ __NVIDIA_COMP
+#elif __LFORTRAN
+#   define __COMPILER__ __LFORTRAN_COMP
+#elif __NVCOMPILER
+#   undef FLOAT128
+#   warning  NOTE: FLOAT128 not supported
+#   define __COMPILER__ __NVIDIA_COMP
+#else
+#   undef FLOAT128
+#   warning  NOTE: FLOAT128 not supported
+#   define __COMPILER__ __UNKNOWN_COMP
+#   warning  NOTE: UNKNOWN COMPILER
+#endif
+#endif
+!-----------------------------------------------------------------------------------------------------------------------------------
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -27,7 +80,7 @@
 !!    underlying compiler does not yet support those intrinsics.
 !!
 !!    Overloads of assignment, logical comparisons, and concatenation using
-!!    the // operator with strings (and other types) are included as well
+!!    the // operator with strings are included as well
 !!    to make use of TYPE(UNICODE_TYPE) largely consistent with standard
 !!    CHARACTER string manipulations.
 !!
@@ -112,11 +165,13 @@
 !!
 !!     character(STRING,start,end,inc)  converts a string to type CHARACTER.
 !!
-!!     escape                           expand C-like escape strings
+!!     expand_backslash                 expand C-like escape strings
 !!     add_backslash                    replace other than printable ASCII-7
 !!                                      characters with C-like escape strings
-!!
 !!     expand_html                      expand html "&NAME;" escape strings
+!!     add_html                         replace other than printable ASCII-7
+!!                                      characters with HTML decimal codes
+!!
 !!
 !!     codepoints_to_utf8(codepoints,utf8,nerr)  subroutine to convert
 !!                                               codepoints to UTF-8 bytes
@@ -178,9 +233,9 @@
 !!    CONCATENATION
 !!
 !!    join              join elements of an array into a single string
-!!    operator(.cat.),
-!!    operator(//)      concatenate strings and/or convert intrinsics to
+!!    operator(.cat.)   concatenate strings and/or convert intrinsics to
 !!                      strings and concatenate
+!!    operator(//)      concatenate strings and character variables
 !!
 !!    SYSTEM
 !!
@@ -224,7 +279,6 @@
 !!    use M_unicode,only : tokenize, replace, character, upper, lower, len
 !!    use M_unicode,only : unicode_type, assignment(=), operator(//)
 !!    use M_unicode,only : ut => unicode_type, ch => character
-!!    use M_unicode,only : write(formatted)
 !!    type(unicode_type)             :: string
 !!    type(unicode_type)             :: numeric, uppercase, lowercase
 !!    type(unicode_type),allocatable :: array(:)
@@ -234,7 +288,7 @@
 !!    lowercase='абвгґдеєжзиіїйклмнопрстуфхцчшщьюя'
 !!    numeric='0123456789'
 !!     !
-!!     string=uppercase//numeric//lowercase
+!!     string=uppercase // numeric // lowercase
 !!     !
 !!     print all, 'Original string:'
 !!     print all, ch(string)
@@ -327,9 +381,10 @@ public :: upper
 public :: lower
 public :: reverse
 public :: expandtabs
-public :: escape
+public :: expand_backslash, escape
 public :: expand_html
 public :: add_backslash
+public :: add_html
 public :: fmt
 PUBLIC :: AFMT
 public :: replace
@@ -366,21 +421,13 @@ public :: isblank
 public :: isspace
 public :: glob
 
+#ifdef HAS_DT
 PUBLIC :: write(formatted)
+#endif
 
 ! just for use in the parent module for operator(//) and operator(.cat. )
 private  ::  concat_g_g
-private  ::  concat_u_g,          concat_g_u
-private  ::  concat_int8_g,       concat_g_int8
-private  ::  concat_int16_g,      concat_g_int16
-private  ::  concat_int32_g,      concat_g_int32
-private  ::  concat_int64_g,      concat_g_int64
-private  ::  concat_real32_g,     concat_g_real32
-private  ::  concat_real64_g,     concat_g_real64
-private  ::  concat_complex32_g,  concat_g_complex32
-private  ::  concat_complex64_g,  concat_g_complex64
-private  ::  concat_l_g,          concat_g_l
-private  ::  concat_character_g,  concat_g_character
+private  ::  concat_character_u,  concat_u_character
 
 private ::  reverse_u,  reverse_a
 private :: a2s, s2a
@@ -433,12 +480,12 @@ interface get_env
    module procedure :: get_env_aa
 end interface get_env
 
-interface escape
-   module procedure :: escape_uu
-   module procedure :: escape_ua
-   module procedure :: escape_au
-   module procedure :: escape_aa
-end interface escape
+interface expand_backslash
+   module procedure :: expand_backslash_uu
+   module procedure :: expand_backslash_ua
+   module procedure :: expand_backslash_au
+   module procedure :: expand_backslash_aa
+end interface expand_backslash
 
 interface add_border
    module procedure :: add_border_u
@@ -451,6 +498,11 @@ interface pound_to_box
    module procedure :: pound_to_box_u
    module procedure :: pound_to_box_ascii
 end interface pound_to_box
+
+interface add_html
+   module procedure :: add_html_u
+   module procedure :: add_html_ascii
+end interface add_html
 
 interface add_backslash
    module procedure :: add_backslash_u
@@ -507,6 +559,7 @@ interface glob
    module procedure :: glob_uu, glob_ua, glob_aa, glob_au
 end interface glob
 
+
 ! INTRINSIC COMPATIBILITY
 interface adjustl;   module procedure :: adjustl_str;   end interface adjustl
 interface adjustr;   module procedure :: adjustr_str;   end interface adjustr
@@ -552,22 +605,12 @@ interface operator(>=); module procedure :: lge_str_str,   lge_str_char,  lge_ch
 ! should expand the list to include additional non-default common kinds
 
 interface operator(//)
-module   procedure  ::  concat_g_u,          concat_u_g
-module   procedure  ::  concat_g_int8,       concat_int8_g
-module   procedure  ::  concat_g_int16,      concat_int16_g
-module   procedure  ::  concat_g_int32,      concat_int32_g
-module   procedure  ::  concat_g_int64,      concat_int64_g
-module   procedure  ::  concat_g_real32,     concat_real32_g
-module   procedure  ::  concat_g_real64,     concat_real64_g
-module   procedure  ::  concat_g_complex32,  concat_complex32_g
-module   procedure  ::  concat_g_complex64,  concat_complex64_g
-module   procedure  ::  concat_g_l,          concat_l_g
-!module  procedure  ::  concat_g_character,  concat_character_g
+   module procedure :: concat_u_character,  concat_character_u
+   module procedure :: concat_u_u
 end interface operator(//)
 
 interface operator(.cat.)
    module procedure :: concat_g_g
-   !module procedure :: concat_uu_
 end interface operator(.cat.)
 
 type :: unicode_type ! Unicode string type holding an arbitrary sequence of integer codes.
@@ -599,10 +642,12 @@ contains
    procedure :: upper      => oop_upper
    procedure :: lower      => oop_lower
    procedure :: reverse    => oop_reverse
-   procedure :: html       => oop_expand_html
    procedure :: expandtabs => oop_expandtabs
-   procedure :: escape     => oop_escape
-   procedure :: add_backslash        => oop_add_backslash
+   procedure :: expand_backslash  => oop_expand_backslash
+   procedure :: escape            => oop_expand_backslash  ! for backward compatibility
+   procedure :: add_backslash     => oop_add_backslash
+   procedure :: expand_html       => oop_expand_html
+   procedure :: add_html          => oop_add_html
    procedure :: fmt        => oop_fmt
 
    procedure :: sub        => oop_sub
@@ -612,10 +657,12 @@ contains
    procedure :: isascii    => oop_isascii
    procedure :: isblank    => oop_isblank
    procedure :: isspace    => oop_isspace
-   procedure :: glob       => oop_glob_u, oop_glob_a
-   ! system
-   procedure :: get_env    => oop_get_env_uu, oop_get_env_ua
    procedure :: get_arg    => oop_get_arg_iu
+   ! system
+   procedure,private :: oop_get_env_uu, oop_get_env_ua
+   generic,public    :: get_env => oop_get_env_uu, oop_get_env_ua
+   procedure,private :: oop_glob_u, oop_glob_a
+   generic,public    :: glob => oop_glob_u, oop_glob_a
 
    procedure,private :: oop_transliterate_uu, oop_transliterate_aa, oop_transliterate_au, oop_transliterate_ua
    generic, public   :: transliterate => oop_transliterate_uu, oop_transliterate_aa, oop_transliterate_au, oop_transliterate_ua
@@ -665,6 +712,13 @@ interface unicode_type
    end function new_codes
 
 end interface unicode_type
+
+type html_entities
+   character(len=31)   :: name
+   integer,allocatable :: codes(:)
+end type html_entities
+
+type(html_entities),save :: entities(2125)
 
 ! space U+0020 32 Common Basic Latin Separator, Most common (normal
 ! ASCII space)
@@ -2099,11 +2153,16 @@ type unicode_codepoints
    integer :: bom(1)=[int(z'FEFF')]
 end type unicode_codepoints
 
+! declaring these separately avoids flang bugs
+integer,parameter :: bug1(*)=[up_to_low(1:highlow,2)] ! aoccflang520 :F90-S-1221-Non-constant expression - z_a_0 where constant expression required (/app/example.f90: 2104)
+integer,parameter :: bug2(*)=[low_to_up(1:lowhigh,2)]! aoccflang520 :F90-S-1221-Non-constant expression - z_a_0 where constant expression required (/app/example.f90: 2105)
+integer,parameter :: bug3(*)=[int(z'FEFF')] ! aoccflang520 :F90-S-0069-Illegal implied DO expression (/app/example.f90: 2103)
+
 type(unicode_codepoints),parameter,public :: unicode= unicode_codepoints( &
-   upper=up_to_low(:,2), &
-   lower=low_to_up(:,2), &
-   hexadecimal=[hexchars], &
-   bom=[int(z'FEFF')], &
+   upper=bug1, &
+   lower=bug2, &
+   hexadecimal=hexchars, &
+   bom=bug3, &
    spaces=spacescodes )
 
 type :: force_keywords ! force keywords, using @awvwgk method
@@ -2115,8 +2174,2197 @@ end type force_keywords
 
 !> Write string to connected formatted unit.
 interface write(formatted);   module procedure :: write_formatted;   end interface
+!== BEGIN KEYWORD section ==========================================================================================================
+public  :: keyword
+public  :: keyword_mode
+public  :: keyword_update
 
+private :: keyword_scalar_ut
+private :: keyword_matrix_ut
+private :: keyword_scalar_utf8
+private :: keyword_matrix_utf8
+
+private :: keyword_get
+
+private :: keyword_locate   ! find PLACE in sorted character array where value can be found or should be placed
+private :: keyword_insert   ! insert entry into a sorted allocatable array at specified position
+private :: keyword_replace  ! replace entry by index from a sorted allocatable array if it is present
+private :: keyword_remove   ! delete entry by index from a sorted allocatable array if it is present
+private :: keyword_wipe_dictionary
+
+private :: keyword_load_defaults
+
+interface keyword_mode
+   module procedure keyword_mode_ut
+   module procedure keyword_mode_utf8
+end interface
+
+interface keyword
+   module procedure keyword_scalar_ut
+   module procedure keyword_matrix_ut
+   module procedure keyword_scalar_utf8
+   module procedure keyword_matrix_utf8
+end interface
+
+interface keyword_update
+   module procedure keyword_update_ut_ut
+   module procedure keyword_update_utf8_utf8
+   module procedure keyword_update_utf8_ut
+   module procedure keyword_update_ut_utf8
+   module procedure keyword_update_utf8
+   module procedure keyword_update_ut
+end interface
+
+! direct use of constant strings
+
+type(unicode_type),allocatable,save :: keywords(:)
+type(unicode_type),allocatable,save :: keyword_values(:)
+type(unicode_type),allocatable,save :: plain_keyword_values(:)
+
+character(len=:),allocatable,save   :: mode
+!== End of KEYWORD section =========================================================================================================
+! backward compatibililty
+interface escape
+   module procedure :: expand_backslash_uu
+   module procedure :: expand_backslash_ua
+   module procedure :: expand_backslash_au
+   module procedure :: expand_backslash_aa
+end interface escape
 contains
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+subroutine init_entities()
+logical,save :: virgin=.true.
+   if(virgin)then
+      virgin=.false.
+      entities(1)     =  html_entities("AElig                          ",  [198])
+      entities(2)     =  html_entities("AMP                            ",  [38])
+      entities(3)     =  html_entities("Aacute                         ",  [193])
+      entities(4)     =  html_entities("Abreve                         ",  [258])
+      entities(5)     =  html_entities("Acirc                          ",  [194])
+      entities(6)     =  html_entities("Acy                            ",  [1040])
+      entities(7)     =  html_entities("Afr                            ",  [120068])
+      entities(8)     =  html_entities("Agrave                         ",  [192])
+      entities(9)     =  html_entities("Alpha                          ",  [913])
+      entities(10)    =  html_entities("Amacr                          ",  [256])
+      entities(11)    =  html_entities("And                            ",  [10835])
+      entities(12)    =  html_entities("Aogon                          ",  [260])
+      entities(13)    =  html_entities("Aopf                           ",  [120120])
+      entities(14)    =  html_entities("ApplyFunction                  ",  [8289])
+      entities(15)    =  html_entities("Aring                          ",  [197])
+      entities(16)    =  html_entities("Ascr                           ",  [119964])
+      entities(17)    =  html_entities("Assign                         ",  [8788])
+      entities(18)    =  html_entities("Atilde                         ",  [195])
+      entities(19)    =  html_entities("Auml                           ",  [196])
+      entities(20)    =  html_entities("Backslash                      ",  [8726])
+      entities(21)    =  html_entities("Barv                           ",  [10983])
+      entities(22)    =  html_entities("Barwed                         ",  [8966])
+      entities(23)    =  html_entities("Bcy                            ",  [1041])
+      entities(24)    =  html_entities("Because                        ",  [8757])
+      entities(25)    =  html_entities("Bernoullis                     ",  [8492])
+      entities(26)    =  html_entities("Beta                           ",  [914])
+      entities(27)    =  html_entities("Bfr                            ",  [120069])
+      entities(28)    =  html_entities("Bopf                           ",  [120121])
+      entities(29)    =  html_entities("Breve                          ",  [728])
+      entities(30)    =  html_entities("Bscr                           ",  [8492])
+      entities(31)    =  html_entities("Bumpeq                         ",  [8782])
+      entities(32)    =  html_entities("CHcy                           ",  [1063])
+      entities(33)    =  html_entities("COPY                           ",  [169])
+      entities(34)    =  html_entities("Cacute                         ",  [262])
+      entities(35)    =  html_entities("Cap                            ",  [8914])
+      entities(36)    =  html_entities("CapitalDifferentialD           ",  [8517])
+      entities(37)    =  html_entities("Cayleys                        ",  [8493])
+      entities(38)    =  html_entities("Ccaron                         ",  [268])
+      entities(39)    =  html_entities("Ccedil                         ",  [199])
+      entities(40)    =  html_entities("Ccirc                          ",  [264])
+      entities(41)    =  html_entities("Cconint                        ",  [8752])
+      entities(42)    =  html_entities("Cdot                           ",  [266])
+      entities(43)    =  html_entities("Cedilla                        ",  [184])
+      entities(44)    =  html_entities("CenterDot                      ",  [183])
+      entities(45)    =  html_entities("Cfr                            ",  [8493])
+      entities(46)    =  html_entities("Chi                            ",  [935])
+      entities(47)    =  html_entities("CircleDot                      ",  [8857])
+      entities(48)    =  html_entities("CircleMinus                    ",  [8854])
+      entities(49)    =  html_entities("CirclePlus                     ",  [8853])
+      entities(50)    =  html_entities("CircleTimes                    ",  [8855])
+      entities(51)    =  html_entities("ClockwiseContourIntegral       ",  [8754])
+      entities(52)    =  html_entities("CloseCurlyDoubleQuote          ",  [8221])
+      entities(53)    =  html_entities("CloseCurlyQuote                ",  [8217])
+      entities(54)    =  html_entities("Colon                          ",  [8759])
+      entities(55)    =  html_entities("Colone                         ",  [10868])
+      entities(56)    =  html_entities("Congruent                      ",  [8801])
+      entities(57)    =  html_entities("Conint                         ",  [8751])
+      entities(58)    =  html_entities("ContourIntegral                ",  [8750])
+      entities(59)    =  html_entities("Copf                           ",  [8450])
+      entities(60)    =  html_entities("Coproduct                      ",  [8720])
+      entities(61)    =  html_entities("CounterClockwiseContourIntegral",  [8755])
+      entities(62)    =  html_entities("Cross                          ",  [10799])
+      entities(63)    =  html_entities("Cscr                           ",  [119966])
+      entities(64)    =  html_entities("Cup                            ",  [8915])
+      entities(65)    =  html_entities("CupCap                         ",  [8781])
+      entities(66)    =  html_entities("DD                             ",  [8517])
+      entities(67)    =  html_entities("DDotrahd                       ",  [10513])
+      entities(68)    =  html_entities("DJcy                           ",  [1026])
+      entities(69)    =  html_entities("DScy                           ",  [1029])
+      entities(70)    =  html_entities("DZcy                           ",  [1039])
+      entities(71)    =  html_entities("Dagger                         ",  [8225])
+      entities(72)    =  html_entities("Darr                           ",  [8609])
+      entities(73)    =  html_entities("Dashv                          ",  [10980])
+      entities(74)    =  html_entities("Dcaron                         ",  [270])
+      entities(75)    =  html_entities("Dcy                            ",  [1044])
+      entities(76)    =  html_entities("Del                            ",  [8711])
+      entities(77)    =  html_entities("Delta                          ",  [916])
+      entities(78)    =  html_entities("Dfr                            ",  [120071])
+      entities(79)    =  html_entities("DiacriticalAcute               ",  [180])
+      entities(80)    =  html_entities("DiacriticalDot                 ",  [729])
+      entities(81)    =  html_entities("DiacriticalDoubleAcute         ",  [733])
+      entities(82)    =  html_entities("DiacriticalGrave               ",  [96])
+      entities(83)    =  html_entities("DiacriticalTilde               ",  [732])
+      entities(84)    =  html_entities("Diamond                        ",  [8900])
+      entities(85)    =  html_entities("DifferentialD                  ",  [8518])
+      entities(86)    =  html_entities("Dopf                           ",  [120123])
+      entities(87)    =  html_entities("Dot                            ",  [168])
+      entities(88)    =  html_entities("DotDot                         ",  [8412])
+      entities(89)    =  html_entities("DotEqual                       ",  [8784])
+      entities(90)    =  html_entities("DoubleContourIntegral          ",  [8751])
+      entities(91)    =  html_entities("DoubleDot                      ",  [168])
+      entities(92)    =  html_entities("DoubleDownArrow                ",  [8659])
+      entities(93)    =  html_entities("DoubleLeftArrow                ",  [8656])
+      entities(94)    =  html_entities("DoubleLeftRightArrow           ",  [8660])
+      entities(95)    =  html_entities("DoubleLeftTee                  ",  [10980])
+      entities(96)    =  html_entities("DoubleLongLeftArrow            ",  [10232])
+      entities(97)    =  html_entities("DoubleLongLeftRightArrow       ",  [10234])
+      entities(98)    =  html_entities("DoubleLongRightArrow           ",  [10233])
+      entities(99)    =  html_entities("DoubleRightArrow               ",  [8658])
+      entities(100)   =  html_entities("DoubleRightTee                 ",  [8872])
+      entities(101)   =  html_entities("DoubleUpArrow                  ",  [8657])
+      entities(102)   =  html_entities("DoubleUpDownArrow              ",  [8661])
+      entities(103)   =  html_entities("DoubleVerticalBar              ",  [8741])
+      entities(104)   =  html_entities("DownArrow                      ",  [8595])
+      entities(105)   =  html_entities("DownArrowBar                   ",  [10515])
+      entities(106)   =  html_entities("DownArrowUpArrow               ",  [8693])
+      entities(107)   =  html_entities("DownBreve                      ",  [785])
+      entities(108)   =  html_entities("DownLeftRightVector            ",  [10576])
+      entities(109)   =  html_entities("DownLeftTeeVector              ",  [10590])
+      entities(110)   =  html_entities("DownLeftVector                 ",  [8637])
+      entities(111)   =  html_entities("DownLeftVectorBar              ",  [10582])
+      entities(112)   =  html_entities("DownRightTeeVector             ",  [10591])
+      entities(113)   =  html_entities("DownRightVector                ",  [8641])
+      entities(114)   =  html_entities("DownRightVectorBar             ",  [10583])
+      entities(115)   =  html_entities("DownTee                        ",  [8868])
+      entities(116)   =  html_entities("DownTeeArrow                   ",  [8615])
+      entities(117)   =  html_entities("Downarrow                      ",  [8659])
+      entities(118)   =  html_entities("Dscr                           ",  [119967])
+      entities(119)   =  html_entities("Dstrok                         ",  [272])
+      entities(120)   =  html_entities("ENG                            ",  [330])
+      entities(121)   =  html_entities("ETH                            ",  [208])
+      entities(122)   =  html_entities("Eacute                         ",  [201])
+      entities(123)   =  html_entities("Ecaron                         ",  [282])
+      entities(124)   =  html_entities("Ecirc                          ",  [202])
+      entities(125)   =  html_entities("Ecy                            ",  [1069])
+      entities(126)   =  html_entities("Edot                           ",  [278])
+      entities(127)   =  html_entities("Efr                            ",  [120072])
+      entities(128)   =  html_entities("Egrave                         ",  [200])
+      entities(129)   =  html_entities("Element                        ",  [8712])
+      entities(130)   =  html_entities("Emacr                          ",  [274])
+      entities(131)   =  html_entities("EmptySmallSquare               ",  [9723])
+      entities(132)   =  html_entities("EmptyVerySmallSquare           ",  [9643])
+      entities(133)   =  html_entities("Eogon                          ",  [280])
+      entities(134)   =  html_entities("Eopf                           ",  [120124])
+      entities(135)   =  html_entities("Epsilon                        ",  [917])
+      entities(136)   =  html_entities("Equal                          ",  [10869])
+      entities(137)   =  html_entities("EqualTilde                     ",  [8770])
+      entities(138)   =  html_entities("Equilibrium                    ",  [8652])
+      entities(139)   =  html_entities("Escr                           ",  [8496])
+      entities(140)   =  html_entities("Esim                           ",  [10867])
+      entities(141)   =  html_entities("Eta                            ",  [919])
+      entities(142)   =  html_entities("Euml                           ",  [203])
+      entities(143)   =  html_entities("Exists                         ",  [8707])
+      entities(144)   =  html_entities("ExponentialE                   ",  [8519])
+      entities(145)   =  html_entities("Fcy                            ",  [1060])
+      entities(146)   =  html_entities("Ffr                            ",  [120073])
+      entities(147)   =  html_entities("FilledSmallSquare              ",  [9724])
+      entities(148)   =  html_entities("FilledVerySmallSquare          ",  [9642])
+      entities(149)   =  html_entities("Fopf                           ",  [120125])
+      entities(150)   =  html_entities("ForAll                         ",  [8704])
+      entities(151)   =  html_entities("Fouriertrf                     ",  [8497])
+      entities(152)   =  html_entities("Fscr                           ",  [8497])
+      entities(153)   =  html_entities("GJcy                           ",  [1027])
+      entities(154)   =  html_entities("GT                             ",  [62])
+      entities(155)   =  html_entities("Gamma                          ",  [915])
+      entities(156)   =  html_entities("Gammad                         ",  [988])
+      entities(157)   =  html_entities("Gbreve                         ",  [286])
+      entities(158)   =  html_entities("Gcedil                         ",  [290])
+      entities(159)   =  html_entities("Gcirc                          ",  [284])
+      entities(160)   =  html_entities("Gcy                            ",  [1043])
+      entities(161)   =  html_entities("Gdot                           ",  [288])
+      entities(162)   =  html_entities("Gfr                            ",  [120074])
+      entities(163)   =  html_entities("Gg                             ",  [8921])
+      entities(164)   =  html_entities("Gopf                           ",  [120126])
+      entities(165)   =  html_entities("GreaterEqual                   ",  [8805])
+      entities(166)   =  html_entities("GreaterEqualLess               ",  [8923])
+      entities(167)   =  html_entities("GreaterFullEqual               ",  [8807])
+      entities(168)   =  html_entities("GreaterGreater                 ",  [10914])
+      entities(169)   =  html_entities("GreaterLess                    ",  [8823])
+      entities(170)   =  html_entities("GreaterSlantEqual              ",  [10878])
+      entities(171)   =  html_entities("GreaterTilde                   ",  [8819])
+      entities(172)   =  html_entities("Gscr                           ",  [119970])
+      entities(173)   =  html_entities("Gt                             ",  [8811])
+      entities(174)   =  html_entities("HARDcy                         ",  [1066])
+      entities(175)   =  html_entities("Hacek                          ",  [711])
+      entities(176)   =  html_entities("Hat                            ",  [94])
+      entities(177)   =  html_entities("Hcirc                          ",  [292])
+      entities(178)   =  html_entities("Hfr                            ",  [8460])
+      entities(179)   =  html_entities("HilbertSpace                   ",  [8459])
+      entities(180)   =  html_entities("Hopf                           ",  [8461])
+      entities(181)   =  html_entities("HorizontalLine                 ",  [9472])
+      entities(182)   =  html_entities("Hscr                           ",  [8459])
+      entities(183)   =  html_entities("Hstrok                         ",  [294])
+      entities(184)   =  html_entities("HumpDownHump                   ",  [8782])
+      entities(185)   =  html_entities("HumpEqual                      ",  [8783])
+      entities(186)   =  html_entities("IEcy                           ",  [1045])
+      entities(187)   =  html_entities("IJlig                          ",  [306])
+      entities(188)   =  html_entities("IOcy                           ",  [1025])
+      entities(189)   =  html_entities("Iacute                         ",  [205])
+      entities(190)   =  html_entities("Icirc                          ",  [206])
+      entities(191)   =  html_entities("Icy                            ",  [1048])
+      entities(192)   =  html_entities("Idot                           ",  [304])
+      entities(193)   =  html_entities("Ifr                            ",  [8465])
+      entities(194)   =  html_entities("Igrave                         ",  [204])
+      entities(195)   =  html_entities("Im                             ",  [8465])
+      entities(196)   =  html_entities("Imacr                          ",  [298])
+      entities(197)   =  html_entities("ImaginaryI                     ",  [8520])
+      entities(198)   =  html_entities("Implies                        ",  [8658])
+      entities(199)   =  html_entities("Int                            ",  [8748])
+      entities(200)   =  html_entities("Integral                       ",  [8747])
+      entities(201)   =  html_entities("Intersection                   ",  [8898])
+      entities(202)   =  html_entities("InvisibleComma                 ",  [8291])
+      entities(203)   =  html_entities("InvisibleTimes                 ",  [8290])
+      entities(204)   =  html_entities("Iogon                          ",  [302])
+      entities(205)   =  html_entities("Iopf                           ",  [120128])
+      entities(206)   =  html_entities("Iota                           ",  [921])
+      entities(207)   =  html_entities("Iscr                           ",  [8464])
+      entities(208)   =  html_entities("Itilde                         ",  [296])
+      entities(209)   =  html_entities("Iukcy                          ",  [1030])
+      entities(210)   =  html_entities("Iuml                           ",  [207])
+      entities(211)   =  html_entities("Jcirc                          ",  [308])
+      entities(212)   =  html_entities("Jcy                            ",  [1049])
+      entities(213)   =  html_entities("Jfr                            ",  [120077])
+      entities(214)   =  html_entities("Jopf                           ",  [120129])
+      entities(215)   =  html_entities("Jscr                           ",  [119973])
+      entities(216)   =  html_entities("Jsercy                         ",  [1032])
+      entities(217)   =  html_entities("Jukcy                          ",  [1028])
+      entities(218)   =  html_entities("KHcy                           ",  [1061])
+      entities(219)   =  html_entities("KJcy                           ",  [1036])
+      entities(220)   =  html_entities("Kappa                          ",  [922])
+      entities(221)   =  html_entities("Kcedil                         ",  [310])
+      entities(222)   =  html_entities("Kcy                            ",  [1050])
+      entities(223)   =  html_entities("Kfr                            ",  [120078])
+      entities(224)   =  html_entities("Kopf                           ",  [120130])
+      entities(225)   =  html_entities("Kscr                           ",  [119974])
+      entities(226)   =  html_entities("LJcy                           ",  [1033])
+      entities(227)   =  html_entities("LT                             ",  [60])
+      entities(228)   =  html_entities("Lacute                         ",  [313])
+      entities(229)   =  html_entities("Lambda                         ",  [923])
+      entities(230)   =  html_entities("Lang                           ",  [10218])
+      entities(231)   =  html_entities("Laplacetrf                     ",  [8466])
+      entities(232)   =  html_entities("Larr                           ",  [8606])
+      entities(233)   =  html_entities("Lcaron                         ",  [317])
+      entities(234)   =  html_entities("Lcedil                         ",  [315])
+      entities(235)   =  html_entities("Lcy                            ",  [1051])
+      entities(236)   =  html_entities("LeftAngleBracket               ",  [10216])
+      entities(237)   =  html_entities("LeftArrow                      ",  [8592])
+      entities(238)   =  html_entities("LeftArrowBar                   ",  [8676])
+      entities(239)   =  html_entities("LeftArrowRightArrow            ",  [8646])
+      entities(240)   =  html_entities("LeftCeiling                    ",  [8968])
+      entities(241)   =  html_entities("LeftDoubleBracket              ",  [10214])
+      entities(242)   =  html_entities("LeftDownTeeVector              ",  [10593])
+      entities(243)   =  html_entities("LeftDownVector                 ",  [8643])
+      entities(244)   =  html_entities("LeftDownVectorBar              ",  [10585])
+      entities(245)   =  html_entities("LeftFloor                      ",  [8970])
+      entities(246)   =  html_entities("LeftRightArrow                 ",  [8596])
+      entities(247)   =  html_entities("LeftRightVector                ",  [10574])
+      entities(248)   =  html_entities("LeftTee                        ",  [8867])
+      entities(249)   =  html_entities("LeftTeeArrow                   ",  [8612])
+      entities(250)   =  html_entities("LeftTeeVector                  ",  [10586])
+      entities(251)   =  html_entities("LeftTriangle                   ",  [8882])
+      entities(252)   =  html_entities("LeftTriangleBar                ",  [10703])
+      entities(253)   =  html_entities("LeftTriangleEqual              ",  [8884])
+      entities(254)   =  html_entities("LeftUpDownVector               ",  [10577])
+      entities(255)   =  html_entities("LeftUpTeeVector                ",  [10592])
+      entities(256)   =  html_entities("LeftUpVector                   ",  [8639])
+      entities(257)   =  html_entities("LeftUpVectorBar                ",  [10584])
+      entities(258)   =  html_entities("LeftVector                     ",  [8636])
+      entities(259)   =  html_entities("LeftVectorBar                  ",  [10578])
+      entities(260)   =  html_entities("Leftarrow                      ",  [8656])
+      entities(261)   =  html_entities("Leftrightarrow                 ",  [8660])
+      entities(262)   =  html_entities("LessEqualGreater               ",  [8922])
+      entities(263)   =  html_entities("LessFullEqual                  ",  [8806])
+      entities(264)   =  html_entities("LessGreater                    ",  [8822])
+      entities(265)   =  html_entities("LessLess                       ",  [10913])
+      entities(266)   =  html_entities("LessSlantEqual                 ",  [10877])
+      entities(267)   =  html_entities("LessTilde                      ",  [8818])
+      entities(268)   =  html_entities("Lfr                            ",  [120079])
+      entities(269)   =  html_entities("Ll                             ",  [8920])
+      entities(270)   =  html_entities("Lleftarrow                     ",  [8666])
+      entities(271)   =  html_entities("Lmidot                         ",  [319])
+      entities(272)   =  html_entities("LongLeftArrow                  ",  [10229])
+      entities(273)   =  html_entities("LongLeftRightArrow             ",  [10231])
+      entities(274)   =  html_entities("LongRightArrow                 ",  [10230])
+      entities(275)   =  html_entities("Longleftarrow                  ",  [10232])
+      entities(276)   =  html_entities("Longleftrightarrow             ",  [10234])
+      entities(277)   =  html_entities("Longrightarrow                 ",  [10233])
+      entities(278)   =  html_entities("Lopf                           ",  [120131])
+      entities(279)   =  html_entities("LowerLeftArrow                 ",  [8601])
+      entities(280)   =  html_entities("LowerRightArrow                ",  [8600])
+      entities(281)   =  html_entities("Lscr                           ",  [8466])
+      entities(282)   =  html_entities("Lsh                            ",  [8624])
+      entities(283)   =  html_entities("Lstrok                         ",  [321])
+      entities(284)   =  html_entities("Lt                             ",  [8810])
+      entities(285)   =  html_entities("Map                            ",  [10501])
+      entities(286)   =  html_entities("Mcy                            ",  [1052])
+      entities(287)   =  html_entities("MediumSpace                    ",  [8287])
+      entities(288)   =  html_entities("Mellintrf                      ",  [8499])
+      entities(289)   =  html_entities("Mfr                            ",  [120080])
+      entities(290)   =  html_entities("MinusPlus                      ",  [8723])
+      entities(291)   =  html_entities("Mopf                           ",  [120132])
+      entities(292)   =  html_entities("Mscr                           ",  [8499])
+      entities(293)   =  html_entities("Mu                             ",  [924])
+      entities(294)   =  html_entities("NJcy                           ",  [1034])
+      entities(295)   =  html_entities("Nacute                         ",  [323])
+      entities(296)   =  html_entities("Ncaron                         ",  [327])
+      entities(297)   =  html_entities("Ncedil                         ",  [325])
+      entities(298)   =  html_entities("Ncy                            ",  [1053])
+      entities(299)   =  html_entities("NegativeMediumSpace            ",  [8203])
+      entities(300)   =  html_entities("NegativeThickSpace             ",  [8203])
+      entities(301)   =  html_entities("NegativeThinSpace              ",  [8203])
+      entities(302)   =  html_entities("NegativeVeryThinSpace          ",  [8203])
+      entities(303)   =  html_entities("NestedGreaterGreater           ",  [8811])
+      entities(304)   =  html_entities("NestedLessLess                 ",  [8810])
+      entities(305)   =  html_entities("NewLine                        ",  [10])
+      entities(306)   =  html_entities("Nfr                            ",  [120081])
+      entities(307)   =  html_entities("NoBreak                        ",  [8288])
+      entities(308)   =  html_entities("NonBreakingSpace               ",  [160])
+      entities(309)   =  html_entities("Nopf                           ",  [8469])
+      entities(310)   =  html_entities("Not                            ",  [10988])
+      entities(311)   =  html_entities("NotCongruent                   ",  [8802])
+      entities(312)   =  html_entities("NotCupCap                      ",  [8813])
+      entities(313)   =  html_entities("NotDoubleVerticalBar           ",  [8742])
+      entities(314)   =  html_entities("NotElement                     ",  [8713])
+      entities(315)   =  html_entities("NotEqual                       ",  [8800])
+      entities(316)   =  html_entities("NotEqualTilde                  ",  [8770,     824])
+      entities(317)   =  html_entities("NotExists                      ",  [8708])
+      entities(318)   =  html_entities("NotGreater                     ",  [8815])
+      entities(319)   =  html_entities("NotGreaterEqual                ",  [8817])
+      entities(320)   =  html_entities("NotGreaterFullEqual            ",  [8807,     824])
+      entities(321)   =  html_entities("NotGreaterGreater              ",  [8811,     824])
+      entities(322)   =  html_entities("NotGreaterLess                 ",  [8825])
+      entities(323)   =  html_entities("NotGreaterSlantEqual           ",  [10878,    824])
+      entities(324)   =  html_entities("NotGreaterTilde                ",  [8821])
+      entities(325)   =  html_entities("NotHumpDownHump                ",  [8782,     824])
+      entities(326)   =  html_entities("NotHumpEqual                   ",  [8783,     824])
+      entities(327)   =  html_entities("NotLeftTriangle                ",  [8938])
+      entities(328)   =  html_entities("NotLeftTriangleBar             ",  [10703,    824])
+      entities(329)   =  html_entities("NotLeftTriangleEqual           ",  [8940])
+      entities(330)   =  html_entities("NotLess                        ",  [8814])
+      entities(331)   =  html_entities("NotLessEqual                   ",  [8816])
+      entities(332)   =  html_entities("NotLessGreater                 ",  [8824])
+      entities(333)   =  html_entities("NotLessLess                    ",  [8810,     824])
+      entities(334)   =  html_entities("NotLessSlantEqual              ",  [10877,    824])
+      entities(335)   =  html_entities("NotLessTilde                   ",  [8820])
+      entities(336)   =  html_entities("NotNestedGreaterGreater        ",  [10914,    824])
+      entities(337)   =  html_entities("NotNestedLessLess              ",  [10913,    824])
+      entities(338)   =  html_entities("NotPrecedes                    ",  [8832])
+      entities(339)   =  html_entities("NotPrecedesEqual               ",  [10927,    824])
+      entities(340)   =  html_entities("NotPrecedesSlantEqual          ",  [8928])
+      entities(341)   =  html_entities("NotReverseElement              ",  [8716])
+      entities(342)   =  html_entities("NotRightTriangle               ",  [8939])
+      entities(343)   =  html_entities("NotRightTriangleBar            ",  [10704,    824])
+      entities(344)   =  html_entities("NotRightTriangleEqual          ",  [8941])
+      entities(345)   =  html_entities("NotSquareSubset                ",  [8847,     824])
+      entities(346)   =  html_entities("NotSquareSubsetEqual           ",  [8930])
+      entities(347)   =  html_entities("NotSquareSuperset              ",  [8848,     824])
+      entities(348)   =  html_entities("NotSquareSupersetEqual         ",  [8931])
+      entities(349)   =  html_entities("NotSubset                      ",  [8834,     8402])
+      entities(350)   =  html_entities("NotSubsetEqual                 ",  [8840])
+      entities(351)   =  html_entities("NotSucceeds                    ",  [8833])
+      entities(352)   =  html_entities("NotSucceedsEqual               ",  [10928,    824])
+      entities(353)   =  html_entities("NotSucceedsSlantEqual          ",  [8929])
+      entities(354)   =  html_entities("NotSucceedsTilde               ",  [8831,     824])
+      entities(355)   =  html_entities("NotSuperset                    ",  [8835,     8402])
+      entities(356)   =  html_entities("NotSupersetEqual               ",  [8841])
+      entities(357)   =  html_entities("NotTilde                       ",  [8769])
+      entities(358)   =  html_entities("NotTildeEqual                  ",  [8772])
+      entities(359)   =  html_entities("NotTildeFullEqual              ",  [8775])
+      entities(360)   =  html_entities("NotTildeTilde                  ",  [8777])
+      entities(361)   =  html_entities("NotVerticalBar                 ",  [8740])
+      entities(362)   =  html_entities("Nscr                           ",  [119977])
+      entities(363)   =  html_entities("Ntilde                         ",  [209])
+      entities(364)   =  html_entities("Nu                             ",  [925])
+      entities(365)   =  html_entities("OElig                          ",  [338])
+      entities(366)   =  html_entities("Oacute                         ",  [211])
+      entities(367)   =  html_entities("Ocirc                          ",  [212])
+      entities(368)   =  html_entities("Ocy                            ",  [1054])
+      entities(369)   =  html_entities("Odblac                         ",  [336])
+      entities(370)   =  html_entities("Ofr                            ",  [120082])
+      entities(371)   =  html_entities("Ograve                         ",  [210])
+      entities(372)   =  html_entities("Omacr                          ",  [332])
+      entities(373)   =  html_entities("Omega                          ",  [937])
+      entities(374)   =  html_entities("Omicron                        ",  [927])
+      entities(375)   =  html_entities("Oopf                           ",  [120134])
+      entities(376)   =  html_entities("OpenCurlyDoubleQuote           ",  [8220])
+      entities(377)   =  html_entities("OpenCurlyQuote                 ",  [8216])
+      entities(378)   =  html_entities("Or                             ",  [10836])
+      entities(379)   =  html_entities("Oscr                           ",  [119978])
+      entities(380)   =  html_entities("Oslash                         ",  [216])
+      entities(381)   =  html_entities("Otilde                         ",  [213])
+      entities(382)   =  html_entities("Otimes                         ",  [10807])
+      entities(383)   =  html_entities("Ouml                           ",  [214])
+      entities(384)   =  html_entities("OverBar                        ",  [8254])
+      entities(385)   =  html_entities("OverBrace                      ",  [9182])
+      entities(386)   =  html_entities("OverBracket                    ",  [9140])
+      entities(387)   =  html_entities("OverParenthesis                ",  [9180])
+      entities(388)   =  html_entities("PartialD                       ",  [8706])
+      entities(389)   =  html_entities("Pcy                            ",  [1055])
+      entities(390)   =  html_entities("Pfr                            ",  [120083])
+      entities(391)   =  html_entities("Phi                            ",  [934])
+      entities(392)   =  html_entities("Pi                             ",  [928])
+      entities(393)   =  html_entities("PlusMinus                      ",  [177])
+      entities(394)   =  html_entities("Poincareplane                  ",  [8460])
+      entities(395)   =  html_entities("Popf                           ",  [8473])
+      entities(396)   =  html_entities("Pr                             ",  [10939])
+      entities(397)   =  html_entities("Precedes                       ",  [8826])
+      entities(398)   =  html_entities("PrecedesEqual                  ",  [10927])
+      entities(399)   =  html_entities("PrecedesSlantEqual             ",  [8828])
+      entities(400)   =  html_entities("PrecedesTilde                  ",  [8830])
+      entities(401)   =  html_entities("Prime                          ",  [8243])
+      entities(402)   =  html_entities("Product                        ",  [8719])
+      entities(403)   =  html_entities("Proportion                     ",  [8759])
+      entities(404)   =  html_entities("Proportional                   ",  [8733])
+      entities(405)   =  html_entities("Pscr                           ",  [119979])
+      entities(406)   =  html_entities("Psi                            ",  [936])
+      entities(407)   =  html_entities("QUOT                           ",  [34])
+      entities(408)   =  html_entities("Qfr                            ",  [120084])
+      entities(409)   =  html_entities("Qopf                           ",  [8474])
+      entities(410)   =  html_entities("Qscr                           ",  [119980])
+      entities(411)   =  html_entities("RBarr                          ",  [10512])
+      entities(412)   =  html_entities("REG                            ",  [174])
+      entities(413)   =  html_entities("Racute                         ",  [340])
+      entities(414)   =  html_entities("Rang                           ",  [10219])
+      entities(415)   =  html_entities("Rarr                           ",  [8608])
+      entities(416)   =  html_entities("Rarrtl                         ",  [10518])
+      entities(417)   =  html_entities("Rcaron                         ",  [344])
+      entities(418)   =  html_entities("Rcedil                         ",  [342])
+      entities(419)   =  html_entities("Rcy                            ",  [1056])
+      entities(420)   =  html_entities("Re                             ",  [8476])
+      entities(421)   =  html_entities("ReverseElement                 ",  [8715])
+      entities(422)   =  html_entities("ReverseEquilibrium             ",  [8651])
+      entities(423)   =  html_entities("ReverseUpEquilibrium           ",  [10607])
+      entities(424)   =  html_entities("Rfr                            ",  [8476])
+      entities(425)   =  html_entities("Rho                            ",  [929])
+      entities(426)   =  html_entities("RightAngleBracket              ",  [10217])
+      entities(427)   =  html_entities("RightArrow                     ",  [8594])
+      entities(428)   =  html_entities("RightArrowBar                  ",  [8677])
+      entities(429)   =  html_entities("RightArrowLeftArrow            ",  [8644])
+      entities(430)   =  html_entities("RightCeiling                   ",  [8969])
+      entities(431)   =  html_entities("RightDoubleBracket             ",  [10215])
+      entities(432)   =  html_entities("RightDownTeeVector             ",  [10589])
+      entities(433)   =  html_entities("RightDownVector                ",  [8642])
+      entities(434)   =  html_entities("RightDownVectorBar             ",  [10581])
+      entities(435)   =  html_entities("RightFloor                     ",  [8971])
+      entities(436)   =  html_entities("RightTee                       ",  [8866])
+      entities(437)   =  html_entities("RightTeeArrow                  ",  [8614])
+      entities(438)   =  html_entities("RightTeeVector                 ",  [10587])
+      entities(439)   =  html_entities("RightTriangle                  ",  [8883])
+      entities(440)   =  html_entities("RightTriangleBar               ",  [10704])
+      entities(441)   =  html_entities("RightTriangleEqual             ",  [8885])
+      entities(442)   =  html_entities("RightUpDownVector              ",  [10575])
+      entities(443)   =  html_entities("RightUpTeeVector               ",  [10588])
+      entities(444)   =  html_entities("RightUpVector                  ",  [8638])
+      entities(445)   =  html_entities("RightUpVectorBar               ",  [10580])
+      entities(446)   =  html_entities("RightVector                    ",  [8640])
+      entities(447)   =  html_entities("RightVectorBar                 ",  [10579])
+      entities(448)   =  html_entities("Rightarrow                     ",  [8658])
+      entities(449)   =  html_entities("Ropf                           ",  [8477])
+      entities(450)   =  html_entities("RoundImplies                   ",  [10608])
+      entities(451)   =  html_entities("Rrightarrow                    ",  [8667])
+      entities(452)   =  html_entities("Rscr                           ",  [8475])
+      entities(453)   =  html_entities("Rsh                            ",  [8625])
+      entities(454)   =  html_entities("RuleDelayed                    ",  [10740])
+      entities(455)   =  html_entities("SHCHcy                         ",  [1065])
+      entities(456)   =  html_entities("SHcy                           ",  [1064])
+      entities(457)   =  html_entities("SOFTcy                         ",  [1068])
+      entities(458)   =  html_entities("Sacute                         ",  [346])
+      entities(459)   =  html_entities("Sc                             ",  [10940])
+      entities(460)   =  html_entities("Scaron                         ",  [352])
+      entities(461)   =  html_entities("Scedil                         ",  [350])
+      entities(462)   =  html_entities("Scirc                          ",  [348])
+      entities(463)   =  html_entities("Scy                            ",  [1057])
+      entities(464)   =  html_entities("Sfr                            ",  [120086])
+      entities(465)   =  html_entities("ShortDownArrow                 ",  [8595])
+      entities(466)   =  html_entities("ShortLeftArrow                 ",  [8592])
+      entities(467)   =  html_entities("ShortRightArrow                ",  [8594])
+      entities(468)   =  html_entities("ShortUpArrow                   ",  [8593])
+      entities(469)   =  html_entities("Sigma                          ",  [931])
+      entities(470)   =  html_entities("SmallCircle                    ",  [8728])
+      entities(471)   =  html_entities("Sopf                           ",  [120138])
+      entities(472)   =  html_entities("Sqrt                           ",  [8730])
+      entities(473)   =  html_entities("Square                         ",  [9633])
+      entities(474)   =  html_entities("SquareIntersection             ",  [8851])
+      entities(475)   =  html_entities("SquareSubset                   ",  [8847])
+      entities(476)   =  html_entities("SquareSubsetEqual              ",  [8849])
+      entities(477)   =  html_entities("SquareSuperset                 ",  [8848])
+      entities(478)   =  html_entities("SquareSupersetEqual            ",  [8850])
+      entities(479)   =  html_entities("SquareUnion                    ",  [8852])
+      entities(480)   =  html_entities("Sscr                           ",  [119982])
+      entities(481)   =  html_entities("Star                           ",  [8902])
+      entities(482)   =  html_entities("Sub                            ",  [8912])
+      entities(483)   =  html_entities("Subset                         ",  [8912])
+      entities(484)   =  html_entities("SubsetEqual                    ",  [8838])
+      entities(485)   =  html_entities("Succeeds                       ",  [8827])
+      entities(486)   =  html_entities("SucceedsEqual                  ",  [10928])
+      entities(487)   =  html_entities("SucceedsSlantEqual             ",  [8829])
+      entities(488)   =  html_entities("SucceedsTilde                  ",  [8831])
+      entities(489)   =  html_entities("SuchThat                       ",  [8715])
+      entities(490)   =  html_entities("Sum                            ",  [8721])
+      entities(491)   =  html_entities("Sup                            ",  [8913])
+      entities(492)   =  html_entities("Superset                       ",  [8835])
+      entities(493)   =  html_entities("SupersetEqual                  ",  [8839])
+      entities(494)   =  html_entities("Supset                         ",  [8913])
+      entities(495)   =  html_entities("THORN                          ",  [222])
+      entities(496)   =  html_entities("TRADE                          ",  [8482])
+      entities(497)   =  html_entities("TSHcy                          ",  [1035])
+      entities(498)   =  html_entities("TScy                           ",  [1062])
+      entities(499)   =  html_entities("Tab                            ",  [9])
+      entities(500)   =  html_entities("Tau                            ",  [932])
+      entities(501)   =  html_entities("Tcaron                         ",  [356])
+      entities(502)   =  html_entities("Tcedil                         ",  [354])
+      entities(503)   =  html_entities("Tcy                            ",  [1058])
+      entities(504)   =  html_entities("Tfr                            ",  [120087])
+      entities(505)   =  html_entities("Therefore                      ",  [8756])
+      entities(506)   =  html_entities("Theta                          ",  [920])
+      entities(507)   =  html_entities("ThickSpace                     ",  [8287,     8202])
+      entities(508)   =  html_entities("ThinSpace                      ",  [8201])
+      entities(509)   =  html_entities("Tilde                          ",  [8764])
+      entities(510)   =  html_entities("TildeEqual                     ",  [8771])
+      entities(511)   =  html_entities("TildeFullEqual                 ",  [8773])
+      entities(512)   =  html_entities("TildeTilde                     ",  [8776])
+      entities(513)   =  html_entities("Topf                           ",  [120139])
+      entities(514)   =  html_entities("TripleDot                      ",  [8411])
+      entities(515)   =  html_entities("Tscr                           ",  [119983])
+      entities(516)   =  html_entities("Tstrok                         ",  [358])
+      entities(517)   =  html_entities("Uacute                         ",  [218])
+      entities(518)   =  html_entities("Uarr                           ",  [8607])
+      entities(519)   =  html_entities("Uarrocir                       ",  [10569])
+      entities(520)   =  html_entities("Ubrcy                          ",  [1038])
+      entities(521)   =  html_entities("Ubreve                         ",  [364])
+      entities(522)   =  html_entities("Ucirc                          ",  [219])
+      entities(523)   =  html_entities("Ucy                            ",  [1059])
+      entities(524)   =  html_entities("Udblac                         ",  [368])
+      entities(525)   =  html_entities("Ufr                            ",  [120088])
+      entities(526)   =  html_entities("Ugrave                         ",  [217])
+      entities(527)   =  html_entities("Umacr                          ",  [362])
+      entities(528)   =  html_entities("UnderBar                       ",  [95])
+      entities(529)   =  html_entities("UnderBrace                     ",  [9183])
+      entities(530)   =  html_entities("UnderBracket                   ",  [9141])
+      entities(531)   =  html_entities("UnderParenthesis               ",  [9181])
+      entities(532)   =  html_entities("Union                          ",  [8899])
+      entities(533)   =  html_entities("UnionPlus                      ",  [8846])
+      entities(534)   =  html_entities("Uogon                          ",  [370])
+      entities(535)   =  html_entities("Uopf                           ",  [120140])
+      entities(536)   =  html_entities("UpArrow                        ",  [8593])
+      entities(537)   =  html_entities("UpArrowBar                     ",  [10514])
+      entities(538)   =  html_entities("UpArrowDownArrow               ",  [8645])
+      entities(539)   =  html_entities("UpDownArrow                    ",  [8597])
+      entities(540)   =  html_entities("UpEquilibrium                  ",  [10606])
+      entities(541)   =  html_entities("UpTee                          ",  [8869])
+      entities(542)   =  html_entities("UpTeeArrow                     ",  [8613])
+      entities(543)   =  html_entities("Uparrow                        ",  [8657])
+      entities(544)   =  html_entities("Updownarrow                    ",  [8661])
+      entities(545)   =  html_entities("UpperLeftArrow                 ",  [8598])
+      entities(546)   =  html_entities("UpperRightArrow                ",  [8599])
+      entities(547)   =  html_entities("Upsi                           ",  [978])
+      entities(548)   =  html_entities("Upsilon                        ",  [933])
+      entities(549)   =  html_entities("Uring                          ",  [366])
+      entities(550)   =  html_entities("Uscr                           ",  [119984])
+      entities(551)   =  html_entities("Utilde                         ",  [360])
+      entities(552)   =  html_entities("Uuml                           ",  [220])
+      entities(553)   =  html_entities("VDash                          ",  [8875])
+      entities(554)   =  html_entities("Vbar                           ",  [10987])
+      entities(555)   =  html_entities("Vcy                            ",  [1042])
+      entities(556)   =  html_entities("Vdash                          ",  [8873])
+      entities(557)   =  html_entities("Vdashl                         ",  [10982])
+      entities(558)   =  html_entities("Vee                            ",  [8897])
+      entities(559)   =  html_entities("Verbar                         ",  [8214])
+      entities(560)   =  html_entities("Vert                           ",  [8214])
+      entities(561)   =  html_entities("VerticalBar                    ",  [8739])
+      entities(562)   =  html_entities("VerticalLine                   ",  [124])
+      entities(563)   =  html_entities("VerticalSeparator              ",  [10072])
+      entities(564)   =  html_entities("VerticalTilde                  ",  [8768])
+      entities(565)   =  html_entities("VeryThinSpace                  ",  [8202])
+      entities(566)   =  html_entities("Vfr                            ",  [120089])
+      entities(567)   =  html_entities("Vopf                           ",  [120141])
+      entities(568)   =  html_entities("Vscr                           ",  [119985])
+      entities(569)   =  html_entities("Vvdash                         ",  [8874])
+      entities(570)   =  html_entities("Wcirc                          ",  [372])
+      entities(571)   =  html_entities("Wedge                          ",  [8896])
+      entities(572)   =  html_entities("Wfr                            ",  [120090])
+      entities(573)   =  html_entities("Wopf                           ",  [120142])
+      entities(574)   =  html_entities("Wscr                           ",  [119986])
+      entities(575)   =  html_entities("Xfr                            ",  [120091])
+      entities(576)   =  html_entities("Xi                             ",  [926])
+      entities(577)   =  html_entities("Xopf                           ",  [120143])
+      entities(578)   =  html_entities("Xscr                           ",  [119987])
+      entities(579)   =  html_entities("YAcy                           ",  [1071])
+      entities(580)   =  html_entities("YIcy                           ",  [1031])
+      entities(581)   =  html_entities("YUcy                           ",  [1070])
+      entities(582)   =  html_entities("Yacute                         ",  [221])
+      entities(583)   =  html_entities("Ycirc                          ",  [374])
+      entities(584)   =  html_entities("Ycy                            ",  [1067])
+      entities(585)   =  html_entities("Yfr                            ",  [120092])
+      entities(586)   =  html_entities("Yopf                           ",  [120144])
+      entities(587)   =  html_entities("Yscr                           ",  [119988])
+      entities(588)   =  html_entities("Yuml                           ",  [376])
+      entities(589)   =  html_entities("ZHcy                           ",  [1046])
+      entities(590)   =  html_entities("Zacute                         ",  [377])
+      entities(591)   =  html_entities("Zcaron                         ",  [381])
+      entities(592)   =  html_entities("Zcy                            ",  [1047])
+      entities(593)   =  html_entities("Zdot                           ",  [379])
+      entities(594)   =  html_entities("ZeroWidthSpace                 ",  [8203])
+      entities(595)   =  html_entities("Zeta                           ",  [918])
+      entities(596)   =  html_entities("Zfr                            ",  [8488])
+      entities(597)   =  html_entities("Zopf                           ",  [8484])
+      entities(598)   =  html_entities("Zscr                           ",  [119989])
+      entities(599)   =  html_entities("aacute                         ",  [225])
+      entities(600)   =  html_entities("abreve                         ",  [259])
+      entities(601)   =  html_entities("ac                             ",  [8766])
+      entities(602)   =  html_entities("acE                            ",  [8766,     819])
+      entities(603)   =  html_entities("acd                            ",  [8767])
+      entities(604)   =  html_entities("acirc                          ",  [226])
+      entities(605)   =  html_entities("acute                          ",  [180])
+      entities(606)   =  html_entities("acy                            ",  [1072])
+      entities(607)   =  html_entities("aelig                          ",  [230])
+      entities(608)   =  html_entities("af                             ",  [8289])
+      entities(609)   =  html_entities("afr                            ",  [120094])
+      entities(610)   =  html_entities("agrave                         ",  [224])
+      entities(611)   =  html_entities("alefsym                        ",  [8501])
+      entities(612)   =  html_entities("aleph                          ",  [8501])
+      entities(613)   =  html_entities("alpha                          ",  [945])
+      entities(614)   =  html_entities("amacr                          ",  [257])
+      entities(615)   =  html_entities("amalg                          ",  [10815])
+      entities(616)   =  html_entities("amp                            ",  [38])
+      entities(617)   =  html_entities("and                            ",  [8743])
+      entities(618)   =  html_entities("andand                         ",  [10837])
+      entities(619)   =  html_entities("andd                           ",  [10844])
+      entities(620)   =  html_entities("andslope                       ",  [10840])
+      entities(621)   =  html_entities("andv                           ",  [10842])
+      entities(622)   =  html_entities("ang                            ",  [8736])
+      entities(623)   =  html_entities("ange                           ",  [10660])
+      entities(624)   =  html_entities("angle                          ",  [8736])
+      entities(625)   =  html_entities("angmsd                         ",  [8737])
+      entities(626)   =  html_entities("angmsdaa                       ",  [10664])
+      entities(627)   =  html_entities("angmsdab                       ",  [10665])
+      entities(628)   =  html_entities("angmsdac                       ",  [10666])
+      entities(629)   =  html_entities("angmsdad                       ",  [10667])
+      entities(630)   =  html_entities("angmsdae                       ",  [10668])
+      entities(631)   =  html_entities("angmsdaf                       ",  [10669])
+      entities(632)   =  html_entities("angmsdag                       ",  [10670])
+      entities(633)   =  html_entities("angmsdah                       ",  [10671])
+      entities(634)   =  html_entities("angrt                          ",  [8735])
+      entities(635)   =  html_entities("angrtvb                        ",  [8894])
+      entities(636)   =  html_entities("angrtvbd                       ",  [10653])
+      entities(637)   =  html_entities("angsph                         ",  [8738])
+      entities(638)   =  html_entities("angst                          ",  [197])
+      entities(639)   =  html_entities("angzarr                        ",  [9084])
+      entities(640)   =  html_entities("aogon                          ",  [261])
+      entities(641)   =  html_entities("aopf                           ",  [120146])
+      entities(642)   =  html_entities("ap                             ",  [8776])
+      entities(643)   =  html_entities("apE                            ",  [10864])
+      entities(644)   =  html_entities("apacir                         ",  [10863])
+      entities(645)   =  html_entities("ape                            ",  [8778])
+      entities(646)   =  html_entities("apid                           ",  [8779])
+      entities(647)   =  html_entities("apos                           ",  [39])
+      entities(648)   =  html_entities("approx                         ",  [8776])
+      entities(649)   =  html_entities("approxeq                       ",  [8778])
+      entities(650)   =  html_entities("aring                          ",  [229])
+      entities(651)   =  html_entities("ascr                           ",  [119990])
+      entities(652)   =  html_entities("ast                            ",  [42])
+      entities(653)   =  html_entities("asymp                          ",  [8776])
+      entities(654)   =  html_entities("asympeq                        ",  [8781])
+      entities(655)   =  html_entities("atilde                         ",  [227])
+      entities(656)   =  html_entities("auml                           ",  [228])
+      entities(657)   =  html_entities("awconint                       ",  [8755])
+      entities(658)   =  html_entities("awint                          ",  [10769])
+      entities(659)   =  html_entities("bNot                           ",  [10989])
+      entities(660)   =  html_entities("backcong                       ",  [8780])
+      entities(661)   =  html_entities("backepsilon                    ",  [1014])
+      entities(662)   =  html_entities("backprime                      ",  [8245])
+      entities(663)   =  html_entities("backsim                        ",  [8765])
+      entities(664)   =  html_entities("backsimeq                      ",  [8909])
+      entities(665)   =  html_entities("barvee                         ",  [8893])
+      entities(666)   =  html_entities("barwed                         ",  [8965])
+      entities(667)   =  html_entities("barwedge                       ",  [8965])
+      entities(668)   =  html_entities("bbrk                           ",  [9141])
+      entities(669)   =  html_entities("bbrktbrk                       ",  [9142])
+      entities(670)   =  html_entities("bcong                          ",  [8780])
+      entities(671)   =  html_entities("bcy                            ",  [1073])
+      entities(672)   =  html_entities("bdquo                          ",  [8222])
+      entities(673)   =  html_entities("becaus                         ",  [8757])
+      entities(674)   =  html_entities("because                        ",  [8757])
+      entities(675)   =  html_entities("bemptyv                        ",  [10672])
+      entities(676)   =  html_entities("bepsi                          ",  [1014])
+      entities(677)   =  html_entities("bernou                         ",  [8492])
+      entities(678)   =  html_entities("beta                           ",  [946])
+      entities(679)   =  html_entities("beth                           ",  [8502])
+      entities(680)   =  html_entities("between                        ",  [8812])
+      entities(681)   =  html_entities("bfr                            ",  [120095])
+      entities(682)   =  html_entities("bigcap                         ",  [8898])
+      entities(683)   =  html_entities("bigcirc                        ",  [9711])
+      entities(684)   =  html_entities("bigcup                         ",  [8899])
+      entities(685)   =  html_entities("bigodot                        ",  [10752])
+      entities(686)   =  html_entities("bigoplus                       ",  [10753])
+      entities(687)   =  html_entities("bigotimes                      ",  [10754])
+      entities(688)   =  html_entities("bigsqcup                       ",  [10758])
+      entities(689)   =  html_entities("bigstar                        ",  [9733])
+      entities(690)   =  html_entities("bigtriangledown                ",  [9661])
+      entities(691)   =  html_entities("bigtriangleup                  ",  [9651])
+      entities(692)   =  html_entities("biguplus                       ",  [10756])
+      entities(693)   =  html_entities("bigvee                         ",  [8897])
+      entities(694)   =  html_entities("bigwedge                       ",  [8896])
+      entities(695)   =  html_entities("bkarow                         ",  [10509])
+      entities(696)   =  html_entities("blacklozenge                   ",  [10731])
+      entities(697)   =  html_entities("blacksquare                    ",  [9642])
+      entities(698)   =  html_entities("blacktriangle                  ",  [9652])
+      entities(699)   =  html_entities("blacktriangledown              ",  [9662])
+      entities(700)   =  html_entities("blacktriangleleft              ",  [9666])
+      entities(701)   =  html_entities("blacktriangleright             ",  [9656])
+      entities(702)   =  html_entities("blank                          ",  [9251])
+      entities(703)   =  html_entities("blk12                          ",  [9618])
+      entities(704)   =  html_entities("blk14                          ",  [9617])
+      entities(705)   =  html_entities("blk34                          ",  [9619])
+      entities(706)   =  html_entities("block                          ",  [9608])
+      entities(707)   =  html_entities("bne                            ",  [61,       8421])
+      entities(708)   =  html_entities("bnequiv                        ",  [8801,     8421])
+      entities(709)   =  html_entities("bnot                           ",  [8976])
+      entities(710)   =  html_entities("bopf                           ",  [120147])
+      entities(711)   =  html_entities("bot                            ",  [8869])
+      entities(712)   =  html_entities("bottom                         ",  [8869])
+      entities(713)   =  html_entities("bowtie                         ",  [8904])
+      entities(714)   =  html_entities("boxDL                          ",  [9559])
+      entities(715)   =  html_entities("boxDR                          ",  [9556])
+      entities(716)   =  html_entities("boxDl                          ",  [9558])
+      entities(717)   =  html_entities("boxDr                          ",  [9555])
+      entities(718)   =  html_entities("boxH                           ",  [9552])
+      entities(719)   =  html_entities("boxHD                          ",  [9574])
+      entities(720)   =  html_entities("boxHU                          ",  [9577])
+      entities(721)   =  html_entities("boxHd                          ",  [9572])
+      entities(722)   =  html_entities("boxHu                          ",  [9575])
+      entities(723)   =  html_entities("boxUL                          ",  [9565])
+      entities(724)   =  html_entities("boxUR                          ",  [9562])
+      entities(725)   =  html_entities("boxUl                          ",  [9564])
+      entities(726)   =  html_entities("boxUr                          ",  [9561])
+      entities(727)   =  html_entities("boxV                           ",  [9553])
+      entities(728)   =  html_entities("boxVH                          ",  [9580])
+      entities(729)   =  html_entities("boxVL                          ",  [9571])
+      entities(730)   =  html_entities("boxVR                          ",  [9568])
+      entities(731)   =  html_entities("boxVh                          ",  [9579])
+      entities(732)   =  html_entities("boxVl                          ",  [9570])
+      entities(733)   =  html_entities("boxVr                          ",  [9567])
+      entities(734)   =  html_entities("boxbox                         ",  [10697])
+      entities(735)   =  html_entities("boxdL                          ",  [9557])
+      entities(736)   =  html_entities("boxdR                          ",  [9554])
+      entities(737)   =  html_entities("boxdl                          ",  [9488])
+      entities(738)   =  html_entities("boxdr                          ",  [9484])
+      entities(739)   =  html_entities("boxh                           ",  [9472])
+      entities(740)   =  html_entities("boxhD                          ",  [9573])
+      entities(741)   =  html_entities("boxhU                          ",  [9576])
+      entities(742)   =  html_entities("boxhd                          ",  [9516])
+      entities(743)   =  html_entities("boxhu                          ",  [9524])
+      entities(744)   =  html_entities("boxminus                       ",  [8863])
+      entities(745)   =  html_entities("boxplus                        ",  [8862])
+      entities(746)   =  html_entities("boxtimes                       ",  [8864])
+      entities(747)   =  html_entities("boxuL                          ",  [9563])
+      entities(748)   =  html_entities("boxuR                          ",  [9560])
+      entities(749)   =  html_entities("boxul                          ",  [9496])
+      entities(750)   =  html_entities("boxur                          ",  [9492])
+      entities(751)   =  html_entities("boxv                           ",  [9474])
+      entities(752)   =  html_entities("boxvH                          ",  [9578])
+      entities(753)   =  html_entities("boxvL                          ",  [9569])
+      entities(754)   =  html_entities("boxvR                          ",  [9566])
+      entities(755)   =  html_entities("boxvh                          ",  [9532])
+      entities(756)   =  html_entities("boxvl                          ",  [9508])
+      entities(757)   =  html_entities("boxvr                          ",  [9500])
+      entities(758)   =  html_entities("bprime                         ",  [8245])
+      entities(759)   =  html_entities("breve                          ",  [728])
+      entities(760)   =  html_entities("brvbar                         ",  [166])
+      entities(761)   =  html_entities("bscr                           ",  [119991])
+      entities(762)   =  html_entities("bsemi                          ",  [8271])
+      entities(763)   =  html_entities("bsim                           ",  [8765])
+      entities(764)   =  html_entities("bsime                          ",  [8909])
+      entities(765)   =  html_entities("bsol                           ",  [92])
+      entities(766)   =  html_entities("bsolb                          ",  [10693])
+      entities(767)   =  html_entities("bsolhsub                       ",  [10184])
+      entities(768)   =  html_entities("bull                           ",  [8226])
+      entities(769)   =  html_entities("bullet                         ",  [8226])
+      entities(770)   =  html_entities("bump                           ",  [8782])
+      entities(771)   =  html_entities("bumpE                          ",  [10926])
+      entities(772)   =  html_entities("bumpe                          ",  [8783])
+      entities(773)   =  html_entities("bumpeq                         ",  [8783])
+      entities(774)   =  html_entities("cacute                         ",  [263])
+      entities(775)   =  html_entities("cap                            ",  [8745])
+      entities(776)   =  html_entities("capand                         ",  [10820])
+      entities(777)   =  html_entities("capbrcup                       ",  [10825])
+      entities(778)   =  html_entities("capcap                         ",  [10827])
+      entities(779)   =  html_entities("capcup                         ",  [10823])
+      entities(780)   =  html_entities("capdot                         ",  [10816])
+      entities(781)   =  html_entities("caps                           ",  [8745,     65024])
+      entities(782)   =  html_entities("caret                          ",  [8257])
+      entities(783)   =  html_entities("caron                          ",  [711])
+      entities(784)   =  html_entities("ccaps                          ",  [10829])
+      entities(785)   =  html_entities("ccaron                         ",  [269])
+      entities(786)   =  html_entities("ccedil                         ",  [231])
+      entities(787)   =  html_entities("ccirc                          ",  [265])
+      entities(788)   =  html_entities("ccups                          ",  [10828])
+      entities(789)   =  html_entities("ccupssm                        ",  [10832])
+      entities(790)   =  html_entities("cdot                           ",  [267])
+      entities(791)   =  html_entities("cedil                          ",  [184])
+      entities(792)   =  html_entities("cemptyv                        ",  [10674])
+      entities(793)   =  html_entities("cent                           ",  [162])
+      entities(794)   =  html_entities("centerdot                      ",  [183])
+      entities(795)   =  html_entities("cfr                            ",  [120096])
+      entities(796)   =  html_entities("chcy                           ",  [1095])
+      entities(797)   =  html_entities("check                          ",  [10003])
+      entities(798)   =  html_entities("checkmark                      ",  [10003])
+      entities(799)   =  html_entities("chi                            ",  [967])
+      entities(800)   =  html_entities("cir                            ",  [9675])
+      entities(801)   =  html_entities("cirE                           ",  [10691])
+      entities(802)   =  html_entities("circ                           ",  [710])
+      entities(803)   =  html_entities("circeq                         ",  [8791])
+      entities(804)   =  html_entities("circlearrowleft                ",  [8634])
+      entities(805)   =  html_entities("circlearrowright               ",  [8635])
+      entities(806)   =  html_entities("circledR                       ",  [174])
+      entities(807)   =  html_entities("circledS                       ",  [9416])
+      entities(808)   =  html_entities("circledast                     ",  [8859])
+      entities(809)   =  html_entities("circledcirc                    ",  [8858])
+      entities(810)   =  html_entities("circleddash                    ",  [8861])
+      entities(811)   =  html_entities("cire                           ",  [8791])
+      entities(812)   =  html_entities("cirfnint                       ",  [10768])
+      entities(813)   =  html_entities("cirmid                         ",  [10991])
+      entities(814)   =  html_entities("cirscir                        ",  [10690])
+      entities(815)   =  html_entities("clubs                          ",  [9827])
+      entities(816)   =  html_entities("clubsuit                       ",  [9827])
+      entities(817)   =  html_entities("colon                          ",  [58])
+      entities(818)   =  html_entities("colone                         ",  [8788])
+      entities(819)   =  html_entities("coloneq                        ",  [8788])
+      entities(820)   =  html_entities("comma                          ",  [44])
+      entities(821)   =  html_entities("commat                         ",  [64])
+      entities(822)   =  html_entities("comp                           ",  [8705])
+      entities(823)   =  html_entities("compfn                         ",  [8728])
+      entities(824)   =  html_entities("complement                     ",  [8705])
+      entities(825)   =  html_entities("complexes                      ",  [8450])
+      entities(826)   =  html_entities("cong                           ",  [8773])
+      entities(827)   =  html_entities("congdot                        ",  [10861])
+      entities(828)   =  html_entities("conint                         ",  [8750])
+      entities(829)   =  html_entities("copf                           ",  [120148])
+      entities(830)   =  html_entities("coprod                         ",  [8720])
+      entities(831)   =  html_entities("copy                           ",  [169])
+      entities(832)   =  html_entities("copysr                         ",  [8471])
+      entities(833)   =  html_entities("crarr                          ",  [8629])
+      entities(834)   =  html_entities("cross                          ",  [10007])
+      entities(835)   =  html_entities("cscr                           ",  [119992])
+      entities(836)   =  html_entities("csub                           ",  [10959])
+      entities(837)   =  html_entities("csube                          ",  [10961])
+      entities(838)   =  html_entities("csup                           ",  [10960])
+      entities(839)   =  html_entities("csupe                          ",  [10962])
+      entities(840)   =  html_entities("ctdot                          ",  [8943])
+      entities(841)   =  html_entities("cudarrl                        ",  [10552])
+      entities(842)   =  html_entities("cudarrr                        ",  [10549])
+      entities(843)   =  html_entities("cuepr                          ",  [8926])
+      entities(844)   =  html_entities("cuesc                          ",  [8927])
+      entities(845)   =  html_entities("cularr                         ",  [8630])
+      entities(846)   =  html_entities("cularrp                        ",  [10557])
+      entities(847)   =  html_entities("cup                            ",  [8746])
+      entities(848)   =  html_entities("cupbrcap                       ",  [10824])
+      entities(849)   =  html_entities("cupcap                         ",  [10822])
+      entities(850)   =  html_entities("cupcup                         ",  [10826])
+      entities(851)   =  html_entities("cupdot                         ",  [8845])
+      entities(852)   =  html_entities("cupor                          ",  [10821])
+      entities(853)   =  html_entities("cups                           ",  [8746,     65024])
+      entities(854)   =  html_entities("curarr                         ",  [8631])
+      entities(855)   =  html_entities("curarrm                        ",  [10556])
+      entities(856)   =  html_entities("curlyeqprec                    ",  [8926])
+      entities(857)   =  html_entities("curlyeqsucc                    ",  [8927])
+      entities(858)   =  html_entities("curlyvee                       ",  [8910])
+      entities(859)   =  html_entities("curlywedge                     ",  [8911])
+      entities(860)   =  html_entities("curren                         ",  [164])
+      entities(861)   =  html_entities("curvearrowleft                 ",  [8630])
+      entities(862)   =  html_entities("curvearrowright                ",  [8631])
+      entities(863)   =  html_entities("cuvee                          ",  [8910])
+      entities(864)   =  html_entities("cuwed                          ",  [8911])
+      entities(865)   =  html_entities("cwconint                       ",  [8754])
+      entities(866)   =  html_entities("cwint                          ",  [8753])
+      entities(867)   =  html_entities("cylcty                         ",  [9005])
+      entities(868)   =  html_entities("dArr                           ",  [8659])
+      entities(869)   =  html_entities("dHar                           ",  [10597])
+      entities(870)   =  html_entities("dagger                         ",  [8224])
+      entities(871)   =  html_entities("daleth                         ",  [8504])
+      entities(872)   =  html_entities("darr                           ",  [8595])
+      entities(873)   =  html_entities("dash                           ",  [8208])
+      entities(874)   =  html_entities("dashv                          ",  [8867])
+      entities(875)   =  html_entities("dbkarow                        ",  [10511])
+      entities(876)   =  html_entities("dblac                          ",  [733])
+      entities(877)   =  html_entities("dcaron                         ",  [271])
+      entities(878)   =  html_entities("dcy                            ",  [1076])
+      entities(879)   =  html_entities("dd                             ",  [8518])
+      entities(880)   =  html_entities("ddagger                        ",  [8225])
+      entities(881)   =  html_entities("ddarr                          ",  [8650])
+      entities(882)   =  html_entities("ddotseq                        ",  [10871])
+      entities(883)   =  html_entities("deg                            ",  [176])
+      entities(884)   =  html_entities("delta                          ",  [948])
+      entities(885)   =  html_entities("demptyv                        ",  [10673])
+      entities(886)   =  html_entities("dfisht                         ",  [10623])
+      entities(887)   =  html_entities("dfr                            ",  [120097])
+      entities(888)   =  html_entities("dharl                          ",  [8643])
+      entities(889)   =  html_entities("dharr                          ",  [8642])
+      entities(890)   =  html_entities("diam                           ",  [8900])
+      entities(891)   =  html_entities("diamond                        ",  [8900])
+      entities(892)   =  html_entities("diamondsuit                    ",  [9830])
+      entities(893)   =  html_entities("diams                          ",  [9830])
+      entities(894)   =  html_entities("die                            ",  [168])
+      entities(895)   =  html_entities("digamma                        ",  [989])
+      entities(896)   =  html_entities("disin                          ",  [8946])
+      entities(897)   =  html_entities("div                            ",  [247])
+      entities(898)   =  html_entities("divide                         ",  [247])
+      entities(899)   =  html_entities("divideontimes                  ",  [8903])
+      entities(900)   =  html_entities("divonx                         ",  [8903])
+      entities(901)   =  html_entities("djcy                           ",  [1106])
+      entities(902)   =  html_entities("dlcorn                         ",  [8990])
+      entities(903)   =  html_entities("dlcrop                         ",  [8973])
+      entities(904)   =  html_entities("dollar                         ",  [36])
+      entities(905)   =  html_entities("dopf                           ",  [120149])
+      entities(906)   =  html_entities("dot                            ",  [729])
+      entities(907)   =  html_entities("doteq                          ",  [8784])
+      entities(908)   =  html_entities("doteqdot                       ",  [8785])
+      entities(909)   =  html_entities("dotminus                       ",  [8760])
+      entities(910)   =  html_entities("dotplus                        ",  [8724])
+      entities(911)   =  html_entities("dotsquare                      ",  [8865])
+      entities(912)   =  html_entities("doublebarwedge                 ",  [8966])
+      entities(913)   =  html_entities("downarrow                      ",  [8595])
+      entities(914)   =  html_entities("downdownarrows                 ",  [8650])
+      entities(915)   =  html_entities("downharpoonleft                ",  [8643])
+      entities(916)   =  html_entities("downharpoonright               ",  [8642])
+      entities(917)   =  html_entities("drbkarow                       ",  [10512])
+      entities(918)   =  html_entities("drcorn                         ",  [8991])
+      entities(919)   =  html_entities("drcrop                         ",  [8972])
+      entities(920)   =  html_entities("dscr                           ",  [119993])
+      entities(921)   =  html_entities("dscy                           ",  [1109])
+      entities(922)   =  html_entities("dsol                           ",  [10742])
+      entities(923)   =  html_entities("dstrok                         ",  [273])
+      entities(924)   =  html_entities("dtdot                          ",  [8945])
+      entities(925)   =  html_entities("dtri                           ",  [9663])
+      entities(926)   =  html_entities("dtrif                          ",  [9662])
+      entities(927)   =  html_entities("duarr                          ",  [8693])
+      entities(928)   =  html_entities("duhar                          ",  [10607])
+      entities(929)   =  html_entities("dwangle                        ",  [10662])
+      entities(930)   =  html_entities("dzcy                           ",  [1119])
+      entities(931)   =  html_entities("dzigrarr                       ",  [10239])
+      entities(932)   =  html_entities("eDDot                          ",  [10871])
+      entities(933)   =  html_entities("eDot                           ",  [8785])
+      entities(934)   =  html_entities("eacute                         ",  [233])
+      entities(935)   =  html_entities("easter                         ",  [10862])
+      entities(936)   =  html_entities("ecaron                         ",  [283])
+      entities(937)   =  html_entities("ecir                           ",  [8790])
+      entities(938)   =  html_entities("ecirc                          ",  [234])
+      entities(939)   =  html_entities("ecolon                         ",  [8789])
+      entities(940)   =  html_entities("ecy                            ",  [1101])
+      entities(941)   =  html_entities("edot                           ",  [279])
+      entities(942)   =  html_entities("ee                             ",  [8519])
+      entities(943)   =  html_entities("efDot                          ",  [8786])
+      entities(944)   =  html_entities("efr                            ",  [120098])
+      entities(945)   =  html_entities("eg                             ",  [10906])
+      entities(946)   =  html_entities("egrave                         ",  [232])
+      entities(947)   =  html_entities("egs                            ",  [10902])
+      entities(948)   =  html_entities("egsdot                         ",  [10904])
+      entities(949)   =  html_entities("el                             ",  [10905])
+      entities(950)   =  html_entities("elinters                       ",  [9191])
+      entities(951)   =  html_entities("ell                            ",  [8467])
+      entities(952)   =  html_entities("els                            ",  [10901])
+      entities(953)   =  html_entities("elsdot                         ",  [10903])
+      entities(954)   =  html_entities("emacr                          ",  [275])
+      entities(955)   =  html_entities("empty                          ",  [8709])
+      entities(956)   =  html_entities("emptyset                       ",  [8709])
+      entities(957)   =  html_entities("emptyv                         ",  [8709])
+      entities(958)   =  html_entities("emsp13                         ",  [8196])
+      entities(959)   =  html_entities("emsp14                         ",  [8197])
+      entities(960)   =  html_entities("emsp                           ",  [8195])
+      entities(961)   =  html_entities("eng                            ",  [331])
+      entities(962)   =  html_entities("ensp                           ",  [8194])
+      entities(963)   =  html_entities("eogon                          ",  [281])
+      entities(964)   =  html_entities("eopf                           ",  [120150])
+      entities(965)   =  html_entities("epar                           ",  [8917])
+      entities(966)   =  html_entities("eparsl                         ",  [10723])
+      entities(967)   =  html_entities("eplus                          ",  [10865])
+      entities(968)   =  html_entities("epsi                           ",  [949])
+      entities(969)   =  html_entities("epsilon                        ",  [949])
+      entities(970)   =  html_entities("epsiv                          ",  [1013])
+      entities(971)   =  html_entities("eqcirc                         ",  [8790])
+      entities(972)   =  html_entities("eqcolon                        ",  [8789])
+      entities(973)   =  html_entities("eqsim                          ",  [8770])
+      entities(974)   =  html_entities("eqslantgtr                     ",  [10902])
+      entities(975)   =  html_entities("eqslantless                    ",  [10901])
+      entities(976)   =  html_entities("equals                         ",  [61])
+      entities(977)   =  html_entities("equest                         ",  [8799])
+      entities(978)   =  html_entities("equiv                          ",  [8801])
+      entities(979)   =  html_entities("equivDD                        ",  [10872])
+      entities(980)   =  html_entities("eqvparsl                       ",  [10725])
+      entities(981)   =  html_entities("erDot                          ",  [8787])
+      entities(982)   =  html_entities("erarr                          ",  [10609])
+      entities(983)   =  html_entities("escr                           ",  [8495])
+      entities(984)   =  html_entities("esdot                          ",  [8784])
+      entities(985)   =  html_entities("esim                           ",  [8770])
+      entities(986)   =  html_entities("eta                            ",  [951])
+      entities(987)   =  html_entities("eth                            ",  [240])
+      entities(988)   =  html_entities("euml                           ",  [235])
+      entities(989)   =  html_entities("euro                           ",  [8364])
+      entities(990)   =  html_entities("excl                           ",  [33])
+      entities(991)   =  html_entities("exist                          ",  [8707])
+      entities(992)   =  html_entities("expectation                    ",  [8496])
+      entities(993)   =  html_entities("exponentiale                   ",  [8519])
+      entities(994)   =  html_entities("fallingdotseq                  ",  [8786])
+      entities(995)   =  html_entities("fcy                            ",  [1092])
+      entities(996)   =  html_entities("female                         ",  [9792])
+      entities(997)   =  html_entities("ffilig                         ",  [64259])
+      entities(998)   =  html_entities("fflig                          ",  [64256])
+      entities(999)   =  html_entities("ffllig                         ",  [64260])
+      entities(1000)  =  html_entities("ffr                            ",  [120099])
+      entities(1001)  =  html_entities("filig                          ",  [64257])
+      entities(1002)  =  html_entities("fjlig                          ",  [102,      106])
+      entities(1003)  =  html_entities("flat                           ",  [9837])
+      entities(1004)  =  html_entities("fllig                          ",  [64258])
+      entities(1005)  =  html_entities("fltns                          ",  [9649])
+      entities(1006)  =  html_entities("fnof                           ",  [402])
+      entities(1007)  =  html_entities("fopf                           ",  [120151])
+      entities(1008)  =  html_entities("forall                         ",  [8704])
+      entities(1009)  =  html_entities("fork                           ",  [8916])
+      entities(1010)  =  html_entities("forkv                          ",  [10969])
+      entities(1011)  =  html_entities("fpartint                       ",  [10765])
+      entities(1012)  =  html_entities("frac12                         ",  [189])
+      entities(1013)  =  html_entities("frac13                         ",  [8531])
+      entities(1014)  =  html_entities("frac14                         ",  [188])
+      entities(1015)  =  html_entities("frac15                         ",  [8533])
+      entities(1016)  =  html_entities("frac16                         ",  [8537])
+      entities(1017)  =  html_entities("frac18                         ",  [8539])
+      entities(1018)  =  html_entities("frac23                         ",  [8532])
+      entities(1019)  =  html_entities("frac25                         ",  [8534])
+      entities(1020)  =  html_entities("frac34                         ",  [190])
+      entities(1021)  =  html_entities("frac35                         ",  [8535])
+      entities(1022)  =  html_entities("frac38                         ",  [8540])
+      entities(1023)  =  html_entities("frac45                         ",  [8536])
+      entities(1024)  =  html_entities("frac56                         ",  [8538])
+      entities(1025)  =  html_entities("frac58                         ",  [8541])
+      entities(1026)  =  html_entities("frac78                         ",  [8542])
+      entities(1027)  =  html_entities("frasl                          ",  [8260])
+      entities(1028)  =  html_entities("frown                          ",  [8994])
+      entities(1029)  =  html_entities("fscr                           ",  [119995])
+      entities(1030)  =  html_entities("gE                             ",  [8807])
+      entities(1031)  =  html_entities("gEl                            ",  [10892])
+      entities(1032)  =  html_entities("gacute                         ",  [501])
+      entities(1033)  =  html_entities("gamma                          ",  [947])
+      entities(1034)  =  html_entities("gammad                         ",  [989])
+      entities(1035)  =  html_entities("gap                            ",  [10886])
+      entities(1036)  =  html_entities("gbreve                         ",  [287])
+      entities(1037)  =  html_entities("gcirc                          ",  [285])
+      entities(1038)  =  html_entities("gcy                            ",  [1075])
+      entities(1039)  =  html_entities("gdot                           ",  [289])
+      entities(1040)  =  html_entities("ge                             ",  [8805])
+      entities(1041)  =  html_entities("gel                            ",  [8923])
+      entities(1042)  =  html_entities("geq                            ",  [8805])
+      entities(1043)  =  html_entities("geqq                           ",  [8807])
+      entities(1044)  =  html_entities("geqslant                       ",  [10878])
+      entities(1045)  =  html_entities("ges                            ",  [10878])
+      entities(1046)  =  html_entities("gescc                          ",  [10921])
+      entities(1047)  =  html_entities("gesdot                         ",  [10880])
+      entities(1048)  =  html_entities("gesdoto                        ",  [10882])
+      entities(1049)  =  html_entities("gesdotol                       ",  [10884])
+      entities(1050)  =  html_entities("gesl                           ",  [8923,     65024])
+      entities(1051)  =  html_entities("gesles                         ",  [10900])
+      entities(1052)  =  html_entities("gfr                            ",  [120100])
+      entities(1053)  =  html_entities("gg                             ",  [8811])
+      entities(1054)  =  html_entities("ggg                            ",  [8921])
+      entities(1055)  =  html_entities("gimel                          ",  [8503])
+      entities(1056)  =  html_entities("gjcy                           ",  [1107])
+      entities(1057)  =  html_entities("gl                             ",  [8823])
+      entities(1058)  =  html_entities("glE                            ",  [10898])
+      entities(1059)  =  html_entities("gla                            ",  [10917])
+      entities(1060)  =  html_entities("glj                            ",  [10916])
+      entities(1061)  =  html_entities("gnE                            ",  [8809])
+      entities(1062)  =  html_entities("gnap                           ",  [10890])
+      entities(1063)  =  html_entities("gnapprox                       ",  [10890])
+      entities(1064)  =  html_entities("gne                            ",  [10888])
+      entities(1065)  =  html_entities("gneq                           ",  [10888])
+      entities(1066)  =  html_entities("gneqq                          ",  [8809])
+      entities(1067)  =  html_entities("gnsim                          ",  [8935])
+      entities(1068)  =  html_entities("gopf                           ",  [120152])
+      entities(1069)  =  html_entities("grave                          ",  [96])
+      entities(1070)  =  html_entities("gscr                           ",  [8458])
+      entities(1071)  =  html_entities("gsim                           ",  [8819])
+      entities(1072)  =  html_entities("gsime                          ",  [10894])
+      entities(1073)  =  html_entities("gsiml                          ",  [10896])
+      entities(1074)  =  html_entities("gt                             ",  [62])
+      entities(1075)  =  html_entities("gtcc                           ",  [10919])
+      entities(1076)  =  html_entities("gtcir                          ",  [10874])
+      entities(1077)  =  html_entities("gtdot                          ",  [8919])
+      entities(1078)  =  html_entities("gtlPar                         ",  [10645])
+      entities(1079)  =  html_entities("gtquest                        ",  [10876])
+      entities(1080)  =  html_entities("gtrapprox                      ",  [10886])
+      entities(1081)  =  html_entities("gtrarr                         ",  [10616])
+      entities(1082)  =  html_entities("gtrdot                         ",  [8919])
+      entities(1083)  =  html_entities("gtreqless                      ",  [8923])
+      entities(1084)  =  html_entities("gtreqqless                     ",  [10892])
+      entities(1085)  =  html_entities("gtrless                        ",  [8823])
+      entities(1086)  =  html_entities("gtrsim                         ",  [8819])
+      entities(1087)  =  html_entities("gvertneqq                      ",  [8809,     65024])
+      entities(1088)  =  html_entities("gvnE                           ",  [8809,     65024])
+      entities(1089)  =  html_entities("hArr                           ",  [8660])
+      entities(1090)  =  html_entities("hairsp                         ",  [8202])
+      entities(1091)  =  html_entities("half                           ",  [189])
+      entities(1092)  =  html_entities("hamilt                         ",  [8459])
+      entities(1093)  =  html_entities("hardcy                         ",  [1098])
+      entities(1094)  =  html_entities("harr                           ",  [8596])
+      entities(1095)  =  html_entities("harrcir                        ",  [10568])
+      entities(1096)  =  html_entities("harrw                          ",  [8621])
+      entities(1097)  =  html_entities("hbar                           ",  [8463])
+      entities(1098)  =  html_entities("hcirc                          ",  [293])
+      entities(1099)  =  html_entities("hearts                         ",  [9829])
+      entities(1100)  =  html_entities("heartsuit                      ",  [9829])
+      entities(1101)  =  html_entities("hellip                         ",  [8230])
+      entities(1102)  =  html_entities("hercon                         ",  [8889])
+      entities(1103)  =  html_entities("hfr                            ",  [120101])
+      entities(1104)  =  html_entities("hksearow                       ",  [10533])
+      entities(1105)  =  html_entities("hkswarow                       ",  [10534])
+      entities(1106)  =  html_entities("hoarr                          ",  [8703])
+      entities(1107)  =  html_entities("homtht                         ",  [8763])
+      entities(1108)  =  html_entities("hookleftarrow                  ",  [8617])
+      entities(1109)  =  html_entities("hookrightarrow                 ",  [8618])
+      entities(1110)  =  html_entities("hopf                           ",  [120153])
+      entities(1111)  =  html_entities("horbar                         ",  [8213])
+      entities(1112)  =  html_entities("hscr                           ",  [119997])
+      entities(1113)  =  html_entities("hslash                         ",  [8463])
+      entities(1114)  =  html_entities("hstrok                         ",  [295])
+      entities(1115)  =  html_entities("hybull                         ",  [8259])
+      entities(1116)  =  html_entities("hyphen                         ",  [8208])
+      entities(1117)  =  html_entities("iacute                         ",  [237])
+      entities(1118)  =  html_entities("ic                             ",  [8291])
+      entities(1119)  =  html_entities("icirc                          ",  [238])
+      entities(1120)  =  html_entities("icy                            ",  [1080])
+      entities(1121)  =  html_entities("iecy                           ",  [1077])
+      entities(1122)  =  html_entities("iexcl                          ",  [161])
+      entities(1123)  =  html_entities("iff                            ",  [8660])
+      entities(1124)  =  html_entities("ifr                            ",  [120102])
+      entities(1125)  =  html_entities("igrave                         ",  [236])
+      entities(1126)  =  html_entities("ii                             ",  [8520])
+      entities(1127)  =  html_entities("iiiint                         ",  [10764])
+      entities(1128)  =  html_entities("iiint                          ",  [8749])
+      entities(1129)  =  html_entities("iinfin                         ",  [10716])
+      entities(1130)  =  html_entities("iiota                          ",  [8489])
+      entities(1131)  =  html_entities("ijlig                          ",  [307])
+      entities(1132)  =  html_entities("imacr                          ",  [299])
+      entities(1133)  =  html_entities("image                          ",  [8465])
+      entities(1134)  =  html_entities("imagline                       ",  [8464])
+      entities(1135)  =  html_entities("imagpart                       ",  [8465])
+      entities(1136)  =  html_entities("imath                          ",  [305])
+      entities(1137)  =  html_entities("imof                           ",  [8887])
+      entities(1138)  =  html_entities("imped                          ",  [437])
+      entities(1139)  =  html_entities("in                             ",  [8712])
+      entities(1140)  =  html_entities("incare                         ",  [8453])
+      entities(1141)  =  html_entities("infin                          ",  [8734])
+      entities(1142)  =  html_entities("infintie                       ",  [10717])
+      entities(1143)  =  html_entities("inodot                         ",  [305])
+      entities(1144)  =  html_entities("int                            ",  [8747])
+      entities(1145)  =  html_entities("intcal                         ",  [8890])
+      entities(1146)  =  html_entities("integers                       ",  [8484])
+      entities(1147)  =  html_entities("intercal                       ",  [8890])
+      entities(1148)  =  html_entities("intlarhk                       ",  [10775])
+      entities(1149)  =  html_entities("intprod                        ",  [10812])
+      entities(1150)  =  html_entities("iocy                           ",  [1105])
+      entities(1151)  =  html_entities("iogon                          ",  [303])
+      entities(1152)  =  html_entities("iopf                           ",  [120154])
+      entities(1153)  =  html_entities("iota                           ",  [953])
+      entities(1154)  =  html_entities("iprod                          ",  [10812])
+      entities(1155)  =  html_entities("iquest                         ",  [191])
+      entities(1156)  =  html_entities("iscr                           ",  [119998])
+      entities(1157)  =  html_entities("isin                           ",  [8712])
+      entities(1158)  =  html_entities("isinE                          ",  [8953])
+      entities(1159)  =  html_entities("isindot                        ",  [8949])
+      entities(1160)  =  html_entities("isins                          ",  [8948])
+      entities(1161)  =  html_entities("isinsv                         ",  [8947])
+      entities(1162)  =  html_entities("isinv                          ",  [8712])
+      entities(1163)  =  html_entities("it                             ",  [8290])
+      entities(1164)  =  html_entities("itilde                         ",  [297])
+      entities(1165)  =  html_entities("iukcy                          ",  [1110])
+      entities(1166)  =  html_entities("iuml                           ",  [239])
+      entities(1167)  =  html_entities("jcirc                          ",  [309])
+      entities(1168)  =  html_entities("jcy                            ",  [1081])
+      entities(1169)  =  html_entities("jfr                            ",  [120103])
+      entities(1170)  =  html_entities("jmath                          ",  [567])
+      entities(1171)  =  html_entities("jopf                           ",  [120155])
+      entities(1172)  =  html_entities("jscr                           ",  [119999])
+      entities(1173)  =  html_entities("jsercy                         ",  [1112])
+      entities(1174)  =  html_entities("jukcy                          ",  [1108])
+      entities(1175)  =  html_entities("kappa                          ",  [954])
+      entities(1176)  =  html_entities("kappav                         ",  [1008])
+      entities(1177)  =  html_entities("kcedil                         ",  [311])
+      entities(1178)  =  html_entities("kcy                            ",  [1082])
+      entities(1179)  =  html_entities("kfr                            ",  [120104])
+      entities(1180)  =  html_entities("kgreen                         ",  [312])
+      entities(1181)  =  html_entities("khcy                           ",  [1093])
+      entities(1182)  =  html_entities("kjcy                           ",  [1116])
+      entities(1183)  =  html_entities("kopf                           ",  [120156])
+      entities(1184)  =  html_entities("kscr                           ",  [120000])
+      entities(1185)  =  html_entities("lAarr                          ",  [8666])
+      entities(1186)  =  html_entities("lArr                           ",  [8656])
+      entities(1187)  =  html_entities("lAtail                         ",  [10523])
+      entities(1188)  =  html_entities("lBarr                          ",  [10510])
+      entities(1189)  =  html_entities("lE                             ",  [8806])
+      entities(1190)  =  html_entities("lEg                            ",  [10891])
+      entities(1191)  =  html_entities("lHar                           ",  [10594])
+      entities(1192)  =  html_entities("lacute                         ",  [314])
+      entities(1193)  =  html_entities("laemptyv                       ",  [10676])
+      entities(1194)  =  html_entities("lagran                         ",  [8466])
+      entities(1195)  =  html_entities("lambda                         ",  [955])
+      entities(1196)  =  html_entities("lang                           ",  [10216])
+      entities(1197)  =  html_entities("langd                          ",  [10641])
+      entities(1198)  =  html_entities("langle                         ",  [10216])
+      entities(1199)  =  html_entities("lap                            ",  [10885])
+      entities(1200)  =  html_entities("laquo                          ",  [171])
+      entities(1201)  =  html_entities("larr                           ",  [8592])
+      entities(1202)  =  html_entities("larrb                          ",  [8676])
+      entities(1203)  =  html_entities("larrbfs                        ",  [10527])
+      entities(1204)  =  html_entities("larrfs                         ",  [10525])
+      entities(1205)  =  html_entities("larrhk                         ",  [8617])
+      entities(1206)  =  html_entities("larrlp                         ",  [8619])
+      entities(1207)  =  html_entities("larrpl                         ",  [10553])
+      entities(1208)  =  html_entities("larrsim                        ",  [10611])
+      entities(1209)  =  html_entities("larrtl                         ",  [8610])
+      entities(1210)  =  html_entities("lat                            ",  [10923])
+      entities(1211)  =  html_entities("latail                         ",  [10521])
+      entities(1212)  =  html_entities("late                           ",  [10925])
+      entities(1213)  =  html_entities("lates                          ",  [10925,    65024])
+      entities(1214)  =  html_entities("lbarr                          ",  [10508])
+      entities(1215)  =  html_entities("lbbrk                          ",  [10098])
+      entities(1216)  =  html_entities("lbrace                         ",  [123])
+      entities(1217)  =  html_entities("lbrack                         ",  [91])
+      entities(1218)  =  html_entities("lbrke                          ",  [10635])
+      entities(1219)  =  html_entities("lbrksld                        ",  [10639])
+      entities(1220)  =  html_entities("lbrkslu                        ",  [10637])
+      entities(1221)  =  html_entities("lcaron                         ",  [318])
+      entities(1222)  =  html_entities("lcedil                         ",  [316])
+      entities(1223)  =  html_entities("lceil                          ",  [8968])
+      entities(1224)  =  html_entities("lcub                           ",  [123])
+      entities(1225)  =  html_entities("lcy                            ",  [1083])
+      entities(1226)  =  html_entities("ldca                           ",  [10550])
+      entities(1227)  =  html_entities("ldquo                          ",  [8220])
+      entities(1228)  =  html_entities("ldquor                         ",  [8222])
+      entities(1229)  =  html_entities("ldrdhar                        ",  [10599])
+      entities(1230)  =  html_entities("ldrushar                       ",  [10571])
+      entities(1231)  =  html_entities("ldsh                           ",  [8626])
+      entities(1232)  =  html_entities("le                             ",  [8804])
+      entities(1233)  =  html_entities("leftarrow                      ",  [8592])
+      entities(1234)  =  html_entities("leftarrowtail                  ",  [8610])
+      entities(1235)  =  html_entities("leftharpoondown                ",  [8637])
+      entities(1236)  =  html_entities("leftharpoonup                  ",  [8636])
+      entities(1237)  =  html_entities("leftleftarrows                 ",  [8647])
+      entities(1238)  =  html_entities("leftrightarrow                 ",  [8596])
+      entities(1239)  =  html_entities("leftrightarrows                ",  [8646])
+      entities(1240)  =  html_entities("leftrightharpoons              ",  [8651])
+      entities(1241)  =  html_entities("leftrightsquigarrow            ",  [8621])
+      entities(1242)  =  html_entities("leftthreetimes                 ",  [8907])
+      entities(1243)  =  html_entities("leg                            ",  [8922])
+      entities(1244)  =  html_entities("leq                            ",  [8804])
+      entities(1245)  =  html_entities("leqq                           ",  [8806])
+      entities(1246)  =  html_entities("leqslant                       ",  [10877])
+      entities(1247)  =  html_entities("les                            ",  [10877])
+      entities(1248)  =  html_entities("lescc                          ",  [10920])
+      entities(1249)  =  html_entities("lesdot                         ",  [10879])
+      entities(1250)  =  html_entities("lesdoto                        ",  [10881])
+      entities(1251)  =  html_entities("lesdotor                       ",  [10883])
+      entities(1252)  =  html_entities("lesg                           ",  [8922,     65024])
+      entities(1253)  =  html_entities("lesges                         ",  [10899])
+      entities(1254)  =  html_entities("lessapprox                     ",  [10885])
+      entities(1255)  =  html_entities("lessdot                        ",  [8918])
+      entities(1256)  =  html_entities("lesseqgtr                      ",  [8922])
+      entities(1257)  =  html_entities("lesseqqgtr                     ",  [10891])
+      entities(1258)  =  html_entities("lessgtr                        ",  [8822])
+      entities(1259)  =  html_entities("lesssim                        ",  [8818])
+      entities(1260)  =  html_entities("lfisht                         ",  [10620])
+      entities(1261)  =  html_entities("lfloor                         ",  [8970])
+      entities(1262)  =  html_entities("lfr                            ",  [120105])
+      entities(1263)  =  html_entities("lg                             ",  [8822])
+      entities(1264)  =  html_entities("lgE                            ",  [10897])
+      entities(1265)  =  html_entities("lhard                          ",  [8637])
+      entities(1266)  =  html_entities("lharu                          ",  [8636])
+      entities(1267)  =  html_entities("lharul                         ",  [10602])
+      entities(1268)  =  html_entities("lhblk                          ",  [9604])
+      entities(1269)  =  html_entities("ljcy                           ",  [1113])
+      entities(1270)  =  html_entities("ll                             ",  [8810])
+      entities(1271)  =  html_entities("llarr                          ",  [8647])
+      entities(1272)  =  html_entities("llcorner                       ",  [8990])
+      entities(1273)  =  html_entities("llhard                         ",  [10603])
+      entities(1274)  =  html_entities("lltri                          ",  [9722])
+      entities(1275)  =  html_entities("lmidot                         ",  [320])
+      entities(1276)  =  html_entities("lmoust                         ",  [9136])
+      entities(1277)  =  html_entities("lmoustache                     ",  [9136])
+      entities(1278)  =  html_entities("lnE                            ",  [8808])
+      entities(1279)  =  html_entities("lnap                           ",  [10889])
+      entities(1280)  =  html_entities("lnapprox                       ",  [10889])
+      entities(1281)  =  html_entities("lne                            ",  [10887])
+      entities(1282)  =  html_entities("lneq                           ",  [10887])
+      entities(1283)  =  html_entities("lneqq                          ",  [8808])
+      entities(1284)  =  html_entities("lnsim                          ",  [8934])
+      entities(1285)  =  html_entities("loang                          ",  [10220])
+      entities(1286)  =  html_entities("loarr                          ",  [8701])
+      entities(1287)  =  html_entities("lobrk                          ",  [10214])
+      entities(1288)  =  html_entities("longleftarrow                  ",  [10229])
+      entities(1289)  =  html_entities("longleftrightarrow             ",  [10231])
+      entities(1290)  =  html_entities("longmapsto                     ",  [10236])
+      entities(1291)  =  html_entities("longrightarrow                 ",  [10230])
+      entities(1292)  =  html_entities("looparrowleft                  ",  [8619])
+      entities(1293)  =  html_entities("looparrowright                 ",  [8620])
+      entities(1294)  =  html_entities("lopar                          ",  [10629])
+      entities(1295)  =  html_entities("lopf                           ",  [120157])
+      entities(1296)  =  html_entities("loplus                         ",  [10797])
+      entities(1297)  =  html_entities("lotimes                        ",  [10804])
+      entities(1298)  =  html_entities("lowast                         ",  [8727])
+      entities(1299)  =  html_entities("lowbar                         ",  [95])
+      entities(1300)  =  html_entities("loz                            ",  [9674])
+      entities(1301)  =  html_entities("lozenge                        ",  [9674])
+      entities(1302)  =  html_entities("lozf                           ",  [10731])
+      entities(1303)  =  html_entities("lpar                           ",  [40])
+      entities(1304)  =  html_entities("lparlt                         ",  [10643])
+      entities(1305)  =  html_entities("lrarr                          ",  [8646])
+      entities(1306)  =  html_entities("lrcorner                       ",  [8991])
+      entities(1307)  =  html_entities("lrhar                          ",  [8651])
+      entities(1308)  =  html_entities("lrhard                         ",  [10605])
+      entities(1309)  =  html_entities("lrm                            ",  [8206])
+      entities(1310)  =  html_entities("lrtri                          ",  [8895])
+      entities(1311)  =  html_entities("lsaquo                         ",  [8249])
+      entities(1312)  =  html_entities("lscr                           ",  [120001])
+      entities(1313)  =  html_entities("lsh                            ",  [8624])
+      entities(1314)  =  html_entities("lsim                           ",  [8818])
+      entities(1315)  =  html_entities("lsime                          ",  [10893])
+      entities(1316)  =  html_entities("lsimg                          ",  [10895])
+      entities(1317)  =  html_entities("lsqb                           ",  [91])
+      entities(1318)  =  html_entities("lsquo                          ",  [8216])
+      entities(1319)  =  html_entities("lsquor                         ",  [8218])
+      entities(1320)  =  html_entities("lstrok                         ",  [322])
+      entities(1321)  =  html_entities("lt                             ",  [60])
+      entities(1322)  =  html_entities("ltcc                           ",  [10918])
+      entities(1323)  =  html_entities("ltcir                          ",  [10873])
+      entities(1324)  =  html_entities("ltdot                          ",  [8918])
+      entities(1325)  =  html_entities("lthree                         ",  [8907])
+      entities(1326)  =  html_entities("ltimes                         ",  [8905])
+      entities(1327)  =  html_entities("ltlarr                         ",  [10614])
+      entities(1328)  =  html_entities("ltquest                        ",  [10875])
+      entities(1329)  =  html_entities("ltrPar                         ",  [10646])
+      entities(1330)  =  html_entities("ltri                           ",  [9667])
+      entities(1331)  =  html_entities("ltrie                          ",  [8884])
+      entities(1332)  =  html_entities("ltrif                          ",  [9666])
+      entities(1333)  =  html_entities("lurdshar                       ",  [10570])
+      entities(1334)  =  html_entities("luruhar                        ",  [10598])
+      entities(1335)  =  html_entities("lvertneqq                      ",  [8808,     65024])
+      entities(1336)  =  html_entities("lvnE                           ",  [8808,     65024])
+      entities(1337)  =  html_entities("mDDot                          ",  [8762])
+      entities(1338)  =  html_entities("macr                           ",  [175])
+      entities(1339)  =  html_entities("male                           ",  [9794])
+      entities(1340)  =  html_entities("malt                           ",  [10016])
+      entities(1341)  =  html_entities("maltese                        ",  [10016])
+      entities(1342)  =  html_entities("map                            ",  [8614])
+      entities(1343)  =  html_entities("mapsto                         ",  [8614])
+      entities(1344)  =  html_entities("mapstodown                     ",  [8615])
+      entities(1345)  =  html_entities("mapstoleft                     ",  [8612])
+      entities(1346)  =  html_entities("mapstoup                       ",  [8613])
+      entities(1347)  =  html_entities("marker                         ",  [9646])
+      entities(1348)  =  html_entities("mcomma                         ",  [10793])
+      entities(1349)  =  html_entities("mcy                            ",  [1084])
+      entities(1350)  =  html_entities("mdash                          ",  [8212])
+      entities(1351)  =  html_entities("measuredangle                  ",  [8737])
+      entities(1352)  =  html_entities("mfr                            ",  [120106])
+      entities(1353)  =  html_entities("mho                            ",  [8487])
+      entities(1354)  =  html_entities("micro                          ",  [181])
+      entities(1355)  =  html_entities("mid                            ",  [8739])
+      entities(1356)  =  html_entities("midast                         ",  [42])
+      entities(1357)  =  html_entities("midcir                         ",  [10992])
+      entities(1358)  =  html_entities("middot                         ",  [183])
+      entities(1359)  =  html_entities("minus                          ",  [8722])
+      entities(1360)  =  html_entities("minusb                         ",  [8863])
+      entities(1361)  =  html_entities("minusd                         ",  [8760])
+      entities(1362)  =  html_entities("minusdu                        ",  [10794])
+      entities(1363)  =  html_entities("mlcp                           ",  [10971])
+      entities(1364)  =  html_entities("mldr                           ",  [8230])
+      entities(1365)  =  html_entities("mnplus                         ",  [8723])
+      entities(1366)  =  html_entities("models                         ",  [8871])
+      entities(1367)  =  html_entities("mopf                           ",  [120158])
+      entities(1368)  =  html_entities("mp                             ",  [8723])
+      entities(1369)  =  html_entities("mscr                           ",  [120002])
+      entities(1370)  =  html_entities("mstpos                         ",  [8766])
+      entities(1371)  =  html_entities("mu                             ",  [956])
+      entities(1372)  =  html_entities("multimap                       ",  [8888])
+      entities(1373)  =  html_entities("mumap                          ",  [8888])
+      entities(1374)  =  html_entities("nGg                            ",  [8921,     824])
+      entities(1375)  =  html_entities("nGt                            ",  [8811,     8402])
+      entities(1376)  =  html_entities("nGtv                           ",  [8811,     824])
+      entities(1377)  =  html_entities("nLeftarrow                     ",  [8653])
+      entities(1378)  =  html_entities("nLeftrightarrow                ",  [8654])
+      entities(1379)  =  html_entities("nLl                            ",  [8920,     824])
+      entities(1380)  =  html_entities("nLt                            ",  [8810,     8402])
+      entities(1381)  =  html_entities("nLtv                           ",  [8810,     824])
+      entities(1382)  =  html_entities("nRightarrow                    ",  [8655])
+      entities(1383)  =  html_entities("nVDash                         ",  [8879])
+      entities(1384)  =  html_entities("nVdash                         ",  [8878])
+      entities(1385)  =  html_entities("nabla                          ",  [8711])
+      entities(1386)  =  html_entities("nacute                         ",  [324])
+      entities(1387)  =  html_entities("nang                           ",  [8736,     8402])
+      entities(1388)  =  html_entities("nap                            ",  [8777])
+      entities(1389)  =  html_entities("napE                           ",  [10864,    824])
+      entities(1390)  =  html_entities("napid                          ",  [8779,     824])
+      entities(1391)  =  html_entities("napos                          ",  [329])
+      entities(1392)  =  html_entities("napprox                        ",  [8777])
+      entities(1393)  =  html_entities("natur                          ",  [9838])
+      entities(1394)  =  html_entities("natural                        ",  [9838])
+      entities(1395)  =  html_entities("naturals                       ",  [8469])
+      entities(1396)  =  html_entities("nbsp                           ",  [160])
+      entities(1397)  =  html_entities("nbump                          ",  [8782,     824])
+      entities(1398)  =  html_entities("nbumpe                         ",  [8783,     824])
+      entities(1399)  =  html_entities("ncap                           ",  [10819])
+      entities(1400)  =  html_entities("ncaron                         ",  [328])
+      entities(1401)  =  html_entities("ncedil                         ",  [326])
+      entities(1402)  =  html_entities("ncong                          ",  [8775])
+      entities(1403)  =  html_entities("ncongdot                       ",  [10861,    824])
+      entities(1404)  =  html_entities("ncup                           ",  [10818])
+      entities(1405)  =  html_entities("ncy                            ",  [1085])
+      entities(1406)  =  html_entities("ndash                          ",  [8211])
+      entities(1407)  =  html_entities("ne                             ",  [8800])
+      entities(1408)  =  html_entities("neArr                          ",  [8663])
+      entities(1409)  =  html_entities("nearhk                         ",  [10532])
+      entities(1410)  =  html_entities("nearr                          ",  [8599])
+      entities(1411)  =  html_entities("nearrow                        ",  [8599])
+      entities(1412)  =  html_entities("nedot                          ",  [8784,     824])
+      entities(1413)  =  html_entities("nequiv                         ",  [8802])
+      entities(1414)  =  html_entities("nesear                         ",  [10536])
+      entities(1415)  =  html_entities("nesim                          ",  [8770,     824])
+      entities(1416)  =  html_entities("nexist                         ",  [8708])
+      entities(1417)  =  html_entities("nexists                        ",  [8708])
+      entities(1418)  =  html_entities("nfr                            ",  [120107])
+      entities(1419)  =  html_entities("ngE                            ",  [8807,     824])
+      entities(1420)  =  html_entities("nge                            ",  [8817])
+      entities(1421)  =  html_entities("ngeq                           ",  [8817])
+      entities(1422)  =  html_entities("ngeqq                          ",  [8807,     824])
+      entities(1423)  =  html_entities("ngeqslant                      ",  [10878,    824])
+      entities(1424)  =  html_entities("nges                           ",  [10878,    824])
+      entities(1425)  =  html_entities("ngsim                          ",  [8821])
+      entities(1426)  =  html_entities("ngt                            ",  [8815])
+      entities(1427)  =  html_entities("ngtr                           ",  [8815])
+      entities(1428)  =  html_entities("nhArr                          ",  [8654])
+      entities(1429)  =  html_entities("nharr                          ",  [8622])
+      entities(1430)  =  html_entities("nhpar                          ",  [10994])
+      entities(1431)  =  html_entities("ni                             ",  [8715])
+      entities(1432)  =  html_entities("nis                            ",  [8956])
+      entities(1433)  =  html_entities("nisd                           ",  [8954])
+      entities(1434)  =  html_entities("niv                            ",  [8715])
+      entities(1435)  =  html_entities("njcy                           ",  [1114])
+      entities(1436)  =  html_entities("nlArr                          ",  [8653])
+      entities(1437)  =  html_entities("nlE                            ",  [8806,     824])
+      entities(1438)  =  html_entities("nlarr                          ",  [8602])
+      entities(1439)  =  html_entities("nldr                           ",  [8229])
+      entities(1440)  =  html_entities("nle                            ",  [8816])
+      entities(1441)  =  html_entities("nleftarrow                     ",  [8602])
+      entities(1442)  =  html_entities("nleftrightarrow                ",  [8622])
+      entities(1443)  =  html_entities("nleq                           ",  [8816])
+      entities(1444)  =  html_entities("nleqq                          ",  [8806,     824])
+      entities(1445)  =  html_entities("nleqslant                      ",  [10877,    824])
+      entities(1446)  =  html_entities("nles                           ",  [10877,    824])
+      entities(1447)  =  html_entities("nless                          ",  [8814])
+      entities(1448)  =  html_entities("nlsim                          ",  [8820])
+      entities(1449)  =  html_entities("nlt                            ",  [8814])
+      entities(1450)  =  html_entities("nltri                          ",  [8938])
+      entities(1451)  =  html_entities("nltrie                         ",  [8940])
+      entities(1452)  =  html_entities("nmid                           ",  [8740])
+      entities(1453)  =  html_entities("nopf                           ",  [120159])
+      entities(1454)  =  html_entities("not                            ",  [172])
+      entities(1455)  =  html_entities("notin                          ",  [8713])
+      entities(1456)  =  html_entities("notinE                         ",  [8953,     824])
+      entities(1457)  =  html_entities("notindot                       ",  [8949,     824])
+      entities(1458)  =  html_entities("notinva                        ",  [8713])
+      entities(1459)  =  html_entities("notinvb                        ",  [8951])
+      entities(1460)  =  html_entities("notinvc                        ",  [8950])
+      entities(1461)  =  html_entities("notni                          ",  [8716])
+      entities(1462)  =  html_entities("notniva                        ",  [8716])
+      entities(1463)  =  html_entities("notnivb                        ",  [8958])
+      entities(1464)  =  html_entities("notnivc                        ",  [8957])
+      entities(1465)  =  html_entities("npar                           ",  [8742])
+      entities(1466)  =  html_entities("nparallel                      ",  [8742])
+      entities(1467)  =  html_entities("nparsl                         ",  [11005,    8421])
+      entities(1468)  =  html_entities("npart                          ",  [8706,     824])
+      entities(1469)  =  html_entities("npolint                        ",  [10772])
+      entities(1470)  =  html_entities("npr                            ",  [8832])
+      entities(1471)  =  html_entities("nprcue                         ",  [8928])
+      entities(1472)  =  html_entities("npre                           ",  [10927,    824])
+      entities(1473)  =  html_entities("nprec                          ",  [8832])
+      entities(1474)  =  html_entities("npreceq                        ",  [10927,    824])
+      entities(1475)  =  html_entities("nrArr                          ",  [8655])
+      entities(1476)  =  html_entities("nrarr                          ",  [8603])
+      entities(1477)  =  html_entities("nrarrc                         ",  [10547,    824])
+      entities(1478)  =  html_entities("nrarrw                         ",  [8605,     824])
+      entities(1479)  =  html_entities("nrightarrow                    ",  [8603])
+      entities(1480)  =  html_entities("nrtri                          ",  [8939])
+      entities(1481)  =  html_entities("nrtrie                         ",  [8941])
+      entities(1482)  =  html_entities("nsc                            ",  [8833])
+      entities(1483)  =  html_entities("nsccue                         ",  [8929])
+      entities(1484)  =  html_entities("nsce                           ",  [10928,    824])
+      entities(1485)  =  html_entities("nscr                           ",  [120003])
+      entities(1486)  =  html_entities("nshortmid                      ",  [8740])
+      entities(1487)  =  html_entities("nshortparallel                 ",  [8742])
+      entities(1488)  =  html_entities("nsim                           ",  [8769])
+      entities(1489)  =  html_entities("nsime                          ",  [8772])
+      entities(1490)  =  html_entities("nsimeq                         ",  [8772])
+      entities(1491)  =  html_entities("nsmid                          ",  [8740])
+      entities(1492)  =  html_entities("nspar                          ",  [8742])
+      entities(1493)  =  html_entities("nsqsube                        ",  [8930])
+      entities(1494)  =  html_entities("nsqsupe                        ",  [8931])
+      entities(1495)  =  html_entities("nsub                           ",  [8836])
+      entities(1496)  =  html_entities("nsubE                          ",  [10949,    824])
+      entities(1497)  =  html_entities("nsube                          ",  [8840])
+      entities(1498)  =  html_entities("nsubset                        ",  [8834,     8402])
+      entities(1499)  =  html_entities("nsubseteq                      ",  [8840])
+      entities(1500)  =  html_entities("nsubseteqq                     ",  [10949,    824])
+      entities(1501)  =  html_entities("nsucc                          ",  [8833])
+      entities(1502)  =  html_entities("nsucceq                        ",  [10928,    824])
+      entities(1503)  =  html_entities("nsup                           ",  [8837])
+      entities(1504)  =  html_entities("nsupE                          ",  [10950,    824])
+      entities(1505)  =  html_entities("nsupe                          ",  [8841])
+      entities(1506)  =  html_entities("nsupset                        ",  [8835,     8402])
+      entities(1507)  =  html_entities("nsupseteq                      ",  [8841])
+      entities(1508)  =  html_entities("nsupseteqq                     ",  [10950,    824])
+      entities(1509)  =  html_entities("ntgl                           ",  [8825])
+      entities(1510)  =  html_entities("ntilde                         ",  [241])
+      entities(1511)  =  html_entities("ntlg                           ",  [8824])
+      entities(1512)  =  html_entities("ntriangleleft                  ",  [8938])
+      entities(1513)  =  html_entities("ntrianglelefteq                ",  [8940])
+      entities(1514)  =  html_entities("ntriangleright                 ",  [8939])
+      entities(1515)  =  html_entities("ntrianglerighteq               ",  [8941])
+      entities(1516)  =  html_entities("nu                             ",  [957])
+      entities(1517)  =  html_entities("num                            ",  [35])
+      entities(1518)  =  html_entities("numero                         ",  [8470])
+      entities(1519)  =  html_entities("numsp                          ",  [8199])
+      entities(1520)  =  html_entities("nvDash                         ",  [8877])
+      entities(1521)  =  html_entities("nvHarr                         ",  [10500])
+      entities(1522)  =  html_entities("nvap                           ",  [8781,     8402])
+      entities(1523)  =  html_entities("nvdash                         ",  [8876])
+      entities(1524)  =  html_entities("nvge                           ",  [8805,     8402])
+      entities(1525)  =  html_entities("nvgt                           ",  [62,       8402])
+      entities(1526)  =  html_entities("nvinfin                        ",  [10718])
+      entities(1527)  =  html_entities("nvlArr                         ",  [10498])
+      entities(1528)  =  html_entities("nvle                           ",  [8804,     8402])
+      entities(1529)  =  html_entities("nvlt                           ",  [60,       8402])
+      entities(1530)  =  html_entities("nvltrie                        ",  [8884,     8402])
+      entities(1531)  =  html_entities("nvrArr                         ",  [10499])
+      entities(1532)  =  html_entities("nvrtrie                        ",  [8885,     8402])
+      entities(1533)  =  html_entities("nvsim                          ",  [8764,     8402])
+      entities(1534)  =  html_entities("nwArr                          ",  [8662])
+      entities(1535)  =  html_entities("nwarhk                         ",  [10531])
+      entities(1536)  =  html_entities("nwarr                          ",  [8598])
+      entities(1537)  =  html_entities("nwarrow                        ",  [8598])
+      entities(1538)  =  html_entities("nwnear                         ",  [10535])
+      entities(1539)  =  html_entities("oS                             ",  [9416])
+      entities(1540)  =  html_entities("oacute                         ",  [243])
+      entities(1541)  =  html_entities("oast                           ",  [8859])
+      entities(1542)  =  html_entities("ocir                           ",  [8858])
+      entities(1543)  =  html_entities("ocirc                          ",  [244])
+      entities(1544)  =  html_entities("ocy                            ",  [1086])
+      entities(1545)  =  html_entities("odash                          ",  [8861])
+      entities(1546)  =  html_entities("odblac                         ",  [337])
+      entities(1547)  =  html_entities("odiv                           ",  [10808])
+      entities(1548)  =  html_entities("odot                           ",  [8857])
+      entities(1549)  =  html_entities("odsold                         ",  [10684])
+      entities(1550)  =  html_entities("oelig                          ",  [339])
+      entities(1551)  =  html_entities("ofcir                          ",  [10687])
+      entities(1552)  =  html_entities("ofr                            ",  [120108])
+      entities(1553)  =  html_entities("ogon                           ",  [731])
+      entities(1554)  =  html_entities("ograve                         ",  [242])
+      entities(1555)  =  html_entities("ogt                            ",  [10689])
+      entities(1556)  =  html_entities("ohbar                          ",  [10677])
+      entities(1557)  =  html_entities("ohm                            ",  [937])
+      entities(1558)  =  html_entities("oint                           ",  [8750])
+      entities(1559)  =  html_entities("olarr                          ",  [8634])
+      entities(1560)  =  html_entities("olcir                          ",  [10686])
+      entities(1561)  =  html_entities("olcross                        ",  [10683])
+      entities(1562)  =  html_entities("oline                          ",  [8254])
+      entities(1563)  =  html_entities("olt                            ",  [10688])
+      entities(1564)  =  html_entities("omacr                          ",  [333])
+      entities(1565)  =  html_entities("omega                          ",  [969])
+      entities(1566)  =  html_entities("omicron                        ",  [959])
+      entities(1567)  =  html_entities("omid                           ",  [10678])
+      entities(1568)  =  html_entities("ominus                         ",  [8854])
+      entities(1569)  =  html_entities("oopf                           ",  [120160])
+      entities(1570)  =  html_entities("opar                           ",  [10679])
+      entities(1571)  =  html_entities("operp                          ",  [10681])
+      entities(1572)  =  html_entities("oplus                          ",  [8853])
+      entities(1573)  =  html_entities("or                             ",  [8744])
+      entities(1574)  =  html_entities("orarr                          ",  [8635])
+      entities(1575)  =  html_entities("ord                            ",  [10845])
+      entities(1576)  =  html_entities("order                          ",  [8500])
+      entities(1577)  =  html_entities("orderof                        ",  [8500])
+      entities(1578)  =  html_entities("ordf                           ",  [170])
+      entities(1579)  =  html_entities("ordm                           ",  [186])
+      entities(1580)  =  html_entities("origof                         ",  [8886])
+      entities(1581)  =  html_entities("oror                           ",  [10838])
+      entities(1582)  =  html_entities("orslope                        ",  [10839])
+      entities(1583)  =  html_entities("orv                            ",  [10843])
+      entities(1584)  =  html_entities("oscr                           ",  [8500])
+      entities(1585)  =  html_entities("oslash                         ",  [248])
+      entities(1586)  =  html_entities("osol                           ",  [8856])
+      entities(1587)  =  html_entities("otilde                         ",  [245])
+      entities(1588)  =  html_entities("otimes                         ",  [8855])
+      entities(1589)  =  html_entities("otimesas                       ",  [10806])
+      entities(1590)  =  html_entities("ouml                           ",  [246])
+      entities(1591)  =  html_entities("ovbar                          ",  [9021])
+      entities(1592)  =  html_entities("par                            ",  [8741])
+      entities(1593)  =  html_entities("para                           ",  [182])
+      entities(1594)  =  html_entities("parallel                       ",  [8741])
+      entities(1595)  =  html_entities("parsim                         ",  [10995])
+      entities(1596)  =  html_entities("parsl                          ",  [11005])
+      entities(1597)  =  html_entities("part                           ",  [8706])
+      entities(1598)  =  html_entities("pcy                            ",  [1087])
+      entities(1599)  =  html_entities("percnt                         ",  [37])
+      entities(1600)  =  html_entities("period                         ",  [46])
+      entities(1601)  =  html_entities("permil                         ",  [8240])
+      entities(1602)  =  html_entities("perp                           ",  [8869])
+      entities(1603)  =  html_entities("pertenk                        ",  [8241])
+      entities(1604)  =  html_entities("pfr                            ",  [120109])
+      entities(1605)  =  html_entities("phi                            ",  [966])
+      entities(1606)  =  html_entities("phiv                           ",  [981])
+      entities(1607)  =  html_entities("phmmat                         ",  [8499])
+      entities(1608)  =  html_entities("phone                          ",  [9742])
+      entities(1609)  =  html_entities("pi                             ",  [960])
+      entities(1610)  =  html_entities("pitchfork                      ",  [8916])
+      entities(1611)  =  html_entities("piv                            ",  [982])
+      entities(1612)  =  html_entities("planck                         ",  [8463])
+      entities(1613)  =  html_entities("planckh                        ",  [8462])
+      entities(1614)  =  html_entities("plankv                         ",  [8463])
+      entities(1615)  =  html_entities("plus                           ",  [43])
+      entities(1616)  =  html_entities("plusacir                       ",  [10787])
+      entities(1617)  =  html_entities("plusb                          ",  [8862])
+      entities(1618)  =  html_entities("pluscir                        ",  [10786])
+      entities(1619)  =  html_entities("plusdo                         ",  [8724])
+      entities(1620)  =  html_entities("plusdu                         ",  [10789])
+      entities(1621)  =  html_entities("pluse                          ",  [10866])
+      entities(1622)  =  html_entities("plusmn                         ",  [177])
+      entities(1623)  =  html_entities("plussim                        ",  [10790])
+      entities(1624)  =  html_entities("plustwo                        ",  [10791])
+      entities(1625)  =  html_entities("pm                             ",  [177])
+      entities(1626)  =  html_entities("pointint                       ",  [10773])
+      entities(1627)  =  html_entities("popf                           ",  [120161])
+      entities(1628)  =  html_entities("pound                          ",  [163])
+      entities(1629)  =  html_entities("pr                             ",  [8826])
+      entities(1630)  =  html_entities("prE                            ",  [10931])
+      entities(1631)  =  html_entities("prap                           ",  [10935])
+      entities(1632)  =  html_entities("prcue                          ",  [8828])
+      entities(1633)  =  html_entities("pre                            ",  [10927])
+      entities(1634)  =  html_entities("prec                           ",  [8826])
+      entities(1635)  =  html_entities("precapprox                     ",  [10935])
+      entities(1636)  =  html_entities("preccurlyeq                    ",  [8828])
+      entities(1637)  =  html_entities("preceq                         ",  [10927])
+      entities(1638)  =  html_entities("precnapprox                    ",  [10937])
+      entities(1639)  =  html_entities("precneqq                       ",  [10933])
+      entities(1640)  =  html_entities("precnsim                       ",  [8936])
+      entities(1641)  =  html_entities("precsim                        ",  [8830])
+      entities(1642)  =  html_entities("prime                          ",  [8242])
+      entities(1643)  =  html_entities("primes                         ",  [8473])
+      entities(1644)  =  html_entities("prnE                           ",  [10933])
+      entities(1645)  =  html_entities("prnap                          ",  [10937])
+      entities(1646)  =  html_entities("prnsim                         ",  [8936])
+      entities(1647)  =  html_entities("prod                           ",  [8719])
+      entities(1648)  =  html_entities("profalar                       ",  [9006])
+      entities(1649)  =  html_entities("profline                       ",  [8978])
+      entities(1650)  =  html_entities("profsurf                       ",  [8979])
+      entities(1651)  =  html_entities("prop                           ",  [8733])
+      entities(1652)  =  html_entities("propto                         ",  [8733])
+      entities(1653)  =  html_entities("prsim                          ",  [8830])
+      entities(1654)  =  html_entities("prurel                         ",  [8880])
+      entities(1655)  =  html_entities("pscr                           ",  [120005])
+      entities(1656)  =  html_entities("psi                            ",  [968])
+      entities(1657)  =  html_entities("puncsp                         ",  [8200])
+      entities(1658)  =  html_entities("qfr                            ",  [120110])
+      entities(1659)  =  html_entities("qint                           ",  [10764])
+      entities(1660)  =  html_entities("qopf                           ",  [120162])
+      entities(1661)  =  html_entities("qprime                         ",  [8279])
+      entities(1662)  =  html_entities("qscr                           ",  [120006])
+      entities(1663)  =  html_entities("quaternions                    ",  [8461])
+      entities(1664)  =  html_entities("quatint                        ",  [10774])
+      entities(1665)  =  html_entities("quest                          ",  [63])
+      entities(1666)  =  html_entities("questeq                        ",  [8799])
+      entities(1667)  =  html_entities("quot                           ",  [34])
+      entities(1668)  =  html_entities("rAarr                          ",  [8667])
+      entities(1669)  =  html_entities("rArr                           ",  [8658])
+      entities(1670)  =  html_entities("rAtail                         ",  [10524])
+      entities(1671)  =  html_entities("rBarr                          ",  [10511])
+      entities(1672)  =  html_entities("rHar                           ",  [10596])
+      entities(1673)  =  html_entities("race                           ",  [8765,     817])
+      entities(1674)  =  html_entities("racute                         ",  [341])
+      entities(1675)  =  html_entities("radic                          ",  [8730])
+      entities(1676)  =  html_entities("raemptyv                       ",  [10675])
+      entities(1677)  =  html_entities("rang                           ",  [10217])
+      entities(1678)  =  html_entities("rangd                          ",  [10642])
+      entities(1679)  =  html_entities("range                          ",  [10661])
+      entities(1680)  =  html_entities("rangle                         ",  [10217])
+      entities(1681)  =  html_entities("raquo                          ",  [187])
+      entities(1682)  =  html_entities("rarr                           ",  [8594])
+      entities(1683)  =  html_entities("rarrap                         ",  [10613])
+      entities(1684)  =  html_entities("rarrb                          ",  [8677])
+      entities(1685)  =  html_entities("rarrbfs                        ",  [10528])
+      entities(1686)  =  html_entities("rarrc                          ",  [10547])
+      entities(1687)  =  html_entities("rarrfs                         ",  [10526])
+      entities(1688)  =  html_entities("rarrhk                         ",  [8618])
+      entities(1689)  =  html_entities("rarrlp                         ",  [8620])
+      entities(1690)  =  html_entities("rarrpl                         ",  [10565])
+      entities(1691)  =  html_entities("rarrsim                        ",  [10612])
+      entities(1692)  =  html_entities("rarrtl                         ",  [8611])
+      entities(1693)  =  html_entities("rarrw                          ",  [8605])
+      entities(1694)  =  html_entities("ratail                         ",  [10522])
+      entities(1695)  =  html_entities("ratio                          ",  [8758])
+      entities(1696)  =  html_entities("rationals                      ",  [8474])
+      entities(1697)  =  html_entities("rbarr                          ",  [10509])
+      entities(1698)  =  html_entities("rbbrk                          ",  [10099])
+      entities(1699)  =  html_entities("rbrace                         ",  [125])
+      entities(1700)  =  html_entities("rbrack                         ",  [93])
+      entities(1701)  =  html_entities("rbrke                          ",  [10636])
+      entities(1702)  =  html_entities("rbrksld                        ",  [10638])
+      entities(1703)  =  html_entities("rbrkslu                        ",  [10640])
+      entities(1704)  =  html_entities("rcaron                         ",  [345])
+      entities(1705)  =  html_entities("rcedil                         ",  [343])
+      entities(1706)  =  html_entities("rceil                          ",  [8969])
+      entities(1707)  =  html_entities("rcub                           ",  [125])
+      entities(1708)  =  html_entities("rcy                            ",  [1088])
+      entities(1709)  =  html_entities("rdca                           ",  [10551])
+      entities(1710)  =  html_entities("rdldhar                        ",  [10601])
+      entities(1711)  =  html_entities("rdquo                          ",  [8221])
+      entities(1712)  =  html_entities("rdquor                         ",  [8221])
+      entities(1713)  =  html_entities("rdsh                           ",  [8627])
+      entities(1714)  =  html_entities("real                           ",  [8476])
+      entities(1715)  =  html_entities("realine                        ",  [8475])
+      entities(1716)  =  html_entities("realpart                       ",  [8476])
+      entities(1717)  =  html_entities("reals                          ",  [8477])
+      entities(1718)  =  html_entities("rect                           ",  [9645])
+      entities(1719)  =  html_entities("reg                            ",  [174])
+      entities(1720)  =  html_entities("rfisht                         ",  [10621])
+      entities(1721)  =  html_entities("rfloor                         ",  [8971])
+      entities(1722)  =  html_entities("rfr                            ",  [120111])
+      entities(1723)  =  html_entities("rhard                          ",  [8641])
+      entities(1724)  =  html_entities("rharu                          ",  [8640])
+      entities(1725)  =  html_entities("rharul                         ",  [10604])
+      entities(1726)  =  html_entities("rho                            ",  [961])
+      entities(1727)  =  html_entities("rhov                           ",  [1009])
+      entities(1728)  =  html_entities("rightarrow                     ",  [8594])
+      entities(1729)  =  html_entities("rightarrowtail                 ",  [8611])
+      entities(1730)  =  html_entities("rightharpoondown               ",  [8641])
+      entities(1731)  =  html_entities("rightharpoonup                 ",  [8640])
+      entities(1732)  =  html_entities("rightleftarrows                ",  [8644])
+      entities(1733)  =  html_entities("rightleftharpoons              ",  [8652])
+      entities(1734)  =  html_entities("rightrightarrows               ",  [8649])
+      entities(1735)  =  html_entities("rightsquigarrow                ",  [8605])
+      entities(1736)  =  html_entities("rightthreetimes                ",  [8908])
+      entities(1737)  =  html_entities("ring                           ",  [730])
+      entities(1738)  =  html_entities("risingdotseq                   ",  [8787])
+      entities(1739)  =  html_entities("rlarr                          ",  [8644])
+      entities(1740)  =  html_entities("rlhar                          ",  [8652])
+      entities(1741)  =  html_entities("rlm                            ",  [8207])
+      entities(1742)  =  html_entities("rmoust                         ",  [9137])
+      entities(1743)  =  html_entities("rmoustache                     ",  [9137])
+      entities(1744)  =  html_entities("rnmid                          ",  [10990])
+      entities(1745)  =  html_entities("roang                          ",  [10221])
+      entities(1746)  =  html_entities("roarr                          ",  [8702])
+      entities(1747)  =  html_entities("robrk                          ",  [10215])
+      entities(1748)  =  html_entities("ropar                          ",  [10630])
+      entities(1749)  =  html_entities("ropf                           ",  [120163])
+      entities(1750)  =  html_entities("roplus                         ",  [10798])
+      entities(1751)  =  html_entities("rotimes                        ",  [10805])
+      entities(1752)  =  html_entities("rpar                           ",  [41])
+      entities(1753)  =  html_entities("rpargt                         ",  [10644])
+      entities(1754)  =  html_entities("rppolint                       ",  [10770])
+      entities(1755)  =  html_entities("rrarr                          ",  [8649])
+      entities(1756)  =  html_entities("rsaquo                         ",  [8250])
+      entities(1757)  =  html_entities("rscr                           ",  [120007])
+      entities(1758)  =  html_entities("rsh                            ",  [8625])
+      entities(1759)  =  html_entities("rsqb                           ",  [93])
+      entities(1760)  =  html_entities("rsquo                          ",  [8217])
+      entities(1761)  =  html_entities("rsquor                         ",  [8217])
+      entities(1762)  =  html_entities("rthree                         ",  [8908])
+      entities(1763)  =  html_entities("rtimes                         ",  [8906])
+      entities(1764)  =  html_entities("rtri                           ",  [9657])
+      entities(1765)  =  html_entities("rtrie                          ",  [8885])
+      entities(1766)  =  html_entities("rtrif                          ",  [9656])
+      entities(1767)  =  html_entities("rtriltri                       ",  [10702])
+      entities(1768)  =  html_entities("ruluhar                        ",  [10600])
+      entities(1769)  =  html_entities("rx                             ",  [8478])
+      entities(1770)  =  html_entities("sacute                         ",  [347])
+      entities(1771)  =  html_entities("sbquo                          ",  [8218])
+      entities(1772)  =  html_entities("sc                             ",  [8827])
+      entities(1773)  =  html_entities("scE                            ",  [10932])
+      entities(1774)  =  html_entities("scap                           ",  [10936])
+      entities(1775)  =  html_entities("scaron                         ",  [353])
+      entities(1776)  =  html_entities("sccue                          ",  [8829])
+      entities(1777)  =  html_entities("sce                            ",  [10928])
+      entities(1778)  =  html_entities("scedil                         ",  [351])
+      entities(1779)  =  html_entities("scirc                          ",  [349])
+      entities(1780)  =  html_entities("scnE                           ",  [10934])
+      entities(1781)  =  html_entities("scnap                          ",  [10938])
+      entities(1782)  =  html_entities("scnsim                         ",  [8937])
+      entities(1783)  =  html_entities("scpolint                       ",  [10771])
+      entities(1784)  =  html_entities("scsim                          ",  [8831])
+      entities(1785)  =  html_entities("scy                            ",  [1089])
+      entities(1786)  =  html_entities("sdot                           ",  [8901])
+      entities(1787)  =  html_entities("sdotb                          ",  [8865])
+      entities(1788)  =  html_entities("sdote                          ",  [10854])
+      entities(1789)  =  html_entities("seArr                          ",  [8664])
+      entities(1790)  =  html_entities("searhk                         ",  [10533])
+      entities(1791)  =  html_entities("searr                          ",  [8600])
+      entities(1792)  =  html_entities("searrow                        ",  [8600])
+      entities(1793)  =  html_entities("sect                           ",  [167])
+      entities(1794)  =  html_entities("semi                           ",  [59])
+      entities(1795)  =  html_entities("seswar                         ",  [10537])
+      entities(1796)  =  html_entities("setminus                       ",  [8726])
+      entities(1797)  =  html_entities("setmn                          ",  [8726])
+      entities(1798)  =  html_entities("sext                           ",  [10038])
+      entities(1799)  =  html_entities("sfr                            ",  [120112])
+      entities(1800)  =  html_entities("sfrown                         ",  [8994])
+      entities(1801)  =  html_entities("sharp                          ",  [9839])
+      entities(1802)  =  html_entities("shchcy                         ",  [1097])
+      entities(1803)  =  html_entities("shcy                           ",  [1096])
+      entities(1804)  =  html_entities("shortmid                       ",  [8739])
+      entities(1805)  =  html_entities("shortparallel                  ",  [8741])
+      entities(1806)  =  html_entities("shy                            ",  [173])
+      entities(1807)  =  html_entities("sigma                          ",  [963])
+      entities(1808)  =  html_entities("sigmaf                         ",  [962])
+      entities(1809)  =  html_entities("sigmav                         ",  [962])
+      entities(1810)  =  html_entities("sim                            ",  [8764])
+      entities(1811)  =  html_entities("simdot                         ",  [10858])
+      entities(1812)  =  html_entities("sime                           ",  [8771])
+      entities(1813)  =  html_entities("simeq                          ",  [8771])
+      entities(1814)  =  html_entities("simg                           ",  [10910])
+      entities(1815)  =  html_entities("simgE                          ",  [10912])
+      entities(1816)  =  html_entities("siml                           ",  [10909])
+      entities(1817)  =  html_entities("simlE                          ",  [10911])
+      entities(1818)  =  html_entities("simne                          ",  [8774])
+      entities(1819)  =  html_entities("simplus                        ",  [10788])
+      entities(1820)  =  html_entities("simrarr                        ",  [10610])
+      entities(1821)  =  html_entities("slarr                          ",  [8592])
+      entities(1822)  =  html_entities("smallsetminus                  ",  [8726])
+      entities(1823)  =  html_entities("smashp                         ",  [10803])
+      entities(1824)  =  html_entities("smeparsl                       ",  [10724])
+      entities(1825)  =  html_entities("smid                           ",  [8739])
+      entities(1826)  =  html_entities("smile                          ",  [8995])
+      entities(1827)  =  html_entities("smt                            ",  [10922])
+      entities(1828)  =  html_entities("smte                           ",  [10924])
+      entities(1829)  =  html_entities("smtes                          ",  [10924,    65024])
+      entities(1830)  =  html_entities("softcy                         ",  [1100])
+      entities(1831)  =  html_entities("sol                            ",  [47])
+      entities(1832)  =  html_entities("solb                           ",  [10692])
+      entities(1833)  =  html_entities("solbar                         ",  [9023])
+      entities(1834)  =  html_entities("sopf                           ",  [120164])
+      entities(1835)  =  html_entities("spades                         ",  [9824])
+      entities(1836)  =  html_entities("spadesuit                      ",  [9824])
+      entities(1837)  =  html_entities("spar                           ",  [8741])
+      entities(1838)  =  html_entities("sqcap                          ",  [8851])
+      entities(1839)  =  html_entities("sqcaps                         ",  [8851,     65024])
+      entities(1840)  =  html_entities("sqcup                          ",  [8852])
+      entities(1841)  =  html_entities("sqcups                         ",  [8852,     65024])
+      entities(1842)  =  html_entities("sqsub                          ",  [8847])
+      entities(1843)  =  html_entities("sqsube                         ",  [8849])
+      entities(1844)  =  html_entities("sqsubset                       ",  [8847])
+      entities(1845)  =  html_entities("sqsubseteq                     ",  [8849])
+      entities(1846)  =  html_entities("sqsup                          ",  [8848])
+      entities(1847)  =  html_entities("sqsupe                         ",  [8850])
+      entities(1848)  =  html_entities("sqsupset                       ",  [8848])
+      entities(1849)  =  html_entities("sqsupseteq                     ",  [8850])
+      entities(1850)  =  html_entities("squ                            ",  [9633])
+      entities(1851)  =  html_entities("square                         ",  [9633])
+      entities(1852)  =  html_entities("squarf                         ",  [9642])
+      entities(1853)  =  html_entities("squf                           ",  [9642])
+      entities(1854)  =  html_entities("srarr                          ",  [8594])
+      entities(1855)  =  html_entities("sscr                           ",  [120008])
+      entities(1856)  =  html_entities("ssetmn                         ",  [8726])
+      entities(1857)  =  html_entities("ssmile                         ",  [8995])
+      entities(1858)  =  html_entities("sstarf                         ",  [8902])
+      entities(1859)  =  html_entities("star                           ",  [9734])
+      entities(1860)  =  html_entities("starf                          ",  [9733])
+      entities(1861)  =  html_entities("straightepsilon                ",  [1013])
+      entities(1862)  =  html_entities("straightphi                    ",  [981])
+      entities(1863)  =  html_entities("strns                          ",  [175])
+      entities(1864)  =  html_entities("sub                            ",  [8834])
+      entities(1865)  =  html_entities("subE                           ",  [10949])
+      entities(1866)  =  html_entities("subdot                         ",  [10941])
+      entities(1867)  =  html_entities("sube                           ",  [8838])
+      entities(1868)  =  html_entities("subedot                        ",  [10947])
+      entities(1869)  =  html_entities("submult                        ",  [10945])
+      entities(1870)  =  html_entities("subnE                          ",  [10955])
+      entities(1871)  =  html_entities("subne                          ",  [8842])
+      entities(1872)  =  html_entities("subplus                        ",  [10943])
+      entities(1873)  =  html_entities("subrarr                        ",  [10617])
+      entities(1874)  =  html_entities("subset                         ",  [8834])
+      entities(1875)  =  html_entities("subseteq                       ",  [8838])
+      entities(1876)  =  html_entities("subseteqq                      ",  [10949])
+      entities(1877)  =  html_entities("subsetneq                      ",  [8842])
+      entities(1878)  =  html_entities("subsetneqq                     ",  [10955])
+      entities(1879)  =  html_entities("subsim                         ",  [10951])
+      entities(1880)  =  html_entities("subsub                         ",  [10965])
+      entities(1881)  =  html_entities("subsup                         ",  [10963])
+      entities(1882)  =  html_entities("succ                           ",  [8827])
+      entities(1883)  =  html_entities("succapprox                     ",  [10936])
+      entities(1884)  =  html_entities("succcurlyeq                    ",  [8829])
+      entities(1885)  =  html_entities("succeq                         ",  [10928])
+      entities(1886)  =  html_entities("succnapprox                    ",  [10938])
+      entities(1887)  =  html_entities("succneqq                       ",  [10934])
+      entities(1888)  =  html_entities("succnsim                       ",  [8937])
+      entities(1889)  =  html_entities("succsim                        ",  [8831])
+      entities(1890)  =  html_entities("sum                            ",  [8721])
+      entities(1891)  =  html_entities("sung                           ",  [9834])
+      entities(1892)  =  html_entities("sup1                           ",  [185])
+      entities(1893)  =  html_entities("sup2                           ",  [178])
+      entities(1894)  =  html_entities("sup3                           ",  [179])
+      entities(1895)  =  html_entities("sup                            ",  [8835])
+      entities(1896)  =  html_entities("supE                           ",  [10950])
+      entities(1897)  =  html_entities("supdot                         ",  [10942])
+      entities(1898)  =  html_entities("supdsub                        ",  [10968])
+      entities(1899)  =  html_entities("supe                           ",  [8839])
+      entities(1900)  =  html_entities("supedot                        ",  [10948])
+      entities(1901)  =  html_entities("suphsol                        ",  [10185])
+      entities(1902)  =  html_entities("suphsub                        ",  [10967])
+      entities(1903)  =  html_entities("suplarr                        ",  [10619])
+      entities(1904)  =  html_entities("supmult                        ",  [10946])
+      entities(1905)  =  html_entities("supnE                          ",  [10956])
+      entities(1906)  =  html_entities("supne                          ",  [8843])
+      entities(1907)  =  html_entities("supplus                        ",  [10944])
+      entities(1908)  =  html_entities("supset                         ",  [8835])
+      entities(1909)  =  html_entities("supseteq                       ",  [8839])
+      entities(1910)  =  html_entities("supseteqq                      ",  [10950])
+      entities(1911)  =  html_entities("supsetneq                      ",  [8843])
+      entities(1912)  =  html_entities("supsetneqq                     ",  [10956])
+      entities(1913)  =  html_entities("supsim                         ",  [10952])
+      entities(1914)  =  html_entities("supsub                         ",  [10964])
+      entities(1915)  =  html_entities("supsup                         ",  [10966])
+      entities(1916)  =  html_entities("swArr                          ",  [8665])
+      entities(1917)  =  html_entities("swarhk                         ",  [10534])
+      entities(1918)  =  html_entities("swarr                          ",  [8601])
+      entities(1919)  =  html_entities("swarrow                        ",  [8601])
+      entities(1920)  =  html_entities("swnwar                         ",  [10538])
+      entities(1921)  =  html_entities("szlig                          ",  [223])
+      entities(1922)  =  html_entities("target                         ",  [8982])
+      entities(1923)  =  html_entities("tau                            ",  [964])
+      entities(1924)  =  html_entities("tbrk                           ",  [9140])
+      entities(1925)  =  html_entities("tcaron                         ",  [357])
+      entities(1926)  =  html_entities("tcedil                         ",  [355])
+      entities(1927)  =  html_entities("tcy                            ",  [1090])
+      entities(1928)  =  html_entities("tdot                           ",  [8411])
+      entities(1929)  =  html_entities("telrec                         ",  [8981])
+      entities(1930)  =  html_entities("tfr                            ",  [120113])
+      entities(1931)  =  html_entities("there4                         ",  [8756])
+      entities(1932)  =  html_entities("therefore                      ",  [8756])
+      entities(1933)  =  html_entities("theta                          ",  [952])
+      entities(1934)  =  html_entities("thetasym                       ",  [977])
+      entities(1935)  =  html_entities("thetav                         ",  [977])
+      entities(1936)  =  html_entities("thickapprox                    ",  [8776])
+      entities(1937)  =  html_entities("thicksim                       ",  [8764])
+      entities(1938)  =  html_entities("thinsp                         ",  [8201])
+      entities(1939)  =  html_entities("thkap                          ",  [8776])
+      entities(1940)  =  html_entities("thksim                         ",  [8764])
+      entities(1941)  =  html_entities("thorn                          ",  [254])
+      entities(1942)  =  html_entities("tilde                          ",  [732])
+      entities(1943)  =  html_entities("times                          ",  [215])
+      entities(1944)  =  html_entities("timesb                         ",  [8864])
+      entities(1945)  =  html_entities("timesbar                       ",  [10801])
+      entities(1946)  =  html_entities("timesd                         ",  [10800])
+      entities(1947)  =  html_entities("tint                           ",  [8749])
+      entities(1948)  =  html_entities("toea                           ",  [10536])
+      entities(1949)  =  html_entities("top                            ",  [8868])
+      entities(1950)  =  html_entities("topbot                         ",  [9014])
+      entities(1951)  =  html_entities("topcir                         ",  [10993])
+      entities(1952)  =  html_entities("topf                           ",  [120165])
+      entities(1953)  =  html_entities("topfork                        ",  [10970])
+      entities(1954)  =  html_entities("tosa                           ",  [10537])
+      entities(1955)  =  html_entities("tprime                         ",  [8244])
+      entities(1956)  =  html_entities("trade                          ",  [8482])
+      entities(1957)  =  html_entities("triangle                       ",  [9653])
+      entities(1958)  =  html_entities("triangledown                   ",  [9663])
+      entities(1959)  =  html_entities("triangleleft                   ",  [9667])
+      entities(1960)  =  html_entities("trianglelefteq                 ",  [8884])
+      entities(1961)  =  html_entities("triangleq                      ",  [8796])
+      entities(1962)  =  html_entities("triangleright                  ",  [9657])
+      entities(1963)  =  html_entities("trianglerighteq                ",  [8885])
+      entities(1964)  =  html_entities("tridot                         ",  [9708])
+      entities(1965)  =  html_entities("trie                           ",  [8796])
+      entities(1966)  =  html_entities("triminus                       ",  [10810])
+      entities(1967)  =  html_entities("triplus                        ",  [10809])
+      entities(1968)  =  html_entities("trisb                          ",  [10701])
+      entities(1969)  =  html_entities("tritime                        ",  [10811])
+      entities(1970)  =  html_entities("trpezium                       ",  [9186])
+      entities(1971)  =  html_entities("tscr                           ",  [120009])
+      entities(1972)  =  html_entities("tscy                           ",  [1094])
+      entities(1973)  =  html_entities("tshcy                          ",  [1115])
+      entities(1974)  =  html_entities("tstrok                         ",  [359])
+      entities(1975)  =  html_entities("twixt                          ",  [8812])
+      entities(1976)  =  html_entities("twoheadleftarrow               ",  [8606])
+      entities(1977)  =  html_entities("twoheadrightarrow              ",  [8608])
+      entities(1978)  =  html_entities("uArr                           ",  [8657])
+      entities(1979)  =  html_entities("uHar                           ",  [10595])
+      entities(1980)  =  html_entities("uacute                         ",  [250])
+      entities(1981)  =  html_entities("uarr                           ",  [8593])
+      entities(1982)  =  html_entities("ubrcy                          ",  [1118])
+      entities(1983)  =  html_entities("ubreve                         ",  [365])
+      entities(1984)  =  html_entities("ucirc                          ",  [251])
+      entities(1985)  =  html_entities("ucy                            ",  [1091])
+      entities(1986)  =  html_entities("udarr                          ",  [8645])
+      entities(1987)  =  html_entities("udblac                         ",  [369])
+      entities(1988)  =  html_entities("udhar                          ",  [10606])
+      entities(1989)  =  html_entities("ufisht                         ",  [10622])
+      entities(1990)  =  html_entities("ufr                            ",  [120114])
+      entities(1991)  =  html_entities("ugrave                         ",  [249])
+      entities(1992)  =  html_entities("uharl                          ",  [8639])
+      entities(1993)  =  html_entities("uharr                          ",  [8638])
+      entities(1994)  =  html_entities("uhblk                          ",  [9600])
+      entities(1995)  =  html_entities("ulcorn                         ",  [8988])
+      entities(1996)  =  html_entities("ulcorner                       ",  [8988])
+      entities(1997)  =  html_entities("ulcrop                         ",  [8975])
+      entities(1998)  =  html_entities("ultri                          ",  [9720])
+      entities(1999)  =  html_entities("umacr                          ",  [363])
+      entities(2000)  =  html_entities("uml                            ",  [168])
+      entities(2001)  =  html_entities("uogon                          ",  [371])
+      entities(2002)  =  html_entities("uopf                           ",  [120166])
+      entities(2003)  =  html_entities("uparrow                        ",  [8593])
+      entities(2004)  =  html_entities("updownarrow                    ",  [8597])
+      entities(2005)  =  html_entities("upharpoonleft                  ",  [8639])
+      entities(2006)  =  html_entities("upharpoonright                 ",  [8638])
+      entities(2007)  =  html_entities("uplus                          ",  [8846])
+      entities(2008)  =  html_entities("upsi                           ",  [965])
+      entities(2009)  =  html_entities("upsih                          ",  [978])
+      entities(2010)  =  html_entities("upsilon                        ",  [965])
+      entities(2011)  =  html_entities("upuparrows                     ",  [8648])
+      entities(2012)  =  html_entities("urcorn                         ",  [8989])
+      entities(2013)  =  html_entities("urcorner                       ",  [8989])
+      entities(2014)  =  html_entities("urcrop                         ",  [8974])
+      entities(2015)  =  html_entities("uring                          ",  [367])
+      entities(2016)  =  html_entities("urtri                          ",  [9721])
+      entities(2017)  =  html_entities("uscr                           ",  [120010])
+      entities(2018)  =  html_entities("utdot                          ",  [8944])
+      entities(2019)  =  html_entities("utilde                         ",  [361])
+      entities(2020)  =  html_entities("utri                           ",  [9653])
+      entities(2021)  =  html_entities("utrif                          ",  [9652])
+      entities(2022)  =  html_entities("uuarr                          ",  [8648])
+      entities(2023)  =  html_entities("uuml                           ",  [252])
+      entities(2024)  =  html_entities("uwangle                        ",  [10663])
+      entities(2025)  =  html_entities("vArr                           ",  [8661])
+      entities(2026)  =  html_entities("vBar                           ",  [10984])
+      entities(2027)  =  html_entities("vBarv                          ",  [10985])
+      entities(2028)  =  html_entities("vDash                          ",  [8872])
+      entities(2029)  =  html_entities("vangrt                         ",  [10652])
+      entities(2030)  =  html_entities("varepsilon                     ",  [1013])
+      entities(2031)  =  html_entities("varkappa                       ",  [1008])
+      entities(2032)  =  html_entities("varnothing                     ",  [8709])
+      entities(2033)  =  html_entities("varphi                         ",  [981])
+      entities(2034)  =  html_entities("varpi                          ",  [982])
+      entities(2035)  =  html_entities("varpropto                      ",  [8733])
+      entities(2036)  =  html_entities("varr                           ",  [8597])
+      entities(2037)  =  html_entities("varrho                         ",  [1009])
+      entities(2038)  =  html_entities("varsigma                       ",  [962])
+      entities(2039)  =  html_entities("varsubsetneq                   ",  [8842,     65024])
+      entities(2040)  =  html_entities("varsubsetneqq                  ",  [10955,    65024])
+      entities(2041)  =  html_entities("varsupsetneq                   ",  [8843,     65024])
+      entities(2042)  =  html_entities("varsupsetneqq                  ",  [10956,    65024])
+      entities(2043)  =  html_entities("vartheta                       ",  [977])
+      entities(2044)  =  html_entities("vartriangleleft                ",  [8882])
+      entities(2045)  =  html_entities("vartriangleright               ",  [8883])
+      entities(2046)  =  html_entities("vcy                            ",  [1074])
+      entities(2047)  =  html_entities("vdash                          ",  [8866])
+      entities(2048)  =  html_entities("vee                            ",  [8744])
+      entities(2049)  =  html_entities("veebar                         ",  [8891])
+      entities(2050)  =  html_entities("veeeq                          ",  [8794])
+      entities(2051)  =  html_entities("vellip                         ",  [8942])
+      entities(2052)  =  html_entities("verbar                         ",  [124])
+      entities(2053)  =  html_entities("vert                           ",  [124])
+      entities(2054)  =  html_entities("vfr                            ",  [120115])
+      entities(2055)  =  html_entities("vltri                          ",  [8882])
+      entities(2056)  =  html_entities("vnsub                          ",  [8834,     8402])
+      entities(2057)  =  html_entities("vnsup                          ",  [8835,     8402])
+      entities(2058)  =  html_entities("vopf                           ",  [120167])
+      entities(2059)  =  html_entities("vprop                          ",  [8733])
+      entities(2060)  =  html_entities("vrtri                          ",  [8883])
+      entities(2061)  =  html_entities("vscr                           ",  [120011])
+      entities(2062)  =  html_entities("vsubnE                         ",  [10955,    65024])
+      entities(2063)  =  html_entities("vsubne                         ",  [8842,     65024])
+      entities(2064)  =  html_entities("vsupnE                         ",  [10956,    65024])
+      entities(2065)  =  html_entities("vsupne                         ",  [8843,     65024])
+      entities(2066)  =  html_entities("vzigzag                        ",  [10650])
+      entities(2067)  =  html_entities("wcirc                          ",  [373])
+      entities(2068)  =  html_entities("wedbar                         ",  [10847])
+      entities(2069)  =  html_entities("wedge                          ",  [8743])
+      entities(2070)  =  html_entities("wedgeq                         ",  [8793])
+      entities(2071)  =  html_entities("weierp                         ",  [8472])
+      entities(2072)  =  html_entities("wfr                            ",  [120116])
+      entities(2073)  =  html_entities("wopf                           ",  [120168])
+      entities(2074)  =  html_entities("wp                             ",  [8472])
+      entities(2075)  =  html_entities("wr                             ",  [8768])
+      entities(2076)  =  html_entities("wreath                         ",  [8768])
+      entities(2077)  =  html_entities("wscr                           ",  [120012])
+      entities(2078)  =  html_entities("xcap                           ",  [8898])
+      entities(2079)  =  html_entities("xcirc                          ",  [9711])
+      entities(2080)  =  html_entities("xcup                           ",  [8899])
+      entities(2081)  =  html_entities("xdtri                          ",  [9661])
+      entities(2082)  =  html_entities("xfr                            ",  [120117])
+      entities(2083)  =  html_entities("xhArr                          ",  [10234])
+      entities(2084)  =  html_entities("xharr                          ",  [10231])
+      entities(2085)  =  html_entities("xi                             ",  [958])
+      entities(2086)  =  html_entities("xlArr                          ",  [10232])
+      entities(2087)  =  html_entities("xlarr                          ",  [10229])
+      entities(2088)  =  html_entities("xmap                           ",  [10236])
+      entities(2089)  =  html_entities("xnis                           ",  [8955])
+      entities(2090)  =  html_entities("xodot                          ",  [10752])
+      entities(2091)  =  html_entities("xopf                           ",  [120169])
+      entities(2092)  =  html_entities("xoplus                         ",  [10753])
+      entities(2093)  =  html_entities("xotime                         ",  [10754])
+      entities(2094)  =  html_entities("xrArr                          ",  [10233])
+      entities(2095)  =  html_entities("xrarr                          ",  [10230])
+      entities(2096)  =  html_entities("xscr                           ",  [120013])
+      entities(2097)  =  html_entities("xsqcup                         ",  [10758])
+      entities(2098)  =  html_entities("xuplus                         ",  [10756])
+      entities(2099)  =  html_entities("xutri                          ",  [9651])
+      entities(2100)  =  html_entities("xvee                           ",  [8897])
+      entities(2101)  =  html_entities("xwedge                         ",  [8896])
+      entities(2102)  =  html_entities("yacute                         ",  [253])
+      entities(2103)  =  html_entities("yacy                           ",  [1103])
+      entities(2104)  =  html_entities("ycirc                          ",  [375])
+      entities(2105)  =  html_entities("ycy                            ",  [1099])
+      entities(2106)  =  html_entities("yen                            ",  [165])
+      entities(2107)  =  html_entities("yfr                            ",  [120118])
+      entities(2108)  =  html_entities("yicy                           ",  [1111])
+      entities(2109)  =  html_entities("yopf                           ",  [120170])
+      entities(2110)  =  html_entities("yscr                           ",  [120014])
+      entities(2111)  =  html_entities("yucy                           ",  [1102])
+      entities(2112)  =  html_entities("yuml                           ",  [255])
+      entities(2113)  =  html_entities("zacute                         ",  [378])
+      entities(2114)  =  html_entities("zcaron                         ",  [382])
+      entities(2115)  =  html_entities("zcy                            ",  [1079])
+      entities(2116)  =  html_entities("zdot                           ",  [380])
+      entities(2117)  =  html_entities("zeetrf                         ",  [8488])
+      entities(2118)  =  html_entities("zeta                           ",  [950])
+      entities(2119)  =  html_entities("zfr                            ",  [120119])
+      entities(2120)  =  html_entities("zhcy                           ",  [1078])
+      entities(2121)  =  html_entities("zigrarr                        ",  [8669])
+      entities(2122)  =  html_entities("zopf                           ",  [120171])
+      entities(2123)  =  html_entities("zscr                           ",  [120015])
+      entities(2124)  =  html_entities("zwj                            ",  [8205])
+      entities(2125)  =  html_entities("zwnj                           ",  [8204])
+   endif
+end subroutine init_entities
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -2850,6 +5098,7 @@ end function len_str
 !!       integer,intent(in)            :: start
 !!       integer,intent(in)            :: end
 !!       integer,intent(in)            :: inc
+!!       character(len=*)              :: result
 !!
 !!##CHARACTERISTICS
 !!   + STRING is a scalar or array string variable
@@ -3197,9 +5446,9 @@ end function strs_to_chars_range_step
 !!   Sample program:
 !!
 !!     program demo_repeat
-!!     use M_unicode, only : ut=>unicode_type,repeat,escape,write(formatted)
+!!     use M_unicode, only : ut=>unicode_type,repeat,expand_backslash,write(formatted)
 !!     implicit none
-!!        write(*,'(DT)') repeat(escape("\u2025*"), 35)
+!!        write(*,'(DT)') repeat(expand_backslash("\u2025*"), 35)
 !!        write(*,'(DT)') repeat(ut("_"), 70)          ! line break
 !!        write(*,'(DT)') repeat(ut("1234567890"), 7)  ! number line
 !!        write(*,'(DT)') repeat(ut("         |"), 7)  !
@@ -3394,7 +5643,7 @@ end function len_trim_str
 !!    program demo_ichar
 !!    use M_unicode, only : assignment(=),ch=>character
 !!    use M_unicode, only : ut=>unicode_type, write(formatted)
-!!    use M_unicode, only : ichar, escape, len
+!!    use M_unicode, only : ichar, expand_backslash, len
 !!    implicit none
 !!    type(ut)             :: string
 !!    type(ut),allocatable :: lets(:)
@@ -3420,7 +5669,7 @@ end function len_trim_str
 !!       ! define an array LETS with escape codes with one glyph per element
 !!       lets=[ut('\U03B5'),ut('\U1F55'),ut('\U03C1'),ut('\U03B7'), &
 !!           & ut('\U03BA'),ut('\U03B1'),ut('\U0021')]
-!!       lets=escape(lets) ! convert escape codes to glyphs
+!!       lets=expand_backslash(lets) ! convert escape codes to glyphs
 !!       !
 !!       ! look at issues with converting to CHARACTER for simple printing
 !!       !
@@ -4059,7 +6308,7 @@ end function isascii_a
 !!        string_u=unicode%SPACES
 !!        write(*,'(*(g0,1x))')'ISBLANK PASSED TYPE(UNICODE_TYPE): ',isblank(string_u)
 !!        write(*,'(*(g0))')'BLANKS: ',ch(string_u)
-!!        write(*,'(*(g0),1x)')'BLANKS: ',string_u%codepoint()
+!!        write(*,'(*(g0,1x))')'BLANKS: ',string_u%codepoint()
 !!     end program demo_isblank
 !!
 !!   Results:
@@ -4162,7 +6411,7 @@ integer                       :: i
    res=.true.
    STEPTHRU: do i=1,size(string%codes)
       select case(string%codes(i))
-      case(0)             ! null(0)
+      case(0)       ! null(0)
       case(9:13)    ! tab(9), new line(10), vertical tab(11), formfeed(12), carriage return(13),
       case(32,160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8239,8287,12288) ! Unicode spaces
       case default
@@ -5247,7 +7496,7 @@ type(unicode_type) :: target_local   ! input line to be changed
 
    kludge: block
    type(force_keywords),volatile :: quiet_
-      if(present(force_))quiet_=force_  ! so compiler does not complain about force_ being unused
+      if( present(force_) )quiet_=force_  ! so compiler does not complain about force_ being unused
    endblock kludge
 
    flip=.false.
@@ -5685,6 +7934,7 @@ integer,allocatable            :: line(:)
                 write(*,*)'UNEXPECTED CONFIGURATION',i,j
             end select
 
+
          case('double')
             select case(isum)
              case(16);                   winout(i)%codes(j) = 35   ! POUND     #
@@ -6027,22 +8277,17 @@ integer                                :: i
       do i = 1,size(str)-1
          if(clip_local)then
             temp=adjustl(str(i)) ! avoid gfortran GNU Fortran (GCC) 16.0.0 20250727 (experimental) bug
-            !gfortran!string=string//adjustl(trim(str))//sep_local ! produces no left adjust in gfortran as the moment
-            !ifx!string=string//trim(temp)//sep_local
             temp=trim(temp)
             string%codes=[string%codes,temp%codes,sep_local%codes]
          else
-            !string=string//str(i)//sep_local
             string%codes=[string%codes,str(i)%codes,sep_local%codes]
          endif
       enddo
       if(clip_local)then
          temp=adjustl(str(i))
-         !string=[string//trim(temp)
          temp=trim(temp)
          string%codes=[string%codes,temp%codes]
       else
-         !string=string//str(i)
          string%codes=[string%codes,str(i)%codes]
       endif
    endif
@@ -6604,9 +8849,41 @@ end function lower_a
 !!    ! Execution of TOKEN form (return array of tokens)
 !!    !
 !!       block
-!!       type(ut)             :: string
-!!       type(ut),allocatable :: tokens(:)
-!!       integer              :: i
+!!       type(ut)                   :: string
+!!       type(ut),allocatable       :: tokens(:)
+!!       integer                    :: i
+!!       character(len=*),parameter :: set=' ,'
+!!
+!!       ! basics
+!!
+!!          call basics( ut(''               ))
+!!          call basics( ut(' '              ))
+!!          call basics( ut('  '             ))
+!!          call basics( ut('G'              ))
+!!          call basics( ut('     G'         ))
+!!          call basics( ut('     G    '     ))
+!!          call basics( ut('     G    e  '  ))
+!!          call basics( ut('G    e'         ))
+!!
+!!       ! assigns the value ['first ','second','third ' ] to TOKENS
+!!          string = 'first,second,third'
+!!          call tokenize(string, set, tokens )
+!!          write(*,brackets)ch(tokens)
+!!
+!!          string =    'first,second,,fourth'
+!!          call tokenize(string, set, tokens )
+!!          write(*,brackets)ch(tokens)
+!!
+!!          string =    'first,second,,,fifth'
+!!          call tokenize(string, set, tokens )
+!!          write(*,brackets)ch(tokens)
+!!
+!!          string = '  first second  third       '
+!!          write(*,gen)'Parse on spaces ...'
+!!          call tokenize(string, set=' ', tokens=tokens )
+!!          write(*,brackets)ch(tokens)
+!!
+!!          write(*,gen)'Parse on semicolons and commas ...'
 !!          string = '  first,second ,third       '
 !!          call tokenize(string, set=';,', tokens=tokens )
 !!          write(*,brackets)ch(tokens)
@@ -6614,6 +8891,7 @@ end function lower_a
 !!          string = '  first , second ,third       '
 !!          call tokenize(string, set=' ,', tokens=tokens )
 !!          write(*,brackets)(tokens(i)%character(),i=1,size(tokens))
+!!
 !!          ! remove blank tokens
 !!          tokens=pack(tokens, tokens /= '' )
 !!          write(*,brackets)ch(tokens)
@@ -6626,21 +8904,47 @@ end function lower_a
 !!       type(ut)                   :: string
 !!       character(len=*),parameter :: set = " ,"
 !!       integer,allocatable        :: first(:), last(:)
+!!
+!!
 !!          write(*,gen)repeat('1234567890',6)
+!!
 !!          string = 'first,second,,fourth'
 !!          write(*,gen)ch(string)
+!!
 !!          call tokenize (string, set, first, last)
 !!          write(*,a_commas)'FIRST=',first
 !!          write(*,a_commas)'LAST=',last
 !!          write(*,a_commas)'HAS LENGTH=',last-first.gt.0
+!!
 !!       endblock
+!!       contains
+!!       subroutine basics(string)
+!!       type(ut),intent(in)  :: string
+!!       type(ut),allocatable :: tokens(:)
+!!          call tokenize(string,' ', tokens )
+!!          write(*,brackets)string%character(),"<==>",ch(tokens)
+!!       end subroutine basics
 !!    !
 !!    end program demo_tokenize
 !!
 !!   Results:
 !!
+!!    > [],[<==>]
+!!    > [ ],[<==>],[]
+!!    > [  ],[<==>],[],[]
+!!    > [G],[<==>],[G]
+!!    > [     G],[<==>],[ ],[ ],[ ],[ ],[ ],[G]
+!!    > [     G    ],[<==>],[ ],[ ],[ ],[ ],[ ],[G],[ ],[ ],[ ]
+!!    > [     G    e  ],[<==>],[ ],[ ],[ ],[ ],[ ],[G],[ ],[ ],[ ],[e],[ ]
+!!    > [G    e],[<==>],[G],[ ],[ ],[ ],[e]
+!!    > [first ],[second],[third ]
+!!    > [first ],[second],[      ],[fourth]
+!!    > [first ],[second],[      ],[      ],[fifth ]
+!!    > Parse on spaces ...
+!!    > [ ],[ ],[first ],[second],[ ],[third ],[ ],[ ],[ ],[ ],[ ],[ ]
+!!    > Parse on spaces and commas ...
 !!    > [  first     ],[second      ],[third       ]
-!!    > [],[first],[],[],[second],[],[third],[],[],[],[],[]
+!!    > [],[],[first],[],[],[second],[],[third],[],[],[],[],[],[]
 !!    > [first ],[second],[third ]
 !!    > 123456789012345678901234567890123456789012345678901234567890
 !!    > first,second,,fourth
@@ -6718,16 +9022,16 @@ impure subroutine split_first_last(string, set, first, last)
 ! Computes the first and last indices of tokens in input string, delimited
 ! by the characters in set, and stores them into first and last output
 ! arrays.
-type(unicode_type), intent(in)         :: string
-type(unicode_type), intent(in)         :: set
-integer, allocatable, intent(out)      :: first(:)
-integer, allocatable, intent(out)      :: last(:)
+type(unicode_type), intent(in)             :: string
+type(unicode_type), intent(in)             :: set
+integer, allocatable, intent(out)          :: first(:)
+integer, allocatable, intent(out)          :: last(:)
 
-type(unicode_type)                     :: set_array(size(set%codes))
-logical, dimension(size(string%codes)) :: is_first, is_last, is_separator
-integer                                :: i
-integer                                :: n
-integer                                :: slen
+type(unicode_type)                         :: set_array(size(set%codes))
+logical, dimension(0:size(string%codes)+1) :: is_first, is_last, is_separator
+integer                                    :: i
+integer                                    :: n
+integer                                    :: slen
 ! AUTHOR   : Milan Curcic, "milancurcic@hey.com"
 ! LICENSE  : MIT
 ! VERSION  : version 0.1.0, copyright 2020, Milan Curcic
@@ -6739,6 +9043,10 @@ integer                                :: slen
       call assign_str_char ( set_array(n) , set%character(n,n) )
     enddo
     !
+
+    is_separator(0)=.true.
+    is_separator(slen+1)=.true.
+
     FINDIT: do n = 1,slen
       do i=1,len(set)
          is_separator(n)=.false.
@@ -6749,28 +9057,33 @@ integer                                :: slen
       enddo
     enddo FINDIT
     !
-    is_first = .false.
-    is_last = .false.
-    !
-    if (.not. is_separator(1)) is_first(1) = .true.
-    !
-    do concurrent (n = 2:slen-1)
+    is_first=.false.
+    is_first(0)=.true.
+    is_first(slen+1)=.true.
+    is_last=.false.
+    is_last(0)=.true.
+    is_last(slen+1)=.true.
+
+    do concurrent (n = 1:slen)
       if (.not. is_separator(n)) then
-        if (is_separator(n - 1)) is_first(n) = .true.
-        if (is_separator(n + 1)) is_last(n) = .true.
-      else
-        if (is_separator(n - 1)) then
-          is_first(n) = .true.
-          is_last(n-1) = .true.
-        endif
+         if (is_separator(n - 1)) is_first(n) = .true.
+         if (is_separator(n + 1)) is_last(n) = .true.
+      endif
+      if ( is_separator(n))then
+         if (is_separator(n-1)) is_first(n) = .true.
+         if (is_separator(n-1)) is_last(n) = .true.
       endif
     enddo
-    !
-    if (.not. is_separator(slen)) is_last(slen) = .true.
-    !
-    first = pack([(n, n = 1, slen)], is_first)
-    last = pack([(n, n = 1, slen)], is_last)
-    !
+
+    first = pack([(n, n = 1, slen)], is_first(1:slen))
+    last = pack([(n, n = 1, slen)], is_last(1:slen))
+    do i=1,size(last)
+       if(last(i)-first(i).eq.0)then
+          if(scan(string%sub(first(i),last(i)),set).ne.0)then
+             last(i)=last(i)-1
+          endif
+       endif
+    enddo
   end subroutine split_first_last
 !===================================================================================================================================
 impure subroutine split_first_last_uaii(string, set, first, last)
@@ -7011,14 +9324,12 @@ else
    endif
 
    if(local_right)then
-      !out=[local_line//repeat(local_pattern,newlen/len(local_pattern)+1)
       temp=repeat(local_pattern,newlen/len(local_pattern)+1)
       out%codes=[local_line%codes,temp%codes]
    else
       ! make a line of pattern
       out=repeat(local_pattern, ceiling(real(newlen)/len(local_pattern)))
 
-      !out=out%sub(1,newlen-len(local_line))//local_line
       out=out%sub(1,newlen-len(local_line))
       out%codes=[out%codes,local_line%codes]
    endif
@@ -7154,14 +9465,23 @@ type(unicode_type),intent(in) :: set
 logical,intent(in),optional   :: back
 logical                       :: back_local
 integer                       :: pos
+integer,allocatable           :: finds(:)
 integer                       :: i
    back_local=.false.
    if(present(back))back_local=back
    pos=0
-   if(back_local)then
-      pos = maxval( [ (findloc(string%codes, set%codes(i), dim=1, back=back_local) ,i=1,size(set%codes) )])
+
+   ! once find one only have to look at values to left or right of that, but looking for everyone
+   finds=[ (findloc(string%codes, set%codes(i), dim=1, back=back_local), i=1,size(set%codes) )]
+   finds=pack(finds,finds.ne.0)
+   if(size(finds).ne.0) then
+      if(back_local)then
+         pos=maxval(finds)
+      else
+         pos=minval(finds)
+      endif
    else
-      pos = minval( [ (findloc(string%codes, set%codes(i), dim=1, back=back_local), i=1,size(set%codes) )])
+      pos=0
    endif
 
 end function scan_uu
@@ -7458,10 +9778,10 @@ end function scan_ua
 !!    ! determine if a string is a valid Fortran name
 !!    ! ignoring trailing spaces (but not leading spaces)
 !!    !
-!!    character(len=*),parameter :: int="0123456789"
+!!    character(len=*),parameter :: ints="0123456789"
 !!    character(len=*),parameter :: lower="abcdefghijklmnopqrstuvwxyz"
 !!    character(len=*),parameter :: upper="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-!!    character(len=*),parameter :: allowed=upper//lower//int//"_"
+!!    character(len=*),parameter :: allowed=upper//lower//ints//"_"
 !!
 !!    type(ut),intent(in)        :: line
 !!    type(ut)                   :: name
@@ -7505,7 +9825,7 @@ end function scan_ua
 !!    implicit none
 !!    character(len=*),parameter :: g='(*(g0,1x))'
 !!    !
-!!    character(len=*),parameter :: int='1234567890'
+!!    character(len=*),parameter :: ints='1234567890'
 !!    character(len=*),parameter :: hex='abcdefABCDEF0123456789'
 !!    logical                    :: lout
 !!    type(unicode_type)         :: chars
@@ -7516,7 +9836,7 @@ end function scan_ua
 !!       !
 !!       ! are the first two characters integer characters?
 !!       str = chars%character(1,2)
-!!       lout = (verify( str, ut(int) ) == 0) .and.lout
+!!       lout = (verify( str, ut(ints) ) == 0) .and.lout
 !!       !
 !!       ! is the third character a dash?
 !!       str = chars%character(3,3)
@@ -7853,2147 +10173,8 @@ integer                                :: icode
 integer                                :: isz
 integer                                :: lngth
 integer                                :: nerr
-
-type html_entities
-   character(len=31)   :: name
-   integer,allocatable :: codes(:)
-end type html_entities
-
-type(html_entities),save               :: entities(2125)
-
-logical,save                           :: virgin=.true.
-character(len=31),save                 :: tokens(2125)
 character(len=80)                      :: line
-   if(virgin)then
-      virgin=.false.
-      entities(1)     =  html_entities("AElig                            ",  [198])
-      entities(2)     =  html_entities("AMP                              ",  [38])
-      entities(3)     =  html_entities("Aacute                           ",  [193])
-      entities(4)     =  html_entities("Abreve                           ",  [258])
-      entities(5)     =  html_entities("Acirc                            ",  [194])
-      entities(6)     =  html_entities("Acy                              ",  [1040])
-      entities(7)     =  html_entities("Afr                              ",  [120068])
-      entities(8)     =  html_entities("Agrave                           ",  [192])
-      entities(9)     =  html_entities("Alpha                            ",  [913])
-      entities(10)    =  html_entities("Amacr                            ",  [256])
-      entities(11)    =  html_entities("And                              ",  [10835])
-      entities(12)    =  html_entities("Aogon                            ",  [260])
-      entities(13)    =  html_entities("Aopf                             ",  [120120])
-      entities(14)    =  html_entities("ApplyFunction                    ",  [8289])
-      entities(15)    =  html_entities("Aring                            ",  [197])
-      entities(16)    =  html_entities("Ascr                             ",  [119964])
-      entities(17)    =  html_entities("Assign                           ",  [8788])
-      entities(18)    =  html_entities("Atilde                           ",  [195])
-      entities(19)    =  html_entities("Auml                             ",  [196])
-      entities(20)    =  html_entities("Backslash                        ",  [8726])
-      entities(21)    =  html_entities("Barv                             ",  [10983])
-      entities(22)    =  html_entities("Barwed                           ",  [8966])
-      entities(23)    =  html_entities("Bcy                              ",  [1041])
-      entities(24)    =  html_entities("Because                          ",  [8757])
-      entities(25)    =  html_entities("Bernoullis                       ",  [8492])
-      entities(26)    =  html_entities("Beta                             ",  [914])
-      entities(27)    =  html_entities("Bfr                              ",  [120069])
-      entities(28)    =  html_entities("Bopf                             ",  [120121])
-      entities(29)    =  html_entities("Breve                            ",  [728])
-      entities(30)    =  html_entities("Bscr                             ",  [8492])
-      entities(31)    =  html_entities("Bumpeq                           ",  [8782])
-      entities(32)    =  html_entities("CHcy                             ",  [1063])
-      entities(33)    =  html_entities("COPY                             ",  [169])
-      entities(34)    =  html_entities("Cacute                           ",  [262])
-      entities(35)    =  html_entities("Cap                              ",  [8914])
-      entities(36)    =  html_entities("CapitalDifferentialD             ",  [8517])
-      entities(37)    =  html_entities("Cayleys                          ",  [8493])
-      entities(38)    =  html_entities("Ccaron                           ",  [268])
-      entities(39)    =  html_entities("Ccedil                           ",  [199])
-      entities(40)    =  html_entities("Ccirc                            ",  [264])
-      entities(41)    =  html_entities("Cconint                          ",  [8752])
-      entities(42)    =  html_entities("Cdot                             ",  [266])
-      entities(43)    =  html_entities("Cedilla                          ",  [184])
-      entities(44)    =  html_entities("CenterDot                        ",  [183])
-      entities(45)    =  html_entities("Cfr                              ",  [8493])
-      entities(46)    =  html_entities("Chi                              ",  [935])
-      entities(47)    =  html_entities("CircleDot                        ",  [8857])
-      entities(48)    =  html_entities("CircleMinus                      ",  [8854])
-      entities(49)    =  html_entities("CirclePlus                       ",  [8853])
-      entities(50)    =  html_entities("CircleTimes                      ",  [8855])
-      entities(51)    =  html_entities("ClockwiseContourIntegral         ",  [8754])
-      entities(52)    =  html_entities("CloseCurlyDoubleQuote            ",  [8221])
-      entities(53)    =  html_entities("CloseCurlyQuote                  ",  [8217])
-      entities(54)    =  html_entities("Colon                            ",  [8759])
-      entities(55)    =  html_entities("Colone                           ",  [10868])
-      entities(56)    =  html_entities("Congruent                        ",  [8801])
-      entities(57)    =  html_entities("Conint                           ",  [8751])
-      entities(58)    =  html_entities("ContourIntegral                  ",  [8750])
-      entities(59)    =  html_entities("Copf                             ",  [8450])
-      entities(60)    =  html_entities("Coproduct                        ",  [8720])
-      entities(61)    =  html_entities("CounterClockwiseContourIntegral  ",  [8755])
-      entities(62)    =  html_entities("Cross                            ",  [10799])
-      entities(63)    =  html_entities("Cscr                             ",  [119966])
-      entities(64)    =  html_entities("Cup                              ",  [8915])
-      entities(65)    =  html_entities("CupCap                           ",  [8781])
-      entities(66)    =  html_entities("DD                               ",  [8517])
-      entities(67)    =  html_entities("DDotrahd                         ",  [10513])
-      entities(68)    =  html_entities("DJcy                             ",  [1026])
-      entities(69)    =  html_entities("DScy                             ",  [1029])
-      entities(70)    =  html_entities("DZcy                             ",  [1039])
-      entities(71)    =  html_entities("Dagger                           ",  [8225])
-      entities(72)    =  html_entities("Darr                             ",  [8609])
-      entities(73)    =  html_entities("Dashv                            ",  [10980])
-      entities(74)    =  html_entities("Dcaron                           ",  [270])
-      entities(75)    =  html_entities("Dcy                              ",  [1044])
-      entities(76)    =  html_entities("Del                              ",  [8711])
-      entities(77)    =  html_entities("Delta                            ",  [916])
-      entities(78)    =  html_entities("Dfr                              ",  [120071])
-      entities(79)    =  html_entities("DiacriticalAcute                 ",  [180])
-      entities(80)    =  html_entities("DiacriticalDot                   ",  [729])
-      entities(81)    =  html_entities("DiacriticalDoubleAcute           ",  [733])
-      entities(82)    =  html_entities("DiacriticalGrave                 ",  [96])
-      entities(83)    =  html_entities("DiacriticalTilde                 ",  [732])
-      entities(84)    =  html_entities("Diamond                          ",  [8900])
-      entities(85)    =  html_entities("DifferentialD                    ",  [8518])
-      entities(86)    =  html_entities("Dopf                             ",  [120123])
-      entities(87)    =  html_entities("Dot                              ",  [168])
-      entities(88)    =  html_entities("DotDot                           ",  [8412])
-      entities(89)    =  html_entities("DotEqual                         ",  [8784])
-      entities(90)    =  html_entities("DoubleContourIntegral            ",  [8751])
-      entities(91)    =  html_entities("DoubleDot                        ",  [168])
-      entities(92)    =  html_entities("DoubleDownArrow                  ",  [8659])
-      entities(93)    =  html_entities("DoubleLeftArrow                  ",  [8656])
-      entities(94)    =  html_entities("DoubleLeftRightArrow             ",  [8660])
-      entities(95)    =  html_entities("DoubleLeftTee                    ",  [10980])
-      entities(96)    =  html_entities("DoubleLongLeftArrow              ",  [10232])
-      entities(97)    =  html_entities("DoubleLongLeftRightArrow         ",  [10234])
-      entities(98)    =  html_entities("DoubleLongRightArrow             ",  [10233])
-      entities(99)    =  html_entities("DoubleRightArrow                 ",  [8658])
-      entities(100)   =  html_entities("DoubleRightTee                   ",  [8872])
-      entities(101)   =  html_entities("DoubleUpArrow                    ",  [8657])
-      entities(102)   =  html_entities("DoubleUpDownArrow                ",  [8661])
-      entities(103)   =  html_entities("DoubleVerticalBar                ",  [8741])
-      entities(104)   =  html_entities("DownArrow                        ",  [8595])
-      entities(105)   =  html_entities("DownArrowBar                     ",  [10515])
-      entities(106)   =  html_entities("DownArrowUpArrow                 ",  [8693])
-      entities(107)   =  html_entities("DownBreve                        ",  [785])
-      entities(108)   =  html_entities("DownLeftRightVector              ",  [10576])
-      entities(109)   =  html_entities("DownLeftTeeVector                ",  [10590])
-      entities(110)   =  html_entities("DownLeftVector                   ",  [8637])
-      entities(111)   =  html_entities("DownLeftVectorBar                ",  [10582])
-      entities(112)   =  html_entities("DownRightTeeVector               ",  [10591])
-      entities(113)   =  html_entities("DownRightVector                  ",  [8641])
-      entities(114)   =  html_entities("DownRightVectorBar               ",  [10583])
-      entities(115)   =  html_entities("DownTee                          ",  [8868])
-      entities(116)   =  html_entities("DownTeeArrow                     ",  [8615])
-      entities(117)   =  html_entities("Downarrow                        ",  [8659])
-      entities(118)   =  html_entities("Dscr                             ",  [119967])
-      entities(119)   =  html_entities("Dstrok                           ",  [272])
-      entities(120)   =  html_entities("ENG                              ",  [330])
-      entities(121)   =  html_entities("ETH                              ",  [208])
-      entities(122)   =  html_entities("Eacute                           ",  [201])
-      entities(123)   =  html_entities("Ecaron                           ",  [282])
-      entities(124)   =  html_entities("Ecirc                            ",  [202])
-      entities(125)   =  html_entities("Ecy                              ",  [1069])
-      entities(126)   =  html_entities("Edot                             ",  [278])
-      entities(127)   =  html_entities("Efr                              ",  [120072])
-      entities(128)   =  html_entities("Egrave                           ",  [200])
-      entities(129)   =  html_entities("Element                          ",  [8712])
-      entities(130)   =  html_entities("Emacr                            ",  [274])
-      entities(131)   =  html_entities("EmptySmallSquare                 ",  [9723])
-      entities(132)   =  html_entities("EmptyVerySmallSquare             ",  [9643])
-      entities(133)   =  html_entities("Eogon                            ",  [280])
-      entities(134)   =  html_entities("Eopf                             ",  [120124])
-      entities(135)   =  html_entities("Epsilon                          ",  [917])
-      entities(136)   =  html_entities("Equal                            ",  [10869])
-      entities(137)   =  html_entities("EqualTilde                       ",  [8770])
-      entities(138)   =  html_entities("Equilibrium                      ",  [8652])
-      entities(139)   =  html_entities("Escr                             ",  [8496])
-      entities(140)   =  html_entities("Esim                             ",  [10867])
-      entities(141)   =  html_entities("Eta                              ",  [919])
-      entities(142)   =  html_entities("Euml                             ",  [203])
-      entities(143)   =  html_entities("Exists                           ",  [8707])
-      entities(144)   =  html_entities("ExponentialE                     ",  [8519])
-      entities(145)   =  html_entities("Fcy                              ",  [1060])
-      entities(146)   =  html_entities("Ffr                              ",  [120073])
-      entities(147)   =  html_entities("FilledSmallSquare                ",  [9724])
-      entities(148)   =  html_entities("FilledVerySmallSquare            ",  [9642])
-      entities(149)   =  html_entities("Fopf                             ",  [120125])
-      entities(150)   =  html_entities("ForAll                           ",  [8704])
-      entities(151)   =  html_entities("Fouriertrf                       ",  [8497])
-      entities(152)   =  html_entities("Fscr                             ",  [8497])
-      entities(153)   =  html_entities("GJcy                             ",  [1027])
-      entities(154)   =  html_entities("GT                               ",  [62])
-      entities(155)   =  html_entities("Gamma                            ",  [915])
-      entities(156)   =  html_entities("Gammad                           ",  [988])
-      entities(157)   =  html_entities("Gbreve                           ",  [286])
-      entities(158)   =  html_entities("Gcedil                           ",  [290])
-      entities(159)   =  html_entities("Gcirc                            ",  [284])
-      entities(160)   =  html_entities("Gcy                              ",  [1043])
-      entities(161)   =  html_entities("Gdot                             ",  [288])
-      entities(162)   =  html_entities("Gfr                              ",  [120074])
-      entities(163)   =  html_entities("Gg                               ",  [8921])
-      entities(164)   =  html_entities("Gopf                             ",  [120126])
-      entities(165)   =  html_entities("GreaterEqual                     ",  [8805])
-      entities(166)   =  html_entities("GreaterEqualLess                 ",  [8923])
-      entities(167)   =  html_entities("GreaterFullEqual                 ",  [8807])
-      entities(168)   =  html_entities("GreaterGreater                   ",  [10914])
-      entities(169)   =  html_entities("GreaterLess                      ",  [8823])
-      entities(170)   =  html_entities("GreaterSlantEqual                ",  [10878])
-      entities(171)   =  html_entities("GreaterTilde                     ",  [8819])
-      entities(172)   =  html_entities("Gscr                             ",  [119970])
-      entities(173)   =  html_entities("Gt                               ",  [8811])
-      entities(174)   =  html_entities("HARDcy                           ",  [1066])
-      entities(175)   =  html_entities("Hacek                            ",  [711])
-      entities(176)   =  html_entities("Hat                              ",  [94])
-      entities(177)   =  html_entities("Hcirc                            ",  [292])
-      entities(178)   =  html_entities("Hfr                              ",  [8460])
-      entities(179)   =  html_entities("HilbertSpace                     ",  [8459])
-      entities(180)   =  html_entities("Hopf                             ",  [8461])
-      entities(181)   =  html_entities("HorizontalLine                   ",  [9472])
-      entities(182)   =  html_entities("Hscr                             ",  [8459])
-      entities(183)   =  html_entities("Hstrok                           ",  [294])
-      entities(184)   =  html_entities("HumpDownHump                     ",  [8782])
-      entities(185)   =  html_entities("HumpEqual                        ",  [8783])
-      entities(186)   =  html_entities("IEcy                             ",  [1045])
-      entities(187)   =  html_entities("IJlig                            ",  [306])
-      entities(188)   =  html_entities("IOcy                             ",  [1025])
-      entities(189)   =  html_entities("Iacute                           ",  [205])
-      entities(190)   =  html_entities("Icirc                            ",  [206])
-      entities(191)   =  html_entities("Icy                              ",  [1048])
-      entities(192)   =  html_entities("Idot                             ",  [304])
-      entities(193)   =  html_entities("Ifr                              ",  [8465])
-      entities(194)   =  html_entities("Igrave                           ",  [204])
-      entities(195)   =  html_entities("Im                               ",  [8465])
-      entities(196)   =  html_entities("Imacr                            ",  [298])
-      entities(197)   =  html_entities("ImaginaryI                       ",  [8520])
-      entities(198)   =  html_entities("Implies                          ",  [8658])
-      entities(199)   =  html_entities("Int                              ",  [8748])
-      entities(200)   =  html_entities("Integral                         ",  [8747])
-      entities(201)   =  html_entities("Intersection                     ",  [8898])
-      entities(202)   =  html_entities("InvisibleComma                   ",  [8291])
-      entities(203)   =  html_entities("InvisibleTimes                   ",  [8290])
-      entities(204)   =  html_entities("Iogon                            ",  [302])
-      entities(205)   =  html_entities("Iopf                             ",  [120128])
-      entities(206)   =  html_entities("Iota                             ",  [921])
-      entities(207)   =  html_entities("Iscr                             ",  [8464])
-      entities(208)   =  html_entities("Itilde                           ",  [296])
-      entities(209)   =  html_entities("Iukcy                            ",  [1030])
-      entities(210)   =  html_entities("Iuml                             ",  [207])
-      entities(211)   =  html_entities("Jcirc                            ",  [308])
-      entities(212)   =  html_entities("Jcy                              ",  [1049])
-      entities(213)   =  html_entities("Jfr                              ",  [120077])
-      entities(214)   =  html_entities("Jopf                             ",  [120129])
-      entities(215)   =  html_entities("Jscr                             ",  [119973])
-      entities(216)   =  html_entities("Jsercy                           ",  [1032])
-      entities(217)   =  html_entities("Jukcy                            ",  [1028])
-      entities(218)   =  html_entities("KHcy                             ",  [1061])
-      entities(219)   =  html_entities("KJcy                             ",  [1036])
-      entities(220)   =  html_entities("Kappa                            ",  [922])
-      entities(221)   =  html_entities("Kcedil                           ",  [310])
-      entities(222)   =  html_entities("Kcy                              ",  [1050])
-      entities(223)   =  html_entities("Kfr                              ",  [120078])
-      entities(224)   =  html_entities("Kopf                             ",  [120130])
-      entities(225)   =  html_entities("Kscr                             ",  [119974])
-      entities(226)   =  html_entities("LJcy                             ",  [1033])
-      entities(227)   =  html_entities("LT                               ",  [60])
-      entities(228)   =  html_entities("Lacute                           ",  [313])
-      entities(229)   =  html_entities("Lambda                           ",  [923])
-      entities(230)   =  html_entities("Lang                             ",  [10218])
-      entities(231)   =  html_entities("Laplacetrf                       ",  [8466])
-      entities(232)   =  html_entities("Larr                             ",  [8606])
-      entities(233)   =  html_entities("Lcaron                           ",  [317])
-      entities(234)   =  html_entities("Lcedil                           ",  [315])
-      entities(235)   =  html_entities("Lcy                              ",  [1051])
-      entities(236)   =  html_entities("LeftAngleBracket                 ",  [10216])
-      entities(237)   =  html_entities("LeftArrow                        ",  [8592])
-      entities(238)   =  html_entities("LeftArrowBar                     ",  [8676])
-      entities(239)   =  html_entities("LeftArrowRightArrow              ",  [8646])
-      entities(240)   =  html_entities("LeftCeiling                      ",  [8968])
-      entities(241)   =  html_entities("LeftDoubleBracket                ",  [10214])
-      entities(242)   =  html_entities("LeftDownTeeVector                ",  [10593])
-      entities(243)   =  html_entities("LeftDownVector                   ",  [8643])
-      entities(244)   =  html_entities("LeftDownVectorBar                ",  [10585])
-      entities(245)   =  html_entities("LeftFloor                        ",  [8970])
-      entities(246)   =  html_entities("LeftRightArrow                   ",  [8596])
-      entities(247)   =  html_entities("LeftRightVector                  ",  [10574])
-      entities(248)   =  html_entities("LeftTee                          ",  [8867])
-      entities(249)   =  html_entities("LeftTeeArrow                     ",  [8612])
-      entities(250)   =  html_entities("LeftTeeVector                    ",  [10586])
-      entities(251)   =  html_entities("LeftTriangle                     ",  [8882])
-      entities(252)   =  html_entities("LeftTriangleBar                  ",  [10703])
-      entities(253)   =  html_entities("LeftTriangleEqual                ",  [8884])
-      entities(254)   =  html_entities("LeftUpDownVector                 ",  [10577])
-      entities(255)   =  html_entities("LeftUpTeeVector                  ",  [10592])
-      entities(256)   =  html_entities("LeftUpVector                     ",  [8639])
-      entities(257)   =  html_entities("LeftUpVectorBar                  ",  [10584])
-      entities(258)   =  html_entities("LeftVector                       ",  [8636])
-      entities(259)   =  html_entities("LeftVectorBar                    ",  [10578])
-      entities(260)   =  html_entities("Leftarrow                        ",  [8656])
-      entities(261)   =  html_entities("Leftrightarrow                   ",  [8660])
-      entities(262)   =  html_entities("LessEqualGreater                 ",  [8922])
-      entities(263)   =  html_entities("LessFullEqual                    ",  [8806])
-      entities(264)   =  html_entities("LessGreater                      ",  [8822])
-      entities(265)   =  html_entities("LessLess                         ",  [10913])
-      entities(266)   =  html_entities("LessSlantEqual                   ",  [10877])
-      entities(267)   =  html_entities("LessTilde                        ",  [8818])
-      entities(268)   =  html_entities("Lfr                              ",  [120079])
-      entities(269)   =  html_entities("Ll                               ",  [8920])
-      entities(270)   =  html_entities("Lleftarrow                       ",  [8666])
-      entities(271)   =  html_entities("Lmidot                           ",  [319])
-      entities(272)   =  html_entities("LongLeftArrow                    ",  [10229])
-      entities(273)   =  html_entities("LongLeftRightArrow               ",  [10231])
-      entities(274)   =  html_entities("LongRightArrow                   ",  [10230])
-      entities(275)   =  html_entities("Longleftarrow                    ",  [10232])
-      entities(276)   =  html_entities("Longleftrightarrow               ",  [10234])
-      entities(277)   =  html_entities("Longrightarrow                   ",  [10233])
-      entities(278)   =  html_entities("Lopf                             ",  [120131])
-      entities(279)   =  html_entities("LowerLeftArrow                   ",  [8601])
-      entities(280)   =  html_entities("LowerRightArrow                  ",  [8600])
-      entities(281)   =  html_entities("Lscr                             ",  [8466])
-      entities(282)   =  html_entities("Lsh                              ",  [8624])
-      entities(283)   =  html_entities("Lstrok                           ",  [321])
-      entities(284)   =  html_entities("Lt                               ",  [8810])
-      entities(285)   =  html_entities("Map                              ",  [10501])
-      entities(286)   =  html_entities("Mcy                              ",  [1052])
-      entities(287)   =  html_entities("MediumSpace                      ",  [8287])
-      entities(288)   =  html_entities("Mellintrf                        ",  [8499])
-      entities(289)   =  html_entities("Mfr                              ",  [120080])
-      entities(290)   =  html_entities("MinusPlus                        ",  [8723])
-      entities(291)   =  html_entities("Mopf                             ",  [120132])
-      entities(292)   =  html_entities("Mscr                             ",  [8499])
-      entities(293)   =  html_entities("Mu                               ",  [924])
-      entities(294)   =  html_entities("NJcy                             ",  [1034])
-      entities(295)   =  html_entities("Nacute                           ",  [323])
-      entities(296)   =  html_entities("Ncaron                           ",  [327])
-      entities(297)   =  html_entities("Ncedil                           ",  [325])
-      entities(298)   =  html_entities("Ncy                              ",  [1053])
-      entities(299)   =  html_entities("NegativeMediumSpace              ",  [8203])
-      entities(300)   =  html_entities("NegativeThickSpace               ",  [8203])
-      entities(301)   =  html_entities("NegativeThinSpace                ",  [8203])
-      entities(302)   =  html_entities("NegativeVeryThinSpace            ",  [8203])
-      entities(303)   =  html_entities("NestedGreaterGreater             ",  [8811])
-      entities(304)   =  html_entities("NestedLessLess                   ",  [8810])
-      entities(305)   =  html_entities("NewLine                          ",  [10])
-      entities(306)   =  html_entities("Nfr                              ",  [120081])
-      entities(307)   =  html_entities("NoBreak                          ",  [8288])
-      entities(308)   =  html_entities("NonBreakingSpace                 ",  [160])
-      entities(309)   =  html_entities("Nopf                             ",  [8469])
-      entities(310)   =  html_entities("Not                              ",  [10988])
-      entities(311)   =  html_entities("NotCongruent                     ",  [8802])
-      entities(312)   =  html_entities("NotCupCap                        ",  [8813])
-      entities(313)   =  html_entities("NotDoubleVerticalBar             ",  [8742])
-      entities(314)   =  html_entities("NotElement                       ",  [8713])
-      entities(315)   =  html_entities("NotEqual                         ",  [8800])
-      entities(316)   =  html_entities("NotEqualTilde                    ",  [8770,     824])
-      entities(317)   =  html_entities("NotExists                        ",  [8708])
-      entities(318)   =  html_entities("NotGreater                       ",  [8815])
-      entities(319)   =  html_entities("NotGreaterEqual                  ",  [8817])
-      entities(320)   =  html_entities("NotGreaterFullEqual              ",  [8807,     824])
-      entities(321)   =  html_entities("NotGreaterGreater                ",  [8811,     824])
-      entities(322)   =  html_entities("NotGreaterLess                   ",  [8825])
-      entities(323)   =  html_entities("NotGreaterSlantEqual             ",  [10878,    824])
-      entities(324)   =  html_entities("NotGreaterTilde                  ",  [8821])
-      entities(325)   =  html_entities("NotHumpDownHump                  ",  [8782,     824])
-      entities(326)   =  html_entities("NotHumpEqual                     ",  [8783,     824])
-      entities(327)   =  html_entities("NotLeftTriangle                  ",  [8938])
-      entities(328)   =  html_entities("NotLeftTriangleBar               ",  [10703,    824])
-      entities(329)   =  html_entities("NotLeftTriangleEqual             ",  [8940])
-      entities(330)   =  html_entities("NotLess                          ",  [8814])
-      entities(331)   =  html_entities("NotLessEqual                     ",  [8816])
-      entities(332)   =  html_entities("NotLessGreater                   ",  [8824])
-      entities(333)   =  html_entities("NotLessLess                      ",  [8810,     824])
-      entities(334)   =  html_entities("NotLessSlantEqual                ",  [10877,    824])
-      entities(335)   =  html_entities("NotLessTilde                     ",  [8820])
-      entities(336)   =  html_entities("NotNestedGreaterGreater          ",  [10914,    824])
-      entities(337)   =  html_entities("NotNestedLessLess                ",  [10913,    824])
-      entities(338)   =  html_entities("NotPrecedes                      ",  [8832])
-      entities(339)   =  html_entities("NotPrecedesEqual                 ",  [10927,    824])
-      entities(340)   =  html_entities("NotPrecedesSlantEqual            ",  [8928])
-      entities(341)   =  html_entities("NotReverseElement                ",  [8716])
-      entities(342)   =  html_entities("NotRightTriangle                 ",  [8939])
-      entities(343)   =  html_entities("NotRightTriangleBar              ",  [10704,    824])
-      entities(344)   =  html_entities("NotRightTriangleEqual            ",  [8941])
-      entities(345)   =  html_entities("NotSquareSubset                  ",  [8847,     824])
-      entities(346)   =  html_entities("NotSquareSubsetEqual             ",  [8930])
-      entities(347)   =  html_entities("NotSquareSuperset                ",  [8848,     824])
-      entities(348)   =  html_entities("NotSquareSupersetEqual           ",  [8931])
-      entities(349)   =  html_entities("NotSubset                        ",  [8834,     8402])
-      entities(350)   =  html_entities("NotSubsetEqual                   ",  [8840])
-      entities(351)   =  html_entities("NotSucceeds                      ",  [8833])
-      entities(352)   =  html_entities("NotSucceedsEqual                 ",  [10928,    824])
-      entities(353)   =  html_entities("NotSucceedsSlantEqual            ",  [8929])
-      entities(354)   =  html_entities("NotSucceedsTilde                 ",  [8831,     824])
-      entities(355)   =  html_entities("NotSuperset                      ",  [8835,     8402])
-      entities(356)   =  html_entities("NotSupersetEqual                 ",  [8841])
-      entities(357)   =  html_entities("NotTilde                         ",  [8769])
-      entities(358)   =  html_entities("NotTildeEqual                    ",  [8772])
-      entities(359)   =  html_entities("NotTildeFullEqual                ",  [8775])
-      entities(360)   =  html_entities("NotTildeTilde                    ",  [8777])
-      entities(361)   =  html_entities("NotVerticalBar                   ",  [8740])
-      entities(362)   =  html_entities("Nscr                             ",  [119977])
-      entities(363)   =  html_entities("Ntilde                           ",  [209])
-      entities(364)   =  html_entities("Nu                               ",  [925])
-      entities(365)   =  html_entities("OElig                            ",  [338])
-      entities(366)   =  html_entities("Oacute                           ",  [211])
-      entities(367)   =  html_entities("Ocirc                            ",  [212])
-      entities(368)   =  html_entities("Ocy                              ",  [1054])
-      entities(369)   =  html_entities("Odblac                           ",  [336])
-      entities(370)   =  html_entities("Ofr                              ",  [120082])
-      entities(371)   =  html_entities("Ograve                           ",  [210])
-      entities(372)   =  html_entities("Omacr                            ",  [332])
-      entities(373)   =  html_entities("Omega                            ",  [937])
-      entities(374)   =  html_entities("Omicron                          ",  [927])
-      entities(375)   =  html_entities("Oopf                             ",  [120134])
-      entities(376)   =  html_entities("OpenCurlyDoubleQuote             ",  [8220])
-      entities(377)   =  html_entities("OpenCurlyQuote                   ",  [8216])
-      entities(378)   =  html_entities("Or                               ",  [10836])
-      entities(379)   =  html_entities("Oscr                             ",  [119978])
-      entities(380)   =  html_entities("Oslash                           ",  [216])
-      entities(381)   =  html_entities("Otilde                           ",  [213])
-      entities(382)   =  html_entities("Otimes                           ",  [10807])
-      entities(383)   =  html_entities("Ouml                             ",  [214])
-      entities(384)   =  html_entities("OverBar                          ",  [8254])
-      entities(385)   =  html_entities("OverBrace                        ",  [9182])
-      entities(386)   =  html_entities("OverBracket                      ",  [9140])
-      entities(387)   =  html_entities("OverParenthesis                  ",  [9180])
-      entities(388)   =  html_entities("PartialD                         ",  [8706])
-      entities(389)   =  html_entities("Pcy                              ",  [1055])
-      entities(390)   =  html_entities("Pfr                              ",  [120083])
-      entities(391)   =  html_entities("Phi                              ",  [934])
-      entities(392)   =  html_entities("Pi                               ",  [928])
-      entities(393)   =  html_entities("PlusMinus                        ",  [177])
-      entities(394)   =  html_entities("Poincareplane                    ",  [8460])
-      entities(395)   =  html_entities("Popf                             ",  [8473])
-      entities(396)   =  html_entities("Pr                               ",  [10939])
-      entities(397)   =  html_entities("Precedes                         ",  [8826])
-      entities(398)   =  html_entities("PrecedesEqual                    ",  [10927])
-      entities(399)   =  html_entities("PrecedesSlantEqual               ",  [8828])
-      entities(400)   =  html_entities("PrecedesTilde                    ",  [8830])
-      entities(401)   =  html_entities("Prime                            ",  [8243])
-      entities(402)   =  html_entities("Product                          ",  [8719])
-      entities(403)   =  html_entities("Proportion                       ",  [8759])
-      entities(404)   =  html_entities("Proportional                     ",  [8733])
-      entities(405)   =  html_entities("Pscr                             ",  [119979])
-      entities(406)   =  html_entities("Psi                              ",  [936])
-      entities(407)   =  html_entities("QUOT                             ",  [34])
-      entities(408)   =  html_entities("Qfr                              ",  [120084])
-      entities(409)   =  html_entities("Qopf                             ",  [8474])
-      entities(410)   =  html_entities("Qscr                             ",  [119980])
-      entities(411)   =  html_entities("RBarr                            ",  [10512])
-      entities(412)   =  html_entities("REG                              ",  [174])
-      entities(413)   =  html_entities("Racute                           ",  [340])
-      entities(414)   =  html_entities("Rang                             ",  [10219])
-      entities(415)   =  html_entities("Rarr                             ",  [8608])
-      entities(416)   =  html_entities("Rarrtl                           ",  [10518])
-      entities(417)   =  html_entities("Rcaron                           ",  [344])
-      entities(418)   =  html_entities("Rcedil                           ",  [342])
-      entities(419)   =  html_entities("Rcy                              ",  [1056])
-      entities(420)   =  html_entities("Re                               ",  [8476])
-      entities(421)   =  html_entities("ReverseElement                   ",  [8715])
-      entities(422)   =  html_entities("ReverseEquilibrium               ",  [8651])
-      entities(423)   =  html_entities("ReverseUpEquilibrium             ",  [10607])
-      entities(424)   =  html_entities("Rfr                              ",  [8476])
-      entities(425)   =  html_entities("Rho                              ",  [929])
-      entities(426)   =  html_entities("RightAngleBracket                ",  [10217])
-      entities(427)   =  html_entities("RightArrow                       ",  [8594])
-      entities(428)   =  html_entities("RightArrowBar                    ",  [8677])
-      entities(429)   =  html_entities("RightArrowLeftArrow              ",  [8644])
-      entities(430)   =  html_entities("RightCeiling                     ",  [8969])
-      entities(431)   =  html_entities("RightDoubleBracket               ",  [10215])
-      entities(432)   =  html_entities("RightDownTeeVector               ",  [10589])
-      entities(433)   =  html_entities("RightDownVector                  ",  [8642])
-      entities(434)   =  html_entities("RightDownVectorBar               ",  [10581])
-      entities(435)   =  html_entities("RightFloor                       ",  [8971])
-      entities(436)   =  html_entities("RightTee                         ",  [8866])
-      entities(437)   =  html_entities("RightTeeArrow                    ",  [8614])
-      entities(438)   =  html_entities("RightTeeVector                   ",  [10587])
-      entities(439)   =  html_entities("RightTriangle                    ",  [8883])
-      entities(440)   =  html_entities("RightTriangleBar                 ",  [10704])
-      entities(441)   =  html_entities("RightTriangleEqual               ",  [8885])
-      entities(442)   =  html_entities("RightUpDownVector                ",  [10575])
-      entities(443)   =  html_entities("RightUpTeeVector                 ",  [10588])
-      entities(444)   =  html_entities("RightUpVector                    ",  [8638])
-      entities(445)   =  html_entities("RightUpVectorBar                 ",  [10580])
-      entities(446)   =  html_entities("RightVector                      ",  [8640])
-      entities(447)   =  html_entities("RightVectorBar                   ",  [10579])
-      entities(448)   =  html_entities("Rightarrow                       ",  [8658])
-      entities(449)   =  html_entities("Ropf                             ",  [8477])
-      entities(450)   =  html_entities("RoundImplies                     ",  [10608])
-      entities(451)   =  html_entities("Rrightarrow                      ",  [8667])
-      entities(452)   =  html_entities("Rscr                             ",  [8475])
-      entities(453)   =  html_entities("Rsh                              ",  [8625])
-      entities(454)   =  html_entities("RuleDelayed                      ",  [10740])
-      entities(455)   =  html_entities("SHCHcy                           ",  [1065])
-      entities(456)   =  html_entities("SHcy                             ",  [1064])
-      entities(457)   =  html_entities("SOFTcy                           ",  [1068])
-      entities(458)   =  html_entities("Sacute                           ",  [346])
-      entities(459)   =  html_entities("Sc                               ",  [10940])
-      entities(460)   =  html_entities("Scaron                           ",  [352])
-      entities(461)   =  html_entities("Scedil                           ",  [350])
-      entities(462)   =  html_entities("Scirc                            ",  [348])
-      entities(463)   =  html_entities("Scy                              ",  [1057])
-      entities(464)   =  html_entities("Sfr                              ",  [120086])
-      entities(465)   =  html_entities("ShortDownArrow                   ",  [8595])
-      entities(466)   =  html_entities("ShortLeftArrow                   ",  [8592])
-      entities(467)   =  html_entities("ShortRightArrow                  ",  [8594])
-      entities(468)   =  html_entities("ShortUpArrow                     ",  [8593])
-      entities(469)   =  html_entities("Sigma                            ",  [931])
-      entities(470)   =  html_entities("SmallCircle                      ",  [8728])
-      entities(471)   =  html_entities("Sopf                             ",  [120138])
-      entities(472)   =  html_entities("Sqrt                             ",  [8730])
-      entities(473)   =  html_entities("Square                           ",  [9633])
-      entities(474)   =  html_entities("SquareIntersection               ",  [8851])
-      entities(475)   =  html_entities("SquareSubset                     ",  [8847])
-      entities(476)   =  html_entities("SquareSubsetEqual                ",  [8849])
-      entities(477)   =  html_entities("SquareSuperset                   ",  [8848])
-      entities(478)   =  html_entities("SquareSupersetEqual              ",  [8850])
-      entities(479)   =  html_entities("SquareUnion                      ",  [8852])
-      entities(480)   =  html_entities("Sscr                             ",  [119982])
-      entities(481)   =  html_entities("Star                             ",  [8902])
-      entities(482)   =  html_entities("Sub                              ",  [8912])
-      entities(483)   =  html_entities("Subset                           ",  [8912])
-      entities(484)   =  html_entities("SubsetEqual                      ",  [8838])
-      entities(485)   =  html_entities("Succeeds                         ",  [8827])
-      entities(486)   =  html_entities("SucceedsEqual                    ",  [10928])
-      entities(487)   =  html_entities("SucceedsSlantEqual               ",  [8829])
-      entities(488)   =  html_entities("SucceedsTilde                    ",  [8831])
-      entities(489)   =  html_entities("SuchThat                         ",  [8715])
-      entities(490)   =  html_entities("Sum                              ",  [8721])
-      entities(491)   =  html_entities("Sup                              ",  [8913])
-      entities(492)   =  html_entities("Superset                         ",  [8835])
-      entities(493)   =  html_entities("SupersetEqual                    ",  [8839])
-      entities(494)   =  html_entities("Supset                           ",  [8913])
-      entities(495)   =  html_entities("THORN                            ",  [222])
-      entities(496)   =  html_entities("TRADE                            ",  [8482])
-      entities(497)   =  html_entities("TSHcy                            ",  [1035])
-      entities(498)   =  html_entities("TScy                             ",  [1062])
-      entities(499)   =  html_entities("Tab                              ",  [9])
-      entities(500)   =  html_entities("Tau                              ",  [932])
-      entities(501)   =  html_entities("Tcaron                           ",  [356])
-      entities(502)   =  html_entities("Tcedil                           ",  [354])
-      entities(503)   =  html_entities("Tcy                              ",  [1058])
-      entities(504)   =  html_entities("Tfr                              ",  [120087])
-      entities(505)   =  html_entities("Therefore                        ",  [8756])
-      entities(506)   =  html_entities("Theta                            ",  [920])
-      entities(507)   =  html_entities("ThickSpace                       ",  [8287,     8202])
-      entities(508)   =  html_entities("ThinSpace                        ",  [8201])
-      entities(509)   =  html_entities("Tilde                            ",  [8764])
-      entities(510)   =  html_entities("TildeEqual                       ",  [8771])
-      entities(511)   =  html_entities("TildeFullEqual                   ",  [8773])
-      entities(512)   =  html_entities("TildeTilde                       ",  [8776])
-      entities(513)   =  html_entities("Topf                             ",  [120139])
-      entities(514)   =  html_entities("TripleDot                        ",  [8411])
-      entities(515)   =  html_entities("Tscr                             ",  [119983])
-      entities(516)   =  html_entities("Tstrok                           ",  [358])
-      entities(517)   =  html_entities("Uacute                           ",  [218])
-      entities(518)   =  html_entities("Uarr                             ",  [8607])
-      entities(519)   =  html_entities("Uarrocir                         ",  [10569])
-      entities(520)   =  html_entities("Ubrcy                            ",  [1038])
-      entities(521)   =  html_entities("Ubreve                           ",  [364])
-      entities(522)   =  html_entities("Ucirc                            ",  [219])
-      entities(523)   =  html_entities("Ucy                              ",  [1059])
-      entities(524)   =  html_entities("Udblac                           ",  [368])
-      entities(525)   =  html_entities("Ufr                              ",  [120088])
-      entities(526)   =  html_entities("Ugrave                           ",  [217])
-      entities(527)   =  html_entities("Umacr                            ",  [362])
-      entities(528)   =  html_entities("UnderBar                         ",  [95])
-      entities(529)   =  html_entities("UnderBrace                       ",  [9183])
-      entities(530)   =  html_entities("UnderBracket                     ",  [9141])
-      entities(531)   =  html_entities("UnderParenthesis                 ",  [9181])
-      entities(532)   =  html_entities("Union                            ",  [8899])
-      entities(533)   =  html_entities("UnionPlus                        ",  [8846])
-      entities(534)   =  html_entities("Uogon                            ",  [370])
-      entities(535)   =  html_entities("Uopf                             ",  [120140])
-      entities(536)   =  html_entities("UpArrow                          ",  [8593])
-      entities(537)   =  html_entities("UpArrowBar                       ",  [10514])
-      entities(538)   =  html_entities("UpArrowDownArrow                 ",  [8645])
-      entities(539)   =  html_entities("UpDownArrow                      ",  [8597])
-      entities(540)   =  html_entities("UpEquilibrium                    ",  [10606])
-      entities(541)   =  html_entities("UpTee                            ",  [8869])
-      entities(542)   =  html_entities("UpTeeArrow                       ",  [8613])
-      entities(543)   =  html_entities("Uparrow                          ",  [8657])
-      entities(544)   =  html_entities("Updownarrow                      ",  [8661])
-      entities(545)   =  html_entities("UpperLeftArrow                   ",  [8598])
-      entities(546)   =  html_entities("UpperRightArrow                  ",  [8599])
-      entities(547)   =  html_entities("Upsi                             ",  [978])
-      entities(548)   =  html_entities("Upsilon                          ",  [933])
-      entities(549)   =  html_entities("Uring                            ",  [366])
-      entities(550)   =  html_entities("Uscr                             ",  [119984])
-      entities(551)   =  html_entities("Utilde                           ",  [360])
-      entities(552)   =  html_entities("Uuml                             ",  [220])
-      entities(553)   =  html_entities("VDash                            ",  [8875])
-      entities(554)   =  html_entities("Vbar                             ",  [10987])
-      entities(555)   =  html_entities("Vcy                              ",  [1042])
-      entities(556)   =  html_entities("Vdash                            ",  [8873])
-      entities(557)   =  html_entities("Vdashl                           ",  [10982])
-      entities(558)   =  html_entities("Vee                              ",  [8897])
-      entities(559)   =  html_entities("Verbar                           ",  [8214])
-      entities(560)   =  html_entities("Vert                             ",  [8214])
-      entities(561)   =  html_entities("VerticalBar                      ",  [8739])
-      entities(562)   =  html_entities("VerticalLine                     ",  [124])
-      entities(563)   =  html_entities("VerticalSeparator                ",  [10072])
-      entities(564)   =  html_entities("VerticalTilde                    ",  [8768])
-      entities(565)   =  html_entities("VeryThinSpace                    ",  [8202])
-      entities(566)   =  html_entities("Vfr                              ",  [120089])
-      entities(567)   =  html_entities("Vopf                             ",  [120141])
-      entities(568)   =  html_entities("Vscr                             ",  [119985])
-      entities(569)   =  html_entities("Vvdash                           ",  [8874])
-      entities(570)   =  html_entities("Wcirc                            ",  [372])
-      entities(571)   =  html_entities("Wedge                            ",  [8896])
-      entities(572)   =  html_entities("Wfr                              ",  [120090])
-      entities(573)   =  html_entities("Wopf                             ",  [120142])
-      entities(574)   =  html_entities("Wscr                             ",  [119986])
-      entities(575)   =  html_entities("Xfr                              ",  [120091])
-      entities(576)   =  html_entities("Xi                               ",  [926])
-      entities(577)   =  html_entities("Xopf                             ",  [120143])
-      entities(578)   =  html_entities("Xscr                             ",  [119987])
-      entities(579)   =  html_entities("YAcy                             ",  [1071])
-      entities(580)   =  html_entities("YIcy                             ",  [1031])
-      entities(581)   =  html_entities("YUcy                             ",  [1070])
-      entities(582)   =  html_entities("Yacute                           ",  [221])
-      entities(583)   =  html_entities("Ycirc                            ",  [374])
-      entities(584)   =  html_entities("Ycy                              ",  [1067])
-      entities(585)   =  html_entities("Yfr                              ",  [120092])
-      entities(586)   =  html_entities("Yopf                             ",  [120144])
-      entities(587)   =  html_entities("Yscr                             ",  [119988])
-      entities(588)   =  html_entities("Yuml                             ",  [376])
-      entities(589)   =  html_entities("ZHcy                             ",  [1046])
-      entities(590)   =  html_entities("Zacute                           ",  [377])
-      entities(591)   =  html_entities("Zcaron                           ",  [381])
-      entities(592)   =  html_entities("Zcy                              ",  [1047])
-      entities(593)   =  html_entities("Zdot                             ",  [379])
-      entities(594)   =  html_entities("ZeroWidthSpace                   ",  [8203])
-      entities(595)   =  html_entities("Zeta                             ",  [918])
-      entities(596)   =  html_entities("Zfr                              ",  [8488])
-      entities(597)   =  html_entities("Zopf                             ",  [8484])
-      entities(598)   =  html_entities("Zscr                             ",  [119989])
-      entities(599)   =  html_entities("aacute                           ",  [225])
-      entities(600)   =  html_entities("abreve                           ",  [259])
-      entities(601)   =  html_entities("ac                               ",  [8766])
-      entities(602)   =  html_entities("acE                              ",  [8766,     819])
-      entities(603)   =  html_entities("acd                              ",  [8767])
-      entities(604)   =  html_entities("acirc                            ",  [226])
-      entities(605)   =  html_entities("acute                            ",  [180])
-      entities(606)   =  html_entities("acy                              ",  [1072])
-      entities(607)   =  html_entities("aelig                            ",  [230])
-      entities(608)   =  html_entities("af                               ",  [8289])
-      entities(609)   =  html_entities("afr                              ",  [120094])
-      entities(610)   =  html_entities("agrave                           ",  [224])
-      entities(611)   =  html_entities("alefsym                          ",  [8501])
-      entities(612)   =  html_entities("aleph                            ",  [8501])
-      entities(613)   =  html_entities("alpha                            ",  [945])
-      entities(614)   =  html_entities("amacr                            ",  [257])
-      entities(615)   =  html_entities("amalg                            ",  [10815])
-      entities(616)   =  html_entities("amp                              ",  [38])
-      entities(617)   =  html_entities("and                              ",  [8743])
-      entities(618)   =  html_entities("andand                           ",  [10837])
-      entities(619)   =  html_entities("andd                             ",  [10844])
-      entities(620)   =  html_entities("andslope                         ",  [10840])
-      entities(621)   =  html_entities("andv                             ",  [10842])
-      entities(622)   =  html_entities("ang                              ",  [8736])
-      entities(623)   =  html_entities("ange                             ",  [10660])
-      entities(624)   =  html_entities("angle                            ",  [8736])
-      entities(625)   =  html_entities("angmsd                           ",  [8737])
-      entities(626)   =  html_entities("angmsdaa                         ",  [10664])
-      entities(627)   =  html_entities("angmsdab                         ",  [10665])
-      entities(628)   =  html_entities("angmsdac                         ",  [10666])
-      entities(629)   =  html_entities("angmsdad                         ",  [10667])
-      entities(630)   =  html_entities("angmsdae                         ",  [10668])
-      entities(631)   =  html_entities("angmsdaf                         ",  [10669])
-      entities(632)   =  html_entities("angmsdag                         ",  [10670])
-      entities(633)   =  html_entities("angmsdah                         ",  [10671])
-      entities(634)   =  html_entities("angrt                            ",  [8735])
-      entities(635)   =  html_entities("angrtvb                          ",  [8894])
-      entities(636)   =  html_entities("angrtvbd                         ",  [10653])
-      entities(637)   =  html_entities("angsph                           ",  [8738])
-      entities(638)   =  html_entities("angst                            ",  [197])
-      entities(639)   =  html_entities("angzarr                          ",  [9084])
-      entities(640)   =  html_entities("aogon                            ",  [261])
-      entities(641)   =  html_entities("aopf                             ",  [120146])
-      entities(642)   =  html_entities("ap                               ",  [8776])
-      entities(643)   =  html_entities("apE                              ",  [10864])
-      entities(644)   =  html_entities("apacir                           ",  [10863])
-      entities(645)   =  html_entities("ape                              ",  [8778])
-      entities(646)   =  html_entities("apid                             ",  [8779])
-      entities(647)   =  html_entities("apos                             ",  [39])
-      entities(648)   =  html_entities("approx                           ",  [8776])
-      entities(649)   =  html_entities("approxeq                         ",  [8778])
-      entities(650)   =  html_entities("aring                            ",  [229])
-      entities(651)   =  html_entities("ascr                             ",  [119990])
-      entities(652)   =  html_entities("ast                              ",  [42])
-      entities(653)   =  html_entities("asymp                            ",  [8776])
-      entities(654)   =  html_entities("asympeq                          ",  [8781])
-      entities(655)   =  html_entities("atilde                           ",  [227])
-      entities(656)   =  html_entities("auml                             ",  [228])
-      entities(657)   =  html_entities("awconint                         ",  [8755])
-      entities(658)   =  html_entities("awint                            ",  [10769])
-      entities(659)   =  html_entities("bNot                             ",  [10989])
-      entities(660)   =  html_entities("backcong                         ",  [8780])
-      entities(661)   =  html_entities("backepsilon                      ",  [1014])
-      entities(662)   =  html_entities("backprime                        ",  [8245])
-      entities(663)   =  html_entities("backsim                          ",  [8765])
-      entities(664)   =  html_entities("backsimeq                        ",  [8909])
-      entities(665)   =  html_entities("barvee                           ",  [8893])
-      entities(666)   =  html_entities("barwed                           ",  [8965])
-      entities(667)   =  html_entities("barwedge                         ",  [8965])
-      entities(668)   =  html_entities("bbrk                             ",  [9141])
-      entities(669)   =  html_entities("bbrktbrk                         ",  [9142])
-      entities(670)   =  html_entities("bcong                            ",  [8780])
-      entities(671)   =  html_entities("bcy                              ",  [1073])
-      entities(672)   =  html_entities("bdquo                            ",  [8222])
-      entities(673)   =  html_entities("becaus                           ",  [8757])
-      entities(674)   =  html_entities("because                          ",  [8757])
-      entities(675)   =  html_entities("bemptyv                          ",  [10672])
-      entities(676)   =  html_entities("bepsi                            ",  [1014])
-      entities(677)   =  html_entities("bernou                           ",  [8492])
-      entities(678)   =  html_entities("beta                             ",  [946])
-      entities(679)   =  html_entities("beth                             ",  [8502])
-      entities(680)   =  html_entities("between                          ",  [8812])
-      entities(681)   =  html_entities("bfr                              ",  [120095])
-      entities(682)   =  html_entities("bigcap                           ",  [8898])
-      entities(683)   =  html_entities("bigcirc                          ",  [9711])
-      entities(684)   =  html_entities("bigcup                           ",  [8899])
-      entities(685)   =  html_entities("bigodot                          ",  [10752])
-      entities(686)   =  html_entities("bigoplus                         ",  [10753])
-      entities(687)   =  html_entities("bigotimes                        ",  [10754])
-      entities(688)   =  html_entities("bigsqcup                         ",  [10758])
-      entities(689)   =  html_entities("bigstar                          ",  [9733])
-      entities(690)   =  html_entities("bigtriangledown                  ",  [9661])
-      entities(691)   =  html_entities("bigtriangleup                    ",  [9651])
-      entities(692)   =  html_entities("biguplus                         ",  [10756])
-      entities(693)   =  html_entities("bigvee                           ",  [8897])
-      entities(694)   =  html_entities("bigwedge                         ",  [8896])
-      entities(695)   =  html_entities("bkarow                           ",  [10509])
-      entities(696)   =  html_entities("blacklozenge                     ",  [10731])
-      entities(697)   =  html_entities("blacksquare                      ",  [9642])
-      entities(698)   =  html_entities("blacktriangle                    ",  [9652])
-      entities(699)   =  html_entities("blacktriangledown                ",  [9662])
-      entities(700)   =  html_entities("blacktriangleleft                ",  [9666])
-      entities(701)   =  html_entities("blacktriangleright               ",  [9656])
-      entities(702)   =  html_entities("blank                            ",  [9251])
-      entities(703)   =  html_entities("blk12                            ",  [9618])
-      entities(704)   =  html_entities("blk14                            ",  [9617])
-      entities(705)   =  html_entities("blk34                            ",  [9619])
-      entities(706)   =  html_entities("block                            ",  [9608])
-      entities(707)   =  html_entities("bne                              ",  [61,       8421])
-      entities(708)   =  html_entities("bnequiv                          ",  [8801,     8421])
-      entities(709)   =  html_entities("bnot                             ",  [8976])
-      entities(710)   =  html_entities("bopf                             ",  [120147])
-      entities(711)   =  html_entities("bot                              ",  [8869])
-      entities(712)   =  html_entities("bottom                           ",  [8869])
-      entities(713)   =  html_entities("bowtie                           ",  [8904])
-      entities(714)   =  html_entities("boxDL                            ",  [9559])
-      entities(715)   =  html_entities("boxDR                            ",  [9556])
-      entities(716)   =  html_entities("boxDl                            ",  [9558])
-      entities(717)   =  html_entities("boxDr                            ",  [9555])
-      entities(718)   =  html_entities("boxH                             ",  [9552])
-      entities(719)   =  html_entities("boxHD                            ",  [9574])
-      entities(720)   =  html_entities("boxHU                            ",  [9577])
-      entities(721)   =  html_entities("boxHd                            ",  [9572])
-      entities(722)   =  html_entities("boxHu                            ",  [9575])
-      entities(723)   =  html_entities("boxUL                            ",  [9565])
-      entities(724)   =  html_entities("boxUR                            ",  [9562])
-      entities(725)   =  html_entities("boxUl                            ",  [9564])
-      entities(726)   =  html_entities("boxUr                            ",  [9561])
-      entities(727)   =  html_entities("boxV                             ",  [9553])
-      entities(728)   =  html_entities("boxVH                            ",  [9580])
-      entities(729)   =  html_entities("boxVL                            ",  [9571])
-      entities(730)   =  html_entities("boxVR                            ",  [9568])
-      entities(731)   =  html_entities("boxVh                            ",  [9579])
-      entities(732)   =  html_entities("boxVl                            ",  [9570])
-      entities(733)   =  html_entities("boxVr                            ",  [9567])
-      entities(734)   =  html_entities("boxbox                           ",  [10697])
-      entities(735)   =  html_entities("boxdL                            ",  [9557])
-      entities(736)   =  html_entities("boxdR                            ",  [9554])
-      entities(737)   =  html_entities("boxdl                            ",  [9488])
-      entities(738)   =  html_entities("boxdr                            ",  [9484])
-      entities(739)   =  html_entities("boxh                             ",  [9472])
-      entities(740)   =  html_entities("boxhD                            ",  [9573])
-      entities(741)   =  html_entities("boxhU                            ",  [9576])
-      entities(742)   =  html_entities("boxhd                            ",  [9516])
-      entities(743)   =  html_entities("boxhu                            ",  [9524])
-      entities(744)   =  html_entities("boxminus                         ",  [8863])
-      entities(745)   =  html_entities("boxplus                          ",  [8862])
-      entities(746)   =  html_entities("boxtimes                         ",  [8864])
-      entities(747)   =  html_entities("boxuL                            ",  [9563])
-      entities(748)   =  html_entities("boxuR                            ",  [9560])
-      entities(749)   =  html_entities("boxul                            ",  [9496])
-      entities(750)   =  html_entities("boxur                            ",  [9492])
-      entities(751)   =  html_entities("boxv                             ",  [9474])
-      entities(752)   =  html_entities("boxvH                            ",  [9578])
-      entities(753)   =  html_entities("boxvL                            ",  [9569])
-      entities(754)   =  html_entities("boxvR                            ",  [9566])
-      entities(755)   =  html_entities("boxvh                            ",  [9532])
-      entities(756)   =  html_entities("boxvl                            ",  [9508])
-      entities(757)   =  html_entities("boxvr                            ",  [9500])
-      entities(758)   =  html_entities("bprime                           ",  [8245])
-      entities(759)   =  html_entities("breve                            ",  [728])
-      entities(760)   =  html_entities("brvbar                           ",  [166])
-      entities(761)   =  html_entities("bscr                             ",  [119991])
-      entities(762)   =  html_entities("bsemi                            ",  [8271])
-      entities(763)   =  html_entities("bsim                             ",  [8765])
-      entities(764)   =  html_entities("bsime                            ",  [8909])
-      entities(765)   =  html_entities("bsol                             ",  [92])
-      entities(766)   =  html_entities("bsolb                            ",  [10693])
-      entities(767)   =  html_entities("bsolhsub                         ",  [10184])
-      entities(768)   =  html_entities("bull                             ",  [8226])
-      entities(769)   =  html_entities("bullet                           ",  [8226])
-      entities(770)   =  html_entities("bump                             ",  [8782])
-      entities(771)   =  html_entities("bumpE                            ",  [10926])
-      entities(772)   =  html_entities("bumpe                            ",  [8783])
-      entities(773)   =  html_entities("bumpeq                           ",  [8783])
-      entities(774)   =  html_entities("cacute                           ",  [263])
-      entities(775)   =  html_entities("cap                              ",  [8745])
-      entities(776)   =  html_entities("capand                           ",  [10820])
-      entities(777)   =  html_entities("capbrcup                         ",  [10825])
-      entities(778)   =  html_entities("capcap                           ",  [10827])
-      entities(779)   =  html_entities("capcup                           ",  [10823])
-      entities(780)   =  html_entities("capdot                           ",  [10816])
-      entities(781)   =  html_entities("caps                             ",  [8745,     65024])
-      entities(782)   =  html_entities("caret                            ",  [8257])
-      entities(783)   =  html_entities("caron                            ",  [711])
-      entities(784)   =  html_entities("ccaps                            ",  [10829])
-      entities(785)   =  html_entities("ccaron                           ",  [269])
-      entities(786)   =  html_entities("ccedil                           ",  [231])
-      entities(787)   =  html_entities("ccirc                            ",  [265])
-      entities(788)   =  html_entities("ccups                            ",  [10828])
-      entities(789)   =  html_entities("ccupssm                          ",  [10832])
-      entities(790)   =  html_entities("cdot                             ",  [267])
-      entities(791)   =  html_entities("cedil                            ",  [184])
-      entities(792)   =  html_entities("cemptyv                          ",  [10674])
-      entities(793)   =  html_entities("cent                             ",  [162])
-      entities(794)   =  html_entities("centerdot                        ",  [183])
-      entities(795)   =  html_entities("cfr                              ",  [120096])
-      entities(796)   =  html_entities("chcy                             ",  [1095])
-      entities(797)   =  html_entities("check                            ",  [10003])
-      entities(798)   =  html_entities("checkmark                        ",  [10003])
-      entities(799)   =  html_entities("chi                              ",  [967])
-      entities(800)   =  html_entities("cir                              ",  [9675])
-      entities(801)   =  html_entities("cirE                             ",  [10691])
-      entities(802)   =  html_entities("circ                             ",  [710])
-      entities(803)   =  html_entities("circeq                           ",  [8791])
-      entities(804)   =  html_entities("circlearrowleft                  ",  [8634])
-      entities(805)   =  html_entities("circlearrowright                 ",  [8635])
-      entities(806)   =  html_entities("circledR                         ",  [174])
-      entities(807)   =  html_entities("circledS                         ",  [9416])
-      entities(808)   =  html_entities("circledast                       ",  [8859])
-      entities(809)   =  html_entities("circledcirc                      ",  [8858])
-      entities(810)   =  html_entities("circleddash                      ",  [8861])
-      entities(811)   =  html_entities("cire                             ",  [8791])
-      entities(812)   =  html_entities("cirfnint                         ",  [10768])
-      entities(813)   =  html_entities("cirmid                           ",  [10991])
-      entities(814)   =  html_entities("cirscir                          ",  [10690])
-      entities(815)   =  html_entities("clubs                            ",  [9827])
-      entities(816)   =  html_entities("clubsuit                         ",  [9827])
-      entities(817)   =  html_entities("colon                            ",  [58])
-      entities(818)   =  html_entities("colone                           ",  [8788])
-      entities(819)   =  html_entities("coloneq                          ",  [8788])
-      entities(820)   =  html_entities("comma                            ",  [44])
-      entities(821)   =  html_entities("commat                           ",  [64])
-      entities(822)   =  html_entities("comp                             ",  [8705])
-      entities(823)   =  html_entities("compfn                           ",  [8728])
-      entities(824)   =  html_entities("complement                       ",  [8705])
-      entities(825)   =  html_entities("complexes                        ",  [8450])
-      entities(826)   =  html_entities("cong                             ",  [8773])
-      entities(827)   =  html_entities("congdot                          ",  [10861])
-      entities(828)   =  html_entities("conint                           ",  [8750])
-      entities(829)   =  html_entities("copf                             ",  [120148])
-      entities(830)   =  html_entities("coprod                           ",  [8720])
-      entities(831)   =  html_entities("copy                             ",  [169])
-      entities(832)   =  html_entities("copysr                           ",  [8471])
-      entities(833)   =  html_entities("crarr                            ",  [8629])
-      entities(834)   =  html_entities("cross                            ",  [10007])
-      entities(835)   =  html_entities("cscr                             ",  [119992])
-      entities(836)   =  html_entities("csub                             ",  [10959])
-      entities(837)   =  html_entities("csube                            ",  [10961])
-      entities(838)   =  html_entities("csup                             ",  [10960])
-      entities(839)   =  html_entities("csupe                            ",  [10962])
-      entities(840)   =  html_entities("ctdot                            ",  [8943])
-      entities(841)   =  html_entities("cudarrl                          ",  [10552])
-      entities(842)   =  html_entities("cudarrr                          ",  [10549])
-      entities(843)   =  html_entities("cuepr                            ",  [8926])
-      entities(844)   =  html_entities("cuesc                            ",  [8927])
-      entities(845)   =  html_entities("cularr                           ",  [8630])
-      entities(846)   =  html_entities("cularrp                          ",  [10557])
-      entities(847)   =  html_entities("cup                              ",  [8746])
-      entities(848)   =  html_entities("cupbrcap                         ",  [10824])
-      entities(849)   =  html_entities("cupcap                           ",  [10822])
-      entities(850)   =  html_entities("cupcup                           ",  [10826])
-      entities(851)   =  html_entities("cupdot                           ",  [8845])
-      entities(852)   =  html_entities("cupor                            ",  [10821])
-      entities(853)   =  html_entities("cups                             ",  [8746,     65024])
-      entities(854)   =  html_entities("curarr                           ",  [8631])
-      entities(855)   =  html_entities("curarrm                          ",  [10556])
-      entities(856)   =  html_entities("curlyeqprec                      ",  [8926])
-      entities(857)   =  html_entities("curlyeqsucc                      ",  [8927])
-      entities(858)   =  html_entities("curlyvee                         ",  [8910])
-      entities(859)   =  html_entities("curlywedge                       ",  [8911])
-      entities(860)   =  html_entities("curren                           ",  [164])
-      entities(861)   =  html_entities("curvearrowleft                   ",  [8630])
-      entities(862)   =  html_entities("curvearrowright                  ",  [8631])
-      entities(863)   =  html_entities("cuvee                            ",  [8910])
-      entities(864)   =  html_entities("cuwed                            ",  [8911])
-      entities(865)   =  html_entities("cwconint                         ",  [8754])
-      entities(866)   =  html_entities("cwint                            ",  [8753])
-      entities(867)   =  html_entities("cylcty                           ",  [9005])
-      entities(868)   =  html_entities("dArr                             ",  [8659])
-      entities(869)   =  html_entities("dHar                             ",  [10597])
-      entities(870)   =  html_entities("dagger                           ",  [8224])
-      entities(871)   =  html_entities("daleth                           ",  [8504])
-      entities(872)   =  html_entities("darr                             ",  [8595])
-      entities(873)   =  html_entities("dash                             ",  [8208])
-      entities(874)   =  html_entities("dashv                            ",  [8867])
-      entities(875)   =  html_entities("dbkarow                          ",  [10511])
-      entities(876)   =  html_entities("dblac                            ",  [733])
-      entities(877)   =  html_entities("dcaron                           ",  [271])
-      entities(878)   =  html_entities("dcy                              ",  [1076])
-      entities(879)   =  html_entities("dd                               ",  [8518])
-      entities(880)   =  html_entities("ddagger                          ",  [8225])
-      entities(881)   =  html_entities("ddarr                            ",  [8650])
-      entities(882)   =  html_entities("ddotseq                          ",  [10871])
-      entities(883)   =  html_entities("deg                              ",  [176])
-      entities(884)   =  html_entities("delta                            ",  [948])
-      entities(885)   =  html_entities("demptyv                          ",  [10673])
-      entities(886)   =  html_entities("dfisht                           ",  [10623])
-      entities(887)   =  html_entities("dfr                              ",  [120097])
-      entities(888)   =  html_entities("dharl                            ",  [8643])
-      entities(889)   =  html_entities("dharr                            ",  [8642])
-      entities(890)   =  html_entities("diam                             ",  [8900])
-      entities(891)   =  html_entities("diamond                          ",  [8900])
-      entities(892)   =  html_entities("diamondsuit                      ",  [9830])
-      entities(893)   =  html_entities("diams                            ",  [9830])
-      entities(894)   =  html_entities("die                              ",  [168])
-      entities(895)   =  html_entities("digamma                          ",  [989])
-      entities(896)   =  html_entities("disin                            ",  [8946])
-      entities(897)   =  html_entities("div                              ",  [247])
-      entities(898)   =  html_entities("divide                           ",  [247])
-      entities(899)   =  html_entities("divideontimes                    ",  [8903])
-      entities(900)   =  html_entities("divonx                           ",  [8903])
-      entities(901)   =  html_entities("djcy                             ",  [1106])
-      entities(902)   =  html_entities("dlcorn                           ",  [8990])
-      entities(903)   =  html_entities("dlcrop                           ",  [8973])
-      entities(904)   =  html_entities("dollar                           ",  [36])
-      entities(905)   =  html_entities("dopf                             ",  [120149])
-      entities(906)   =  html_entities("dot                              ",  [729])
-      entities(907)   =  html_entities("doteq                            ",  [8784])
-      entities(908)   =  html_entities("doteqdot                         ",  [8785])
-      entities(909)   =  html_entities("dotminus                         ",  [8760])
-      entities(910)   =  html_entities("dotplus                          ",  [8724])
-      entities(911)   =  html_entities("dotsquare                        ",  [8865])
-      entities(912)   =  html_entities("doublebarwedge                   ",  [8966])
-      entities(913)   =  html_entities("downarrow                        ",  [8595])
-      entities(914)   =  html_entities("downdownarrows                   ",  [8650])
-      entities(915)   =  html_entities("downharpoonleft                  ",  [8643])
-      entities(916)   =  html_entities("downharpoonright                 ",  [8642])
-      entities(917)   =  html_entities("drbkarow                         ",  [10512])
-      entities(918)   =  html_entities("drcorn                           ",  [8991])
-      entities(919)   =  html_entities("drcrop                           ",  [8972])
-      entities(920)   =  html_entities("dscr                             ",  [119993])
-      entities(921)   =  html_entities("dscy                             ",  [1109])
-      entities(922)   =  html_entities("dsol                             ",  [10742])
-      entities(923)   =  html_entities("dstrok                           ",  [273])
-      entities(924)   =  html_entities("dtdot                            ",  [8945])
-      entities(925)   =  html_entities("dtri                             ",  [9663])
-      entities(926)   =  html_entities("dtrif                            ",  [9662])
-      entities(927)   =  html_entities("duarr                            ",  [8693])
-      entities(928)   =  html_entities("duhar                            ",  [10607])
-      entities(929)   =  html_entities("dwangle                          ",  [10662])
-      entities(930)   =  html_entities("dzcy                             ",  [1119])
-      entities(931)   =  html_entities("dzigrarr                         ",  [10239])
-      entities(932)   =  html_entities("eDDot                            ",  [10871])
-      entities(933)   =  html_entities("eDot                             ",  [8785])
-      entities(934)   =  html_entities("eacute                           ",  [233])
-      entities(935)   =  html_entities("easter                           ",  [10862])
-      entities(936)   =  html_entities("ecaron                           ",  [283])
-      entities(937)   =  html_entities("ecir                             ",  [8790])
-      entities(938)   =  html_entities("ecirc                            ",  [234])
-      entities(939)   =  html_entities("ecolon                           ",  [8789])
-      entities(940)   =  html_entities("ecy                              ",  [1101])
-      entities(941)   =  html_entities("edot                             ",  [279])
-      entities(942)   =  html_entities("ee                               ",  [8519])
-      entities(943)   =  html_entities("efDot                            ",  [8786])
-      entities(944)   =  html_entities("efr                              ",  [120098])
-      entities(945)   =  html_entities("eg                               ",  [10906])
-      entities(946)   =  html_entities("egrave                           ",  [232])
-      entities(947)   =  html_entities("egs                              ",  [10902])
-      entities(948)   =  html_entities("egsdot                           ",  [10904])
-      entities(949)   =  html_entities("el                               ",  [10905])
-      entities(950)   =  html_entities("elinters                         ",  [9191])
-      entities(951)   =  html_entities("ell                              ",  [8467])
-      entities(952)   =  html_entities("els                              ",  [10901])
-      entities(953)   =  html_entities("elsdot                           ",  [10903])
-      entities(954)   =  html_entities("emacr                            ",  [275])
-      entities(955)   =  html_entities("empty                            ",  [8709])
-      entities(956)   =  html_entities("emptyset                         ",  [8709])
-      entities(957)   =  html_entities("emptyv                           ",  [8709])
-      entities(958)   =  html_entities("emsp13                           ",  [8196])
-      entities(959)   =  html_entities("emsp14                           ",  [8197])
-      entities(960)   =  html_entities("emsp                             ",  [8195])
-      entities(961)   =  html_entities("eng                              ",  [331])
-      entities(962)   =  html_entities("ensp                             ",  [8194])
-      entities(963)   =  html_entities("eogon                            ",  [281])
-      entities(964)   =  html_entities("eopf                             ",  [120150])
-      entities(965)   =  html_entities("epar                             ",  [8917])
-      entities(966)   =  html_entities("eparsl                           ",  [10723])
-      entities(967)   =  html_entities("eplus                            ",  [10865])
-      entities(968)   =  html_entities("epsi                             ",  [949])
-      entities(969)   =  html_entities("epsilon                          ",  [949])
-      entities(970)   =  html_entities("epsiv                            ",  [1013])
-      entities(971)   =  html_entities("eqcirc                           ",  [8790])
-      entities(972)   =  html_entities("eqcolon                          ",  [8789])
-      entities(973)   =  html_entities("eqsim                            ",  [8770])
-      entities(974)   =  html_entities("eqslantgtr                       ",  [10902])
-      entities(975)   =  html_entities("eqslantless                      ",  [10901])
-      entities(976)   =  html_entities("equals                           ",  [61])
-      entities(977)   =  html_entities("equest                           ",  [8799])
-      entities(978)   =  html_entities("equiv                            ",  [8801])
-      entities(979)   =  html_entities("equivDD                          ",  [10872])
-      entities(980)   =  html_entities("eqvparsl                         ",  [10725])
-      entities(981)   =  html_entities("erDot                            ",  [8787])
-      entities(982)   =  html_entities("erarr                            ",  [10609])
-      entities(983)   =  html_entities("escr                             ",  [8495])
-      entities(984)   =  html_entities("esdot                            ",  [8784])
-      entities(985)   =  html_entities("esim                             ",  [8770])
-      entities(986)   =  html_entities("eta                              ",  [951])
-      entities(987)   =  html_entities("eth                              ",  [240])
-      entities(988)   =  html_entities("euml                             ",  [235])
-      entities(989)   =  html_entities("euro                             ",  [8364])
-      entities(990)   =  html_entities("excl                             ",  [33])
-      entities(991)   =  html_entities("exist                            ",  [8707])
-      entities(992)   =  html_entities("expectation                      ",  [8496])
-      entities(993)   =  html_entities("exponentiale                     ",  [8519])
-      entities(994)   =  html_entities("fallingdotseq                    ",  [8786])
-      entities(995)   =  html_entities("fcy                              ",  [1092])
-      entities(996)   =  html_entities("female                           ",  [9792])
-      entities(997)   =  html_entities("ffilig                           ",  [64259])
-      entities(998)   =  html_entities("fflig                            ",  [64256])
-      entities(999)   =  html_entities("ffllig                           ",  [64260])
-      entities(1000)  =  html_entities("ffr                              ",  [120099])
-      entities(1001)  =  html_entities("filig                            ",  [64257])
-      entities(1002)  =  html_entities("fjlig                            ",  [102,      106])
-      entities(1003)  =  html_entities("flat                             ",  [9837])
-      entities(1004)  =  html_entities("fllig                            ",  [64258])
-      entities(1005)  =  html_entities("fltns                            ",  [9649])
-      entities(1006)  =  html_entities("fnof                             ",  [402])
-      entities(1007)  =  html_entities("fopf                             ",  [120151])
-      entities(1008)  =  html_entities("forall                           ",  [8704])
-      entities(1009)  =  html_entities("fork                             ",  [8916])
-      entities(1010)  =  html_entities("forkv                            ",  [10969])
-      entities(1011)  =  html_entities("fpartint                         ",  [10765])
-      entities(1012)  =  html_entities("frac12                           ",  [189])
-      entities(1013)  =  html_entities("frac13                           ",  [8531])
-      entities(1014)  =  html_entities("frac14                           ",  [188])
-      entities(1015)  =  html_entities("frac15                           ",  [8533])
-      entities(1016)  =  html_entities("frac16                           ",  [8537])
-      entities(1017)  =  html_entities("frac18                           ",  [8539])
-      entities(1018)  =  html_entities("frac23                           ",  [8532])
-      entities(1019)  =  html_entities("frac25                           ",  [8534])
-      entities(1020)  =  html_entities("frac34                           ",  [190])
-      entities(1021)  =  html_entities("frac35                           ",  [8535])
-      entities(1022)  =  html_entities("frac38                           ",  [8540])
-      entities(1023)  =  html_entities("frac45                           ",  [8536])
-      entities(1024)  =  html_entities("frac56                           ",  [8538])
-      entities(1025)  =  html_entities("frac58                           ",  [8541])
-      entities(1026)  =  html_entities("frac78                           ",  [8542])
-      entities(1027)  =  html_entities("frasl                            ",  [8260])
-      entities(1028)  =  html_entities("frown                            ",  [8994])
-      entities(1029)  =  html_entities("fscr                             ",  [119995])
-      entities(1030)  =  html_entities("gE                               ",  [8807])
-      entities(1031)  =  html_entities("gEl                              ",  [10892])
-      entities(1032)  =  html_entities("gacute                           ",  [501])
-      entities(1033)  =  html_entities("gamma                            ",  [947])
-      entities(1034)  =  html_entities("gammad                           ",  [989])
-      entities(1035)  =  html_entities("gap                              ",  [10886])
-      entities(1036)  =  html_entities("gbreve                           ",  [287])
-      entities(1037)  =  html_entities("gcirc                            ",  [285])
-      entities(1038)  =  html_entities("gcy                              ",  [1075])
-      entities(1039)  =  html_entities("gdot                             ",  [289])
-      entities(1040)  =  html_entities("ge                               ",  [8805])
-      entities(1041)  =  html_entities("gel                              ",  [8923])
-      entities(1042)  =  html_entities("geq                              ",  [8805])
-      entities(1043)  =  html_entities("geqq                             ",  [8807])
-      entities(1044)  =  html_entities("geqslant                         ",  [10878])
-      entities(1045)  =  html_entities("ges                              ",  [10878])
-      entities(1046)  =  html_entities("gescc                            ",  [10921])
-      entities(1047)  =  html_entities("gesdot                           ",  [10880])
-      entities(1048)  =  html_entities("gesdoto                          ",  [10882])
-      entities(1049)  =  html_entities("gesdotol                         ",  [10884])
-      entities(1050)  =  html_entities("gesl                             ",  [8923,     65024])
-      entities(1051)  =  html_entities("gesles                           ",  [10900])
-      entities(1052)  =  html_entities("gfr                              ",  [120100])
-      entities(1053)  =  html_entities("gg                               ",  [8811])
-      entities(1054)  =  html_entities("ggg                              ",  [8921])
-      entities(1055)  =  html_entities("gimel                            ",  [8503])
-      entities(1056)  =  html_entities("gjcy                             ",  [1107])
-      entities(1057)  =  html_entities("gl                               ",  [8823])
-      entities(1058)  =  html_entities("glE                              ",  [10898])
-      entities(1059)  =  html_entities("gla                              ",  [10917])
-      entities(1060)  =  html_entities("glj                              ",  [10916])
-      entities(1061)  =  html_entities("gnE                              ",  [8809])
-      entities(1062)  =  html_entities("gnap                             ",  [10890])
-      entities(1063)  =  html_entities("gnapprox                         ",  [10890])
-      entities(1064)  =  html_entities("gne                              ",  [10888])
-      entities(1065)  =  html_entities("gneq                             ",  [10888])
-      entities(1066)  =  html_entities("gneqq                            ",  [8809])
-      entities(1067)  =  html_entities("gnsim                            ",  [8935])
-      entities(1068)  =  html_entities("gopf                             ",  [120152])
-      entities(1069)  =  html_entities("grave                            ",  [96])
-      entities(1070)  =  html_entities("gscr                             ",  [8458])
-      entities(1071)  =  html_entities("gsim                             ",  [8819])
-      entities(1072)  =  html_entities("gsime                            ",  [10894])
-      entities(1073)  =  html_entities("gsiml                            ",  [10896])
-      entities(1074)  =  html_entities("gt                               ",  [62])
-      entities(1075)  =  html_entities("gtcc                             ",  [10919])
-      entities(1076)  =  html_entities("gtcir                            ",  [10874])
-      entities(1077)  =  html_entities("gtdot                            ",  [8919])
-      entities(1078)  =  html_entities("gtlPar                           ",  [10645])
-      entities(1079)  =  html_entities("gtquest                          ",  [10876])
-      entities(1080)  =  html_entities("gtrapprox                        ",  [10886])
-      entities(1081)  =  html_entities("gtrarr                           ",  [10616])
-      entities(1082)  =  html_entities("gtrdot                           ",  [8919])
-      entities(1083)  =  html_entities("gtreqless                        ",  [8923])
-      entities(1084)  =  html_entities("gtreqqless                       ",  [10892])
-      entities(1085)  =  html_entities("gtrless                          ",  [8823])
-      entities(1086)  =  html_entities("gtrsim                           ",  [8819])
-      entities(1087)  =  html_entities("gvertneqq                        ",  [8809,     65024])
-      entities(1088)  =  html_entities("gvnE                             ",  [8809,     65024])
-      entities(1089)  =  html_entities("hArr                             ",  [8660])
-      entities(1090)  =  html_entities("hairsp                           ",  [8202])
-      entities(1091)  =  html_entities("half                             ",  [189])
-      entities(1092)  =  html_entities("hamilt                           ",  [8459])
-      entities(1093)  =  html_entities("hardcy                           ",  [1098])
-      entities(1094)  =  html_entities("harr                             ",  [8596])
-      entities(1095)  =  html_entities("harrcir                          ",  [10568])
-      entities(1096)  =  html_entities("harrw                            ",  [8621])
-      entities(1097)  =  html_entities("hbar                             ",  [8463])
-      entities(1098)  =  html_entities("hcirc                            ",  [293])
-      entities(1099)  =  html_entities("hearts                           ",  [9829])
-      entities(1100)  =  html_entities("heartsuit                        ",  [9829])
-      entities(1101)  =  html_entities("hellip                           ",  [8230])
-      entities(1102)  =  html_entities("hercon                           ",  [8889])
-      entities(1103)  =  html_entities("hfr                              ",  [120101])
-      entities(1104)  =  html_entities("hksearow                         ",  [10533])
-      entities(1105)  =  html_entities("hkswarow                         ",  [10534])
-      entities(1106)  =  html_entities("hoarr                            ",  [8703])
-      entities(1107)  =  html_entities("homtht                           ",  [8763])
-      entities(1108)  =  html_entities("hookleftarrow                    ",  [8617])
-      entities(1109)  =  html_entities("hookrightarrow                   ",  [8618])
-      entities(1110)  =  html_entities("hopf                             ",  [120153])
-      entities(1111)  =  html_entities("horbar                           ",  [8213])
-      entities(1112)  =  html_entities("hscr                             ",  [119997])
-      entities(1113)  =  html_entities("hslash                           ",  [8463])
-      entities(1114)  =  html_entities("hstrok                           ",  [295])
-      entities(1115)  =  html_entities("hybull                           ",  [8259])
-      entities(1116)  =  html_entities("hyphen                           ",  [8208])
-      entities(1117)  =  html_entities("iacute                           ",  [237])
-      entities(1118)  =  html_entities("ic                               ",  [8291])
-      entities(1119)  =  html_entities("icirc                            ",  [238])
-      entities(1120)  =  html_entities("icy                              ",  [1080])
-      entities(1121)  =  html_entities("iecy                             ",  [1077])
-      entities(1122)  =  html_entities("iexcl                            ",  [161])
-      entities(1123)  =  html_entities("iff                              ",  [8660])
-      entities(1124)  =  html_entities("ifr                              ",  [120102])
-      entities(1125)  =  html_entities("igrave                           ",  [236])
-      entities(1126)  =  html_entities("ii                               ",  [8520])
-      entities(1127)  =  html_entities("iiiint                           ",  [10764])
-      entities(1128)  =  html_entities("iiint                            ",  [8749])
-      entities(1129)  =  html_entities("iinfin                           ",  [10716])
-      entities(1130)  =  html_entities("iiota                            ",  [8489])
-      entities(1131)  =  html_entities("ijlig                            ",  [307])
-      entities(1132)  =  html_entities("imacr                            ",  [299])
-      entities(1133)  =  html_entities("image                            ",  [8465])
-      entities(1134)  =  html_entities("imagline                         ",  [8464])
-      entities(1135)  =  html_entities("imagpart                         ",  [8465])
-      entities(1136)  =  html_entities("imath                            ",  [305])
-      entities(1137)  =  html_entities("imof                             ",  [8887])
-      entities(1138)  =  html_entities("imped                            ",  [437])
-      entities(1139)  =  html_entities("in                               ",  [8712])
-      entities(1140)  =  html_entities("incare                           ",  [8453])
-      entities(1141)  =  html_entities("infin                            ",  [8734])
-      entities(1142)  =  html_entities("infintie                         ",  [10717])
-      entities(1143)  =  html_entities("inodot                           ",  [305])
-      entities(1144)  =  html_entities("int                              ",  [8747])
-      entities(1145)  =  html_entities("intcal                           ",  [8890])
-      entities(1146)  =  html_entities("integers                         ",  [8484])
-      entities(1147)  =  html_entities("intercal                         ",  [8890])
-      entities(1148)  =  html_entities("intlarhk                         ",  [10775])
-      entities(1149)  =  html_entities("intprod                          ",  [10812])
-      entities(1150)  =  html_entities("iocy                             ",  [1105])
-      entities(1151)  =  html_entities("iogon                            ",  [303])
-      entities(1152)  =  html_entities("iopf                             ",  [120154])
-      entities(1153)  =  html_entities("iota                             ",  [953])
-      entities(1154)  =  html_entities("iprod                            ",  [10812])
-      entities(1155)  =  html_entities("iquest                           ",  [191])
-      entities(1156)  =  html_entities("iscr                             ",  [119998])
-      entities(1157)  =  html_entities("isin                             ",  [8712])
-      entities(1158)  =  html_entities("isinE                            ",  [8953])
-      entities(1159)  =  html_entities("isindot                          ",  [8949])
-      entities(1160)  =  html_entities("isins                            ",  [8948])
-      entities(1161)  =  html_entities("isinsv                           ",  [8947])
-      entities(1162)  =  html_entities("isinv                            ",  [8712])
-      entities(1163)  =  html_entities("it                               ",  [8290])
-      entities(1164)  =  html_entities("itilde                           ",  [297])
-      entities(1165)  =  html_entities("iukcy                            ",  [1110])
-      entities(1166)  =  html_entities("iuml                             ",  [239])
-      entities(1167)  =  html_entities("jcirc                            ",  [309])
-      entities(1168)  =  html_entities("jcy                              ",  [1081])
-      entities(1169)  =  html_entities("jfr                              ",  [120103])
-      entities(1170)  =  html_entities("jmath                            ",  [567])
-      entities(1171)  =  html_entities("jopf                             ",  [120155])
-      entities(1172)  =  html_entities("jscr                             ",  [119999])
-      entities(1173)  =  html_entities("jsercy                           ",  [1112])
-      entities(1174)  =  html_entities("jukcy                            ",  [1108])
-      entities(1175)  =  html_entities("kappa                            ",  [954])
-      entities(1176)  =  html_entities("kappav                           ",  [1008])
-      entities(1177)  =  html_entities("kcedil                           ",  [311])
-      entities(1178)  =  html_entities("kcy                              ",  [1082])
-      entities(1179)  =  html_entities("kfr                              ",  [120104])
-      entities(1180)  =  html_entities("kgreen                           ",  [312])
-      entities(1181)  =  html_entities("khcy                             ",  [1093])
-      entities(1182)  =  html_entities("kjcy                             ",  [1116])
-      entities(1183)  =  html_entities("kopf                             ",  [120156])
-      entities(1184)  =  html_entities("kscr                             ",  [120000])
-      entities(1185)  =  html_entities("lAarr                            ",  [8666])
-      entities(1186)  =  html_entities("lArr                             ",  [8656])
-      entities(1187)  =  html_entities("lAtail                           ",  [10523])
-      entities(1188)  =  html_entities("lBarr                            ",  [10510])
-      entities(1189)  =  html_entities("lE                               ",  [8806])
-      entities(1190)  =  html_entities("lEg                              ",  [10891])
-      entities(1191)  =  html_entities("lHar                             ",  [10594])
-      entities(1192)  =  html_entities("lacute                           ",  [314])
-      entities(1193)  =  html_entities("laemptyv                         ",  [10676])
-      entities(1194)  =  html_entities("lagran                           ",  [8466])
-      entities(1195)  =  html_entities("lambda                           ",  [955])
-      entities(1196)  =  html_entities("lang                             ",  [10216])
-      entities(1197)  =  html_entities("langd                            ",  [10641])
-      entities(1198)  =  html_entities("langle                           ",  [10216])
-      entities(1199)  =  html_entities("lap                              ",  [10885])
-      entities(1200)  =  html_entities("laquo                            ",  [171])
-      entities(1201)  =  html_entities("larr                             ",  [8592])
-      entities(1202)  =  html_entities("larrb                            ",  [8676])
-      entities(1203)  =  html_entities("larrbfs                          ",  [10527])
-      entities(1204)  =  html_entities("larrfs                           ",  [10525])
-      entities(1205)  =  html_entities("larrhk                           ",  [8617])
-      entities(1206)  =  html_entities("larrlp                           ",  [8619])
-      entities(1207)  =  html_entities("larrpl                           ",  [10553])
-      entities(1208)  =  html_entities("larrsim                          ",  [10611])
-      entities(1209)  =  html_entities("larrtl                           ",  [8610])
-      entities(1210)  =  html_entities("lat                              ",  [10923])
-      entities(1211)  =  html_entities("latail                           ",  [10521])
-      entities(1212)  =  html_entities("late                             ",  [10925])
-      entities(1213)  =  html_entities("lates                            ",  [10925,    65024])
-      entities(1214)  =  html_entities("lbarr                            ",  [10508])
-      entities(1215)  =  html_entities("lbbrk                            ",  [10098])
-      entities(1216)  =  html_entities("lbrace                           ",  [123])
-      entities(1217)  =  html_entities("lbrack                           ",  [91])
-      entities(1218)  =  html_entities("lbrke                            ",  [10635])
-      entities(1219)  =  html_entities("lbrksld                          ",  [10639])
-      entities(1220)  =  html_entities("lbrkslu                          ",  [10637])
-      entities(1221)  =  html_entities("lcaron                           ",  [318])
-      entities(1222)  =  html_entities("lcedil                           ",  [316])
-      entities(1223)  =  html_entities("lceil                            ",  [8968])
-      entities(1224)  =  html_entities("lcub                             ",  [123])
-      entities(1225)  =  html_entities("lcy                              ",  [1083])
-      entities(1226)  =  html_entities("ldca                             ",  [10550])
-      entities(1227)  =  html_entities("ldquo                            ",  [8220])
-      entities(1228)  =  html_entities("ldquor                           ",  [8222])
-      entities(1229)  =  html_entities("ldrdhar                          ",  [10599])
-      entities(1230)  =  html_entities("ldrushar                         ",  [10571])
-      entities(1231)  =  html_entities("ldsh                             ",  [8626])
-      entities(1232)  =  html_entities("le                               ",  [8804])
-      entities(1233)  =  html_entities("leftarrow                        ",  [8592])
-      entities(1234)  =  html_entities("leftarrowtail                    ",  [8610])
-      entities(1235)  =  html_entities("leftharpoondown                  ",  [8637])
-      entities(1236)  =  html_entities("leftharpoonup                    ",  [8636])
-      entities(1237)  =  html_entities("leftleftarrows                   ",  [8647])
-      entities(1238)  =  html_entities("leftrightarrow                   ",  [8596])
-      entities(1239)  =  html_entities("leftrightarrows                  ",  [8646])
-      entities(1240)  =  html_entities("leftrightharpoons                ",  [8651])
-      entities(1241)  =  html_entities("leftrightsquigarrow              ",  [8621])
-      entities(1242)  =  html_entities("leftthreetimes                   ",  [8907])
-      entities(1243)  =  html_entities("leg                              ",  [8922])
-      entities(1244)  =  html_entities("leq                              ",  [8804])
-      entities(1245)  =  html_entities("leqq                             ",  [8806])
-      entities(1246)  =  html_entities("leqslant                         ",  [10877])
-      entities(1247)  =  html_entities("les                              ",  [10877])
-      entities(1248)  =  html_entities("lescc                            ",  [10920])
-      entities(1249)  =  html_entities("lesdot                           ",  [10879])
-      entities(1250)  =  html_entities("lesdoto                          ",  [10881])
-      entities(1251)  =  html_entities("lesdotor                         ",  [10883])
-      entities(1252)  =  html_entities("lesg                             ",  [8922,     65024])
-      entities(1253)  =  html_entities("lesges                           ",  [10899])
-      entities(1254)  =  html_entities("lessapprox                       ",  [10885])
-      entities(1255)  =  html_entities("lessdot                          ",  [8918])
-      entities(1256)  =  html_entities("lesseqgtr                        ",  [8922])
-      entities(1257)  =  html_entities("lesseqqgtr                       ",  [10891])
-      entities(1258)  =  html_entities("lessgtr                          ",  [8822])
-      entities(1259)  =  html_entities("lesssim                          ",  [8818])
-      entities(1260)  =  html_entities("lfisht                           ",  [10620])
-      entities(1261)  =  html_entities("lfloor                           ",  [8970])
-      entities(1262)  =  html_entities("lfr                              ",  [120105])
-      entities(1263)  =  html_entities("lg                               ",  [8822])
-      entities(1264)  =  html_entities("lgE                              ",  [10897])
-      entities(1265)  =  html_entities("lhard                            ",  [8637])
-      entities(1266)  =  html_entities("lharu                            ",  [8636])
-      entities(1267)  =  html_entities("lharul                           ",  [10602])
-      entities(1268)  =  html_entities("lhblk                            ",  [9604])
-      entities(1269)  =  html_entities("ljcy                             ",  [1113])
-      entities(1270)  =  html_entities("ll                               ",  [8810])
-      entities(1271)  =  html_entities("llarr                            ",  [8647])
-      entities(1272)  =  html_entities("llcorner                         ",  [8990])
-      entities(1273)  =  html_entities("llhard                           ",  [10603])
-      entities(1274)  =  html_entities("lltri                            ",  [9722])
-      entities(1275)  =  html_entities("lmidot                           ",  [320])
-      entities(1276)  =  html_entities("lmoust                           ",  [9136])
-      entities(1277)  =  html_entities("lmoustache                       ",  [9136])
-      entities(1278)  =  html_entities("lnE                              ",  [8808])
-      entities(1279)  =  html_entities("lnap                             ",  [10889])
-      entities(1280)  =  html_entities("lnapprox                         ",  [10889])
-      entities(1281)  =  html_entities("lne                              ",  [10887])
-      entities(1282)  =  html_entities("lneq                             ",  [10887])
-      entities(1283)  =  html_entities("lneqq                            ",  [8808])
-      entities(1284)  =  html_entities("lnsim                            ",  [8934])
-      entities(1285)  =  html_entities("loang                            ",  [10220])
-      entities(1286)  =  html_entities("loarr                            ",  [8701])
-      entities(1287)  =  html_entities("lobrk                            ",  [10214])
-      entities(1288)  =  html_entities("longleftarrow                    ",  [10229])
-      entities(1289)  =  html_entities("longleftrightarrow               ",  [10231])
-      entities(1290)  =  html_entities("longmapsto                       ",  [10236])
-      entities(1291)  =  html_entities("longrightarrow                   ",  [10230])
-      entities(1292)  =  html_entities("looparrowleft                    ",  [8619])
-      entities(1293)  =  html_entities("looparrowright                   ",  [8620])
-      entities(1294)  =  html_entities("lopar                            ",  [10629])
-      entities(1295)  =  html_entities("lopf                             ",  [120157])
-      entities(1296)  =  html_entities("loplus                           ",  [10797])
-      entities(1297)  =  html_entities("lotimes                          ",  [10804])
-      entities(1298)  =  html_entities("lowast                           ",  [8727])
-      entities(1299)  =  html_entities("lowbar                           ",  [95])
-      entities(1300)  =  html_entities("loz                              ",  [9674])
-      entities(1301)  =  html_entities("lozenge                          ",  [9674])
-      entities(1302)  =  html_entities("lozf                             ",  [10731])
-      entities(1303)  =  html_entities("lpar                             ",  [40])
-      entities(1304)  =  html_entities("lparlt                           ",  [10643])
-      entities(1305)  =  html_entities("lrarr                            ",  [8646])
-      entities(1306)  =  html_entities("lrcorner                         ",  [8991])
-      entities(1307)  =  html_entities("lrhar                            ",  [8651])
-      entities(1308)  =  html_entities("lrhard                           ",  [10605])
-      entities(1309)  =  html_entities("lrm                              ",  [8206])
-      entities(1310)  =  html_entities("lrtri                            ",  [8895])
-      entities(1311)  =  html_entities("lsaquo                           ",  [8249])
-      entities(1312)  =  html_entities("lscr                             ",  [120001])
-      entities(1313)  =  html_entities("lsh                              ",  [8624])
-      entities(1314)  =  html_entities("lsim                             ",  [8818])
-      entities(1315)  =  html_entities("lsime                            ",  [10893])
-      entities(1316)  =  html_entities("lsimg                            ",  [10895])
-      entities(1317)  =  html_entities("lsqb                             ",  [91])
-      entities(1318)  =  html_entities("lsquo                            ",  [8216])
-      entities(1319)  =  html_entities("lsquor                           ",  [8218])
-      entities(1320)  =  html_entities("lstrok                           ",  [322])
-      entities(1321)  =  html_entities("lt                               ",  [60])
-      entities(1322)  =  html_entities("ltcc                             ",  [10918])
-      entities(1323)  =  html_entities("ltcir                            ",  [10873])
-      entities(1324)  =  html_entities("ltdot                            ",  [8918])
-      entities(1325)  =  html_entities("lthree                           ",  [8907])
-      entities(1326)  =  html_entities("ltimes                           ",  [8905])
-      entities(1327)  =  html_entities("ltlarr                           ",  [10614])
-      entities(1328)  =  html_entities("ltquest                          ",  [10875])
-      entities(1329)  =  html_entities("ltrPar                           ",  [10646])
-      entities(1330)  =  html_entities("ltri                             ",  [9667])
-      entities(1331)  =  html_entities("ltrie                            ",  [8884])
-      entities(1332)  =  html_entities("ltrif                            ",  [9666])
-      entities(1333)  =  html_entities("lurdshar                         ",  [10570])
-      entities(1334)  =  html_entities("luruhar                          ",  [10598])
-      entities(1335)  =  html_entities("lvertneqq                        ",  [8808,     65024])
-      entities(1336)  =  html_entities("lvnE                             ",  [8808,     65024])
-      entities(1337)  =  html_entities("mDDot                            ",  [8762])
-      entities(1338)  =  html_entities("macr                             ",  [175])
-      entities(1339)  =  html_entities("male                             ",  [9794])
-      entities(1340)  =  html_entities("malt                             ",  [10016])
-      entities(1341)  =  html_entities("maltese                          ",  [10016])
-      entities(1342)  =  html_entities("map                              ",  [8614])
-      entities(1343)  =  html_entities("mapsto                           ",  [8614])
-      entities(1344)  =  html_entities("mapstodown                       ",  [8615])
-      entities(1345)  =  html_entities("mapstoleft                       ",  [8612])
-      entities(1346)  =  html_entities("mapstoup                         ",  [8613])
-      entities(1347)  =  html_entities("marker                           ",  [9646])
-      entities(1348)  =  html_entities("mcomma                           ",  [10793])
-      entities(1349)  =  html_entities("mcy                              ",  [1084])
-      entities(1350)  =  html_entities("mdash                            ",  [8212])
-      entities(1351)  =  html_entities("measuredangle                    ",  [8737])
-      entities(1352)  =  html_entities("mfr                              ",  [120106])
-      entities(1353)  =  html_entities("mho                              ",  [8487])
-      entities(1354)  =  html_entities("micro                            ",  [181])
-      entities(1355)  =  html_entities("mid                              ",  [8739])
-      entities(1356)  =  html_entities("midast                           ",  [42])
-      entities(1357)  =  html_entities("midcir                           ",  [10992])
-      entities(1358)  =  html_entities("middot                           ",  [183])
-      entities(1359)  =  html_entities("minus                            ",  [8722])
-      entities(1360)  =  html_entities("minusb                           ",  [8863])
-      entities(1361)  =  html_entities("minusd                           ",  [8760])
-      entities(1362)  =  html_entities("minusdu                          ",  [10794])
-      entities(1363)  =  html_entities("mlcp                             ",  [10971])
-      entities(1364)  =  html_entities("mldr                             ",  [8230])
-      entities(1365)  =  html_entities("mnplus                           ",  [8723])
-      entities(1366)  =  html_entities("models                           ",  [8871])
-      entities(1367)  =  html_entities("mopf                             ",  [120158])
-      entities(1368)  =  html_entities("mp                               ",  [8723])
-      entities(1369)  =  html_entities("mscr                             ",  [120002])
-      entities(1370)  =  html_entities("mstpos                           ",  [8766])
-      entities(1371)  =  html_entities("mu                               ",  [956])
-      entities(1372)  =  html_entities("multimap                         ",  [8888])
-      entities(1373)  =  html_entities("mumap                            ",  [8888])
-      entities(1374)  =  html_entities("nGg                              ",  [8921,     824])
-      entities(1375)  =  html_entities("nGt                              ",  [8811,     8402])
-      entities(1376)  =  html_entities("nGtv                             ",  [8811,     824])
-      entities(1377)  =  html_entities("nLeftarrow                       ",  [8653])
-      entities(1378)  =  html_entities("nLeftrightarrow                  ",  [8654])
-      entities(1379)  =  html_entities("nLl                              ",  [8920,     824])
-      entities(1380)  =  html_entities("nLt                              ",  [8810,     8402])
-      entities(1381)  =  html_entities("nLtv                             ",  [8810,     824])
-      entities(1382)  =  html_entities("nRightarrow                      ",  [8655])
-      entities(1383)  =  html_entities("nVDash                           ",  [8879])
-      entities(1384)  =  html_entities("nVdash                           ",  [8878])
-      entities(1385)  =  html_entities("nabla                            ",  [8711])
-      entities(1386)  =  html_entities("nacute                           ",  [324])
-      entities(1387)  =  html_entities("nang                             ",  [8736,     8402])
-      entities(1388)  =  html_entities("nap                              ",  [8777])
-      entities(1389)  =  html_entities("napE                             ",  [10864,    824])
-      entities(1390)  =  html_entities("napid                            ",  [8779,     824])
-      entities(1391)  =  html_entities("napos                            ",  [329])
-      entities(1392)  =  html_entities("napprox                          ",  [8777])
-      entities(1393)  =  html_entities("natur                            ",  [9838])
-      entities(1394)  =  html_entities("natural                          ",  [9838])
-      entities(1395)  =  html_entities("naturals                         ",  [8469])
-      entities(1396)  =  html_entities("nbsp                             ",  [160])
-      entities(1397)  =  html_entities("nbump                            ",  [8782,     824])
-      entities(1398)  =  html_entities("nbumpe                           ",  [8783,     824])
-      entities(1399)  =  html_entities("ncap                             ",  [10819])
-      entities(1400)  =  html_entities("ncaron                           ",  [328])
-      entities(1401)  =  html_entities("ncedil                           ",  [326])
-      entities(1402)  =  html_entities("ncong                            ",  [8775])
-      entities(1403)  =  html_entities("ncongdot                         ",  [10861,    824])
-      entities(1404)  =  html_entities("ncup                             ",  [10818])
-      entities(1405)  =  html_entities("ncy                              ",  [1085])
-      entities(1406)  =  html_entities("ndash                            ",  [8211])
-      entities(1407)  =  html_entities("ne                               ",  [8800])
-      entities(1408)  =  html_entities("neArr                            ",  [8663])
-      entities(1409)  =  html_entities("nearhk                           ",  [10532])
-      entities(1410)  =  html_entities("nearr                            ",  [8599])
-      entities(1411)  =  html_entities("nearrow                          ",  [8599])
-      entities(1412)  =  html_entities("nedot                            ",  [8784,     824])
-      entities(1413)  =  html_entities("nequiv                           ",  [8802])
-      entities(1414)  =  html_entities("nesear                           ",  [10536])
-      entities(1415)  =  html_entities("nesim                            ",  [8770,     824])
-      entities(1416)  =  html_entities("nexist                           ",  [8708])
-      entities(1417)  =  html_entities("nexists                          ",  [8708])
-      entities(1418)  =  html_entities("nfr                              ",  [120107])
-      entities(1419)  =  html_entities("ngE                              ",  [8807,     824])
-      entities(1420)  =  html_entities("nge                              ",  [8817])
-      entities(1421)  =  html_entities("ngeq                             ",  [8817])
-      entities(1422)  =  html_entities("ngeqq                            ",  [8807,     824])
-      entities(1423)  =  html_entities("ngeqslant                        ",  [10878,    824])
-      entities(1424)  =  html_entities("nges                             ",  [10878,    824])
-      entities(1425)  =  html_entities("ngsim                            ",  [8821])
-      entities(1426)  =  html_entities("ngt                              ",  [8815])
-      entities(1427)  =  html_entities("ngtr                             ",  [8815])
-      entities(1428)  =  html_entities("nhArr                            ",  [8654])
-      entities(1429)  =  html_entities("nharr                            ",  [8622])
-      entities(1430)  =  html_entities("nhpar                            ",  [10994])
-      entities(1431)  =  html_entities("ni                               ",  [8715])
-      entities(1432)  =  html_entities("nis                              ",  [8956])
-      entities(1433)  =  html_entities("nisd                             ",  [8954])
-      entities(1434)  =  html_entities("niv                              ",  [8715])
-      entities(1435)  =  html_entities("njcy                             ",  [1114])
-      entities(1436)  =  html_entities("nlArr                            ",  [8653])
-      entities(1437)  =  html_entities("nlE                              ",  [8806,     824])
-      entities(1438)  =  html_entities("nlarr                            ",  [8602])
-      entities(1439)  =  html_entities("nldr                             ",  [8229])
-      entities(1440)  =  html_entities("nle                              ",  [8816])
-      entities(1441)  =  html_entities("nleftarrow                       ",  [8602])
-      entities(1442)  =  html_entities("nleftrightarrow                  ",  [8622])
-      entities(1443)  =  html_entities("nleq                             ",  [8816])
-      entities(1444)  =  html_entities("nleqq                            ",  [8806,     824])
-      entities(1445)  =  html_entities("nleqslant                        ",  [10877,    824])
-      entities(1446)  =  html_entities("nles                             ",  [10877,    824])
-      entities(1447)  =  html_entities("nless                            ",  [8814])
-      entities(1448)  =  html_entities("nlsim                            ",  [8820])
-      entities(1449)  =  html_entities("nlt                              ",  [8814])
-      entities(1450)  =  html_entities("nltri                            ",  [8938])
-      entities(1451)  =  html_entities("nltrie                           ",  [8940])
-      entities(1452)  =  html_entities("nmid                             ",  [8740])
-      entities(1453)  =  html_entities("nopf                             ",  [120159])
-      entities(1454)  =  html_entities("not                              ",  [172])
-      entities(1455)  =  html_entities("notin                            ",  [8713])
-      entities(1456)  =  html_entities("notinE                           ",  [8953,     824])
-      entities(1457)  =  html_entities("notindot                         ",  [8949,     824])
-      entities(1458)  =  html_entities("notinva                          ",  [8713])
-      entities(1459)  =  html_entities("notinvb                          ",  [8951])
-      entities(1460)  =  html_entities("notinvc                          ",  [8950])
-      entities(1461)  =  html_entities("notni                            ",  [8716])
-      entities(1462)  =  html_entities("notniva                          ",  [8716])
-      entities(1463)  =  html_entities("notnivb                          ",  [8958])
-      entities(1464)  =  html_entities("notnivc                          ",  [8957])
-      entities(1465)  =  html_entities("npar                             ",  [8742])
-      entities(1466)  =  html_entities("nparallel                        ",  [8742])
-      entities(1467)  =  html_entities("nparsl                           ",  [11005,    8421])
-      entities(1468)  =  html_entities("npart                            ",  [8706,     824])
-      entities(1469)  =  html_entities("npolint                          ",  [10772])
-      entities(1470)  =  html_entities("npr                              ",  [8832])
-      entities(1471)  =  html_entities("nprcue                           ",  [8928])
-      entities(1472)  =  html_entities("npre                             ",  [10927,    824])
-      entities(1473)  =  html_entities("nprec                            ",  [8832])
-      entities(1474)  =  html_entities("npreceq                          ",  [10927,    824])
-      entities(1475)  =  html_entities("nrArr                            ",  [8655])
-      entities(1476)  =  html_entities("nrarr                            ",  [8603])
-      entities(1477)  =  html_entities("nrarrc                           ",  [10547,    824])
-      entities(1478)  =  html_entities("nrarrw                           ",  [8605,     824])
-      entities(1479)  =  html_entities("nrightarrow                      ",  [8603])
-      entities(1480)  =  html_entities("nrtri                            ",  [8939])
-      entities(1481)  =  html_entities("nrtrie                           ",  [8941])
-      entities(1482)  =  html_entities("nsc                              ",  [8833])
-      entities(1483)  =  html_entities("nsccue                           ",  [8929])
-      entities(1484)  =  html_entities("nsce                             ",  [10928,    824])
-      entities(1485)  =  html_entities("nscr                             ",  [120003])
-      entities(1486)  =  html_entities("nshortmid                        ",  [8740])
-      entities(1487)  =  html_entities("nshortparallel                   ",  [8742])
-      entities(1488)  =  html_entities("nsim                             ",  [8769])
-      entities(1489)  =  html_entities("nsime                            ",  [8772])
-      entities(1490)  =  html_entities("nsimeq                           ",  [8772])
-      entities(1491)  =  html_entities("nsmid                            ",  [8740])
-      entities(1492)  =  html_entities("nspar                            ",  [8742])
-      entities(1493)  =  html_entities("nsqsube                          ",  [8930])
-      entities(1494)  =  html_entities("nsqsupe                          ",  [8931])
-      entities(1495)  =  html_entities("nsub                             ",  [8836])
-      entities(1496)  =  html_entities("nsubE                            ",  [10949,    824])
-      entities(1497)  =  html_entities("nsube                            ",  [8840])
-      entities(1498)  =  html_entities("nsubset                          ",  [8834,     8402])
-      entities(1499)  =  html_entities("nsubseteq                        ",  [8840])
-      entities(1500)  =  html_entities("nsubseteqq                       ",  [10949,    824])
-      entities(1501)  =  html_entities("nsucc                            ",  [8833])
-      entities(1502)  =  html_entities("nsucceq                          ",  [10928,    824])
-      entities(1503)  =  html_entities("nsup                             ",  [8837])
-      entities(1504)  =  html_entities("nsupE                            ",  [10950,    824])
-      entities(1505)  =  html_entities("nsupe                            ",  [8841])
-      entities(1506)  =  html_entities("nsupset                          ",  [8835,     8402])
-      entities(1507)  =  html_entities("nsupseteq                        ",  [8841])
-      entities(1508)  =  html_entities("nsupseteqq                       ",  [10950,    824])
-      entities(1509)  =  html_entities("ntgl                             ",  [8825])
-      entities(1510)  =  html_entities("ntilde                           ",  [241])
-      entities(1511)  =  html_entities("ntlg                             ",  [8824])
-      entities(1512)  =  html_entities("ntriangleleft                    ",  [8938])
-      entities(1513)  =  html_entities("ntrianglelefteq                  ",  [8940])
-      entities(1514)  =  html_entities("ntriangleright                   ",  [8939])
-      entities(1515)  =  html_entities("ntrianglerighteq                 ",  [8941])
-      entities(1516)  =  html_entities("nu                               ",  [957])
-      entities(1517)  =  html_entities("num                              ",  [35])
-      entities(1518)  =  html_entities("numero                           ",  [8470])
-      entities(1519)  =  html_entities("numsp                            ",  [8199])
-      entities(1520)  =  html_entities("nvDash                           ",  [8877])
-      entities(1521)  =  html_entities("nvHarr                           ",  [10500])
-      entities(1522)  =  html_entities("nvap                             ",  [8781,     8402])
-      entities(1523)  =  html_entities("nvdash                           ",  [8876])
-      entities(1524)  =  html_entities("nvge                             ",  [8805,     8402])
-      entities(1525)  =  html_entities("nvgt                             ",  [62,       8402])
-      entities(1526)  =  html_entities("nvinfin                          ",  [10718])
-      entities(1527)  =  html_entities("nvlArr                           ",  [10498])
-      entities(1528)  =  html_entities("nvle                             ",  [8804,     8402])
-      entities(1529)  =  html_entities("nvlt                             ",  [60,       8402])
-      entities(1530)  =  html_entities("nvltrie                          ",  [8884,     8402])
-      entities(1531)  =  html_entities("nvrArr                           ",  [10499])
-      entities(1532)  =  html_entities("nvrtrie                          ",  [8885,     8402])
-      entities(1533)  =  html_entities("nvsim                            ",  [8764,     8402])
-      entities(1534)  =  html_entities("nwArr                            ",  [8662])
-      entities(1535)  =  html_entities("nwarhk                           ",  [10531])
-      entities(1536)  =  html_entities("nwarr                            ",  [8598])
-      entities(1537)  =  html_entities("nwarrow                          ",  [8598])
-      entities(1538)  =  html_entities("nwnear                           ",  [10535])
-      entities(1539)  =  html_entities("oS                               ",  [9416])
-      entities(1540)  =  html_entities("oacute                           ",  [243])
-      entities(1541)  =  html_entities("oast                             ",  [8859])
-      entities(1542)  =  html_entities("ocir                             ",  [8858])
-      entities(1543)  =  html_entities("ocirc                            ",  [244])
-      entities(1544)  =  html_entities("ocy                              ",  [1086])
-      entities(1545)  =  html_entities("odash                            ",  [8861])
-      entities(1546)  =  html_entities("odblac                           ",  [337])
-      entities(1547)  =  html_entities("odiv                             ",  [10808])
-      entities(1548)  =  html_entities("odot                             ",  [8857])
-      entities(1549)  =  html_entities("odsold                           ",  [10684])
-      entities(1550)  =  html_entities("oelig                            ",  [339])
-      entities(1551)  =  html_entities("ofcir                            ",  [10687])
-      entities(1552)  =  html_entities("ofr                              ",  [120108])
-      entities(1553)  =  html_entities("ogon                             ",  [731])
-      entities(1554)  =  html_entities("ograve                           ",  [242])
-      entities(1555)  =  html_entities("ogt                              ",  [10689])
-      entities(1556)  =  html_entities("ohbar                            ",  [10677])
-      entities(1557)  =  html_entities("ohm                              ",  [937])
-      entities(1558)  =  html_entities("oint                             ",  [8750])
-      entities(1559)  =  html_entities("olarr                            ",  [8634])
-      entities(1560)  =  html_entities("olcir                            ",  [10686])
-      entities(1561)  =  html_entities("olcross                          ",  [10683])
-      entities(1562)  =  html_entities("oline                            ",  [8254])
-      entities(1563)  =  html_entities("olt                              ",  [10688])
-      entities(1564)  =  html_entities("omacr                            ",  [333])
-      entities(1565)  =  html_entities("omega                            ",  [969])
-      entities(1566)  =  html_entities("omicron                          ",  [959])
-      entities(1567)  =  html_entities("omid                             ",  [10678])
-      entities(1568)  =  html_entities("ominus                           ",  [8854])
-      entities(1569)  =  html_entities("oopf                             ",  [120160])
-      entities(1570)  =  html_entities("opar                             ",  [10679])
-      entities(1571)  =  html_entities("operp                            ",  [10681])
-      entities(1572)  =  html_entities("oplus                            ",  [8853])
-      entities(1573)  =  html_entities("or                               ",  [8744])
-      entities(1574)  =  html_entities("orarr                            ",  [8635])
-      entities(1575)  =  html_entities("ord                              ",  [10845])
-      entities(1576)  =  html_entities("order                            ",  [8500])
-      entities(1577)  =  html_entities("orderof                          ",  [8500])
-      entities(1578)  =  html_entities("ordf                             ",  [170])
-      entities(1579)  =  html_entities("ordm                             ",  [186])
-      entities(1580)  =  html_entities("origof                           ",  [8886])
-      entities(1581)  =  html_entities("oror                             ",  [10838])
-      entities(1582)  =  html_entities("orslope                          ",  [10839])
-      entities(1583)  =  html_entities("orv                              ",  [10843])
-      entities(1584)  =  html_entities("oscr                             ",  [8500])
-      entities(1585)  =  html_entities("oslash                           ",  [248])
-      entities(1586)  =  html_entities("osol                             ",  [8856])
-      entities(1587)  =  html_entities("otilde                           ",  [245])
-      entities(1588)  =  html_entities("otimes                           ",  [8855])
-      entities(1589)  =  html_entities("otimesas                         ",  [10806])
-      entities(1590)  =  html_entities("ouml                             ",  [246])
-      entities(1591)  =  html_entities("ovbar                            ",  [9021])
-      entities(1592)  =  html_entities("par                              ",  [8741])
-      entities(1593)  =  html_entities("para                             ",  [182])
-      entities(1594)  =  html_entities("parallel                         ",  [8741])
-      entities(1595)  =  html_entities("parsim                           ",  [10995])
-      entities(1596)  =  html_entities("parsl                            ",  [11005])
-      entities(1597)  =  html_entities("part                             ",  [8706])
-      entities(1598)  =  html_entities("pcy                              ",  [1087])
-      entities(1599)  =  html_entities("percnt                           ",  [37])
-      entities(1600)  =  html_entities("period                           ",  [46])
-      entities(1601)  =  html_entities("permil                           ",  [8240])
-      entities(1602)  =  html_entities("perp                             ",  [8869])
-      entities(1603)  =  html_entities("pertenk                          ",  [8241])
-      entities(1604)  =  html_entities("pfr                              ",  [120109])
-      entities(1605)  =  html_entities("phi                              ",  [966])
-      entities(1606)  =  html_entities("phiv                             ",  [981])
-      entities(1607)  =  html_entities("phmmat                           ",  [8499])
-      entities(1608)  =  html_entities("phone                            ",  [9742])
-      entities(1609)  =  html_entities("pi                               ",  [960])
-      entities(1610)  =  html_entities("pitchfork                        ",  [8916])
-      entities(1611)  =  html_entities("piv                              ",  [982])
-      entities(1612)  =  html_entities("planck                           ",  [8463])
-      entities(1613)  =  html_entities("planckh                          ",  [8462])
-      entities(1614)  =  html_entities("plankv                           ",  [8463])
-      entities(1615)  =  html_entities("plus                             ",  [43])
-      entities(1616)  =  html_entities("plusacir                         ",  [10787])
-      entities(1617)  =  html_entities("plusb                            ",  [8862])
-      entities(1618)  =  html_entities("pluscir                          ",  [10786])
-      entities(1619)  =  html_entities("plusdo                           ",  [8724])
-      entities(1620)  =  html_entities("plusdu                           ",  [10789])
-      entities(1621)  =  html_entities("pluse                            ",  [10866])
-      entities(1622)  =  html_entities("plusmn                           ",  [177])
-      entities(1623)  =  html_entities("plussim                          ",  [10790])
-      entities(1624)  =  html_entities("plustwo                          ",  [10791])
-      entities(1625)  =  html_entities("pm                               ",  [177])
-      entities(1626)  =  html_entities("pointint                         ",  [10773])
-      entities(1627)  =  html_entities("popf                             ",  [120161])
-      entities(1628)  =  html_entities("pound                            ",  [163])
-      entities(1629)  =  html_entities("pr                               ",  [8826])
-      entities(1630)  =  html_entities("prE                              ",  [10931])
-      entities(1631)  =  html_entities("prap                             ",  [10935])
-      entities(1632)  =  html_entities("prcue                            ",  [8828])
-      entities(1633)  =  html_entities("pre                              ",  [10927])
-      entities(1634)  =  html_entities("prec                             ",  [8826])
-      entities(1635)  =  html_entities("precapprox                       ",  [10935])
-      entities(1636)  =  html_entities("preccurlyeq                      ",  [8828])
-      entities(1637)  =  html_entities("preceq                           ",  [10927])
-      entities(1638)  =  html_entities("precnapprox                      ",  [10937])
-      entities(1639)  =  html_entities("precneqq                         ",  [10933])
-      entities(1640)  =  html_entities("precnsim                         ",  [8936])
-      entities(1641)  =  html_entities("precsim                          ",  [8830])
-      entities(1642)  =  html_entities("prime                            ",  [8242])
-      entities(1643)  =  html_entities("primes                           ",  [8473])
-      entities(1644)  =  html_entities("prnE                             ",  [10933])
-      entities(1645)  =  html_entities("prnap                            ",  [10937])
-      entities(1646)  =  html_entities("prnsim                           ",  [8936])
-      entities(1647)  =  html_entities("prod                             ",  [8719])
-      entities(1648)  =  html_entities("profalar                         ",  [9006])
-      entities(1649)  =  html_entities("profline                         ",  [8978])
-      entities(1650)  =  html_entities("profsurf                         ",  [8979])
-      entities(1651)  =  html_entities("prop                             ",  [8733])
-      entities(1652)  =  html_entities("propto                           ",  [8733])
-      entities(1653)  =  html_entities("prsim                            ",  [8830])
-      entities(1654)  =  html_entities("prurel                           ",  [8880])
-      entities(1655)  =  html_entities("pscr                             ",  [120005])
-      entities(1656)  =  html_entities("psi                              ",  [968])
-      entities(1657)  =  html_entities("puncsp                           ",  [8200])
-      entities(1658)  =  html_entities("qfr                              ",  [120110])
-      entities(1659)  =  html_entities("qint                             ",  [10764])
-      entities(1660)  =  html_entities("qopf                             ",  [120162])
-      entities(1661)  =  html_entities("qprime                           ",  [8279])
-      entities(1662)  =  html_entities("qscr                             ",  [120006])
-      entities(1663)  =  html_entities("quaternions                      ",  [8461])
-      entities(1664)  =  html_entities("quatint                          ",  [10774])
-      entities(1665)  =  html_entities("quest                            ",  [63])
-      entities(1666)  =  html_entities("questeq                          ",  [8799])
-      entities(1667)  =  html_entities("quot                             ",  [34])
-      entities(1668)  =  html_entities("rAarr                            ",  [8667])
-      entities(1669)  =  html_entities("rArr                             ",  [8658])
-      entities(1670)  =  html_entities("rAtail                           ",  [10524])
-      entities(1671)  =  html_entities("rBarr                            ",  [10511])
-      entities(1672)  =  html_entities("rHar                             ",  [10596])
-      entities(1673)  =  html_entities("race                             ",  [8765,     817])
-      entities(1674)  =  html_entities("racute                           ",  [341])
-      entities(1675)  =  html_entities("radic                            ",  [8730])
-      entities(1676)  =  html_entities("raemptyv                         ",  [10675])
-      entities(1677)  =  html_entities("rang                             ",  [10217])
-      entities(1678)  =  html_entities("rangd                            ",  [10642])
-      entities(1679)  =  html_entities("range                            ",  [10661])
-      entities(1680)  =  html_entities("rangle                           ",  [10217])
-      entities(1681)  =  html_entities("raquo                            ",  [187])
-      entities(1682)  =  html_entities("rarr                             ",  [8594])
-      entities(1683)  =  html_entities("rarrap                           ",  [10613])
-      entities(1684)  =  html_entities("rarrb                            ",  [8677])
-      entities(1685)  =  html_entities("rarrbfs                          ",  [10528])
-      entities(1686)  =  html_entities("rarrc                            ",  [10547])
-      entities(1687)  =  html_entities("rarrfs                           ",  [10526])
-      entities(1688)  =  html_entities("rarrhk                           ",  [8618])
-      entities(1689)  =  html_entities("rarrlp                           ",  [8620])
-      entities(1690)  =  html_entities("rarrpl                           ",  [10565])
-      entities(1691)  =  html_entities("rarrsim                          ",  [10612])
-      entities(1692)  =  html_entities("rarrtl                           ",  [8611])
-      entities(1693)  =  html_entities("rarrw                            ",  [8605])
-      entities(1694)  =  html_entities("ratail                           ",  [10522])
-      entities(1695)  =  html_entities("ratio                            ",  [8758])
-      entities(1696)  =  html_entities("rationals                        ",  [8474])
-      entities(1697)  =  html_entities("rbarr                            ",  [10509])
-      entities(1698)  =  html_entities("rbbrk                            ",  [10099])
-      entities(1699)  =  html_entities("rbrace                           ",  [125])
-      entities(1700)  =  html_entities("rbrack                           ",  [93])
-      entities(1701)  =  html_entities("rbrke                            ",  [10636])
-      entities(1702)  =  html_entities("rbrksld                          ",  [10638])
-      entities(1703)  =  html_entities("rbrkslu                          ",  [10640])
-      entities(1704)  =  html_entities("rcaron                           ",  [345])
-      entities(1705)  =  html_entities("rcedil                           ",  [343])
-      entities(1706)  =  html_entities("rceil                            ",  [8969])
-      entities(1707)  =  html_entities("rcub                             ",  [125])
-      entities(1708)  =  html_entities("rcy                              ",  [1088])
-      entities(1709)  =  html_entities("rdca                             ",  [10551])
-      entities(1710)  =  html_entities("rdldhar                          ",  [10601])
-      entities(1711)  =  html_entities("rdquo                            ",  [8221])
-      entities(1712)  =  html_entities("rdquor                           ",  [8221])
-      entities(1713)  =  html_entities("rdsh                             ",  [8627])
-      entities(1714)  =  html_entities("real                             ",  [8476])
-      entities(1715)  =  html_entities("realine                          ",  [8475])
-      entities(1716)  =  html_entities("realpart                         ",  [8476])
-      entities(1717)  =  html_entities("reals                            ",  [8477])
-      entities(1718)  =  html_entities("rect                             ",  [9645])
-      entities(1719)  =  html_entities("reg                              ",  [174])
-      entities(1720)  =  html_entities("rfisht                           ",  [10621])
-      entities(1721)  =  html_entities("rfloor                           ",  [8971])
-      entities(1722)  =  html_entities("rfr                              ",  [120111])
-      entities(1723)  =  html_entities("rhard                            ",  [8641])
-      entities(1724)  =  html_entities("rharu                            ",  [8640])
-      entities(1725)  =  html_entities("rharul                           ",  [10604])
-      entities(1726)  =  html_entities("rho                              ",  [961])
-      entities(1727)  =  html_entities("rhov                             ",  [1009])
-      entities(1728)  =  html_entities("rightarrow                       ",  [8594])
-      entities(1729)  =  html_entities("rightarrowtail                   ",  [8611])
-      entities(1730)  =  html_entities("rightharpoondown                 ",  [8641])
-      entities(1731)  =  html_entities("rightharpoonup                   ",  [8640])
-      entities(1732)  =  html_entities("rightleftarrows                  ",  [8644])
-      entities(1733)  =  html_entities("rightleftharpoons                ",  [8652])
-      entities(1734)  =  html_entities("rightrightarrows                 ",  [8649])
-      entities(1735)  =  html_entities("rightsquigarrow                  ",  [8605])
-      entities(1736)  =  html_entities("rightthreetimes                  ",  [8908])
-      entities(1737)  =  html_entities("ring                             ",  [730])
-      entities(1738)  =  html_entities("risingdotseq                     ",  [8787])
-      entities(1739)  =  html_entities("rlarr                            ",  [8644])
-      entities(1740)  =  html_entities("rlhar                            ",  [8652])
-      entities(1741)  =  html_entities("rlm                              ",  [8207])
-      entities(1742)  =  html_entities("rmoust                           ",  [9137])
-      entities(1743)  =  html_entities("rmoustache                       ",  [9137])
-      entities(1744)  =  html_entities("rnmid                            ",  [10990])
-      entities(1745)  =  html_entities("roang                            ",  [10221])
-      entities(1746)  =  html_entities("roarr                            ",  [8702])
-      entities(1747)  =  html_entities("robrk                            ",  [10215])
-      entities(1748)  =  html_entities("ropar                            ",  [10630])
-      entities(1749)  =  html_entities("ropf                             ",  [120163])
-      entities(1750)  =  html_entities("roplus                           ",  [10798])
-      entities(1751)  =  html_entities("rotimes                          ",  [10805])
-      entities(1752)  =  html_entities("rpar                             ",  [41])
-      entities(1753)  =  html_entities("rpargt                           ",  [10644])
-      entities(1754)  =  html_entities("rppolint                         ",  [10770])
-      entities(1755)  =  html_entities("rrarr                            ",  [8649])
-      entities(1756)  =  html_entities("rsaquo                           ",  [8250])
-      entities(1757)  =  html_entities("rscr                             ",  [120007])
-      entities(1758)  =  html_entities("rsh                              ",  [8625])
-      entities(1759)  =  html_entities("rsqb                             ",  [93])
-      entities(1760)  =  html_entities("rsquo                            ",  [8217])
-      entities(1761)  =  html_entities("rsquor                           ",  [8217])
-      entities(1762)  =  html_entities("rthree                           ",  [8908])
-      entities(1763)  =  html_entities("rtimes                           ",  [8906])
-      entities(1764)  =  html_entities("rtri                             ",  [9657])
-      entities(1765)  =  html_entities("rtrie                            ",  [8885])
-      entities(1766)  =  html_entities("rtrif                            ",  [9656])
-      entities(1767)  =  html_entities("rtriltri                         ",  [10702])
-      entities(1768)  =  html_entities("ruluhar                          ",  [10600])
-      entities(1769)  =  html_entities("rx                               ",  [8478])
-      entities(1770)  =  html_entities("sacute                           ",  [347])
-      entities(1771)  =  html_entities("sbquo                            ",  [8218])
-      entities(1772)  =  html_entities("sc                               ",  [8827])
-      entities(1773)  =  html_entities("scE                              ",  [10932])
-      entities(1774)  =  html_entities("scap                             ",  [10936])
-      entities(1775)  =  html_entities("scaron                           ",  [353])
-      entities(1776)  =  html_entities("sccue                            ",  [8829])
-      entities(1777)  =  html_entities("sce                              ",  [10928])
-      entities(1778)  =  html_entities("scedil                           ",  [351])
-      entities(1779)  =  html_entities("scirc                            ",  [349])
-      entities(1780)  =  html_entities("scnE                             ",  [10934])
-      entities(1781)  =  html_entities("scnap                            ",  [10938])
-      entities(1782)  =  html_entities("scnsim                           ",  [8937])
-      entities(1783)  =  html_entities("scpolint                         ",  [10771])
-      entities(1784)  =  html_entities("scsim                            ",  [8831])
-      entities(1785)  =  html_entities("scy                              ",  [1089])
-      entities(1786)  =  html_entities("sdot                             ",  [8901])
-      entities(1787)  =  html_entities("sdotb                            ",  [8865])
-      entities(1788)  =  html_entities("sdote                            ",  [10854])
-      entities(1789)  =  html_entities("seArr                            ",  [8664])
-      entities(1790)  =  html_entities("searhk                           ",  [10533])
-      entities(1791)  =  html_entities("searr                            ",  [8600])
-      entities(1792)  =  html_entities("searrow                          ",  [8600])
-      entities(1793)  =  html_entities("sect                             ",  [167])
-      entities(1794)  =  html_entities("semi                             ",  [59])
-      entities(1795)  =  html_entities("seswar                           ",  [10537])
-      entities(1796)  =  html_entities("setminus                         ",  [8726])
-      entities(1797)  =  html_entities("setmn                            ",  [8726])
-      entities(1798)  =  html_entities("sext                             ",  [10038])
-      entities(1799)  =  html_entities("sfr                              ",  [120112])
-      entities(1800)  =  html_entities("sfrown                           ",  [8994])
-      entities(1801)  =  html_entities("sharp                            ",  [9839])
-      entities(1802)  =  html_entities("shchcy                           ",  [1097])
-      entities(1803)  =  html_entities("shcy                             ",  [1096])
-      entities(1804)  =  html_entities("shortmid                         ",  [8739])
-      entities(1805)  =  html_entities("shortparallel                    ",  [8741])
-      entities(1806)  =  html_entities("shy                              ",  [173])
-      entities(1807)  =  html_entities("sigma                            ",  [963])
-      entities(1808)  =  html_entities("sigmaf                           ",  [962])
-      entities(1809)  =  html_entities("sigmav                           ",  [962])
-      entities(1810)  =  html_entities("sim                              ",  [8764])
-      entities(1811)  =  html_entities("simdot                           ",  [10858])
-      entities(1812)  =  html_entities("sime                             ",  [8771])
-      entities(1813)  =  html_entities("simeq                            ",  [8771])
-      entities(1814)  =  html_entities("simg                             ",  [10910])
-      entities(1815)  =  html_entities("simgE                            ",  [10912])
-      entities(1816)  =  html_entities("siml                             ",  [10909])
-      entities(1817)  =  html_entities("simlE                            ",  [10911])
-      entities(1818)  =  html_entities("simne                            ",  [8774])
-      entities(1819)  =  html_entities("simplus                          ",  [10788])
-      entities(1820)  =  html_entities("simrarr                          ",  [10610])
-      entities(1821)  =  html_entities("slarr                            ",  [8592])
-      entities(1822)  =  html_entities("smallsetminus                    ",  [8726])
-      entities(1823)  =  html_entities("smashp                           ",  [10803])
-      entities(1824)  =  html_entities("smeparsl                         ",  [10724])
-      entities(1825)  =  html_entities("smid                             ",  [8739])
-      entities(1826)  =  html_entities("smile                            ",  [8995])
-      entities(1827)  =  html_entities("smt                              ",  [10922])
-      entities(1828)  =  html_entities("smte                             ",  [10924])
-      entities(1829)  =  html_entities("smtes                            ",  [10924,    65024])
-      entities(1830)  =  html_entities("softcy                           ",  [1100])
-      entities(1831)  =  html_entities("sol                              ",  [47])
-      entities(1832)  =  html_entities("solb                             ",  [10692])
-      entities(1833)  =  html_entities("solbar                           ",  [9023])
-      entities(1834)  =  html_entities("sopf                             ",  [120164])
-      entities(1835)  =  html_entities("spades                           ",  [9824])
-      entities(1836)  =  html_entities("spadesuit                        ",  [9824])
-      entities(1837)  =  html_entities("spar                             ",  [8741])
-      entities(1838)  =  html_entities("sqcap                            ",  [8851])
-      entities(1839)  =  html_entities("sqcaps                           ",  [8851,     65024])
-      entities(1840)  =  html_entities("sqcup                            ",  [8852])
-      entities(1841)  =  html_entities("sqcups                           ",  [8852,     65024])
-      entities(1842)  =  html_entities("sqsub                            ",  [8847])
-      entities(1843)  =  html_entities("sqsube                           ",  [8849])
-      entities(1844)  =  html_entities("sqsubset                         ",  [8847])
-      entities(1845)  =  html_entities("sqsubseteq                       ",  [8849])
-      entities(1846)  =  html_entities("sqsup                            ",  [8848])
-      entities(1847)  =  html_entities("sqsupe                           ",  [8850])
-      entities(1848)  =  html_entities("sqsupset                         ",  [8848])
-      entities(1849)  =  html_entities("sqsupseteq                       ",  [8850])
-      entities(1850)  =  html_entities("squ                              ",  [9633])
-      entities(1851)  =  html_entities("square                           ",  [9633])
-      entities(1852)  =  html_entities("squarf                           ",  [9642])
-      entities(1853)  =  html_entities("squf                             ",  [9642])
-      entities(1854)  =  html_entities("srarr                            ",  [8594])
-      entities(1855)  =  html_entities("sscr                             ",  [120008])
-      entities(1856)  =  html_entities("ssetmn                           ",  [8726])
-      entities(1857)  =  html_entities("ssmile                           ",  [8995])
-      entities(1858)  =  html_entities("sstarf                           ",  [8902])
-      entities(1859)  =  html_entities("star                             ",  [9734])
-      entities(1860)  =  html_entities("starf                            ",  [9733])
-      entities(1861)  =  html_entities("straightepsilon                  ",  [1013])
-      entities(1862)  =  html_entities("straightphi                      ",  [981])
-      entities(1863)  =  html_entities("strns                            ",  [175])
-      entities(1864)  =  html_entities("sub                              ",  [8834])
-      entities(1865)  =  html_entities("subE                             ",  [10949])
-      entities(1866)  =  html_entities("subdot                           ",  [10941])
-      entities(1867)  =  html_entities("sube                             ",  [8838])
-      entities(1868)  =  html_entities("subedot                          ",  [10947])
-      entities(1869)  =  html_entities("submult                          ",  [10945])
-      entities(1870)  =  html_entities("subnE                            ",  [10955])
-      entities(1871)  =  html_entities("subne                            ",  [8842])
-      entities(1872)  =  html_entities("subplus                          ",  [10943])
-      entities(1873)  =  html_entities("subrarr                          ",  [10617])
-      entities(1874)  =  html_entities("subset                           ",  [8834])
-      entities(1875)  =  html_entities("subseteq                         ",  [8838])
-      entities(1876)  =  html_entities("subseteqq                        ",  [10949])
-      entities(1877)  =  html_entities("subsetneq                        ",  [8842])
-      entities(1878)  =  html_entities("subsetneqq                       ",  [10955])
-      entities(1879)  =  html_entities("subsim                           ",  [10951])
-      entities(1880)  =  html_entities("subsub                           ",  [10965])
-      entities(1881)  =  html_entities("subsup                           ",  [10963])
-      entities(1882)  =  html_entities("succ                             ",  [8827])
-      entities(1883)  =  html_entities("succapprox                       ",  [10936])
-      entities(1884)  =  html_entities("succcurlyeq                      ",  [8829])
-      entities(1885)  =  html_entities("succeq                           ",  [10928])
-      entities(1886)  =  html_entities("succnapprox                      ",  [10938])
-      entities(1887)  =  html_entities("succneqq                         ",  [10934])
-      entities(1888)  =  html_entities("succnsim                         ",  [8937])
-      entities(1889)  =  html_entities("succsim                          ",  [8831])
-      entities(1890)  =  html_entities("sum                              ",  [8721])
-      entities(1891)  =  html_entities("sung                             ",  [9834])
-      entities(1892)  =  html_entities("sup1                             ",  [185])
-      entities(1893)  =  html_entities("sup2                             ",  [178])
-      entities(1894)  =  html_entities("sup3                             ",  [179])
-      entities(1895)  =  html_entities("sup                              ",  [8835])
-      entities(1896)  =  html_entities("supE                             ",  [10950])
-      entities(1897)  =  html_entities("supdot                           ",  [10942])
-      entities(1898)  =  html_entities("supdsub                          ",  [10968])
-      entities(1899)  =  html_entities("supe                             ",  [8839])
-      entities(1900)  =  html_entities("supedot                          ",  [10948])
-      entities(1901)  =  html_entities("suphsol                          ",  [10185])
-      entities(1902)  =  html_entities("suphsub                          ",  [10967])
-      entities(1903)  =  html_entities("suplarr                          ",  [10619])
-      entities(1904)  =  html_entities("supmult                          ",  [10946])
-      entities(1905)  =  html_entities("supnE                            ",  [10956])
-      entities(1906)  =  html_entities("supne                            ",  [8843])
-      entities(1907)  =  html_entities("supplus                          ",  [10944])
-      entities(1908)  =  html_entities("supset                           ",  [8835])
-      entities(1909)  =  html_entities("supseteq                         ",  [8839])
-      entities(1910)  =  html_entities("supseteqq                        ",  [10950])
-      entities(1911)  =  html_entities("supsetneq                        ",  [8843])
-      entities(1912)  =  html_entities("supsetneqq                       ",  [10956])
-      entities(1913)  =  html_entities("supsim                           ",  [10952])
-      entities(1914)  =  html_entities("supsub                           ",  [10964])
-      entities(1915)  =  html_entities("supsup                           ",  [10966])
-      entities(1916)  =  html_entities("swArr                            ",  [8665])
-      entities(1917)  =  html_entities("swarhk                           ",  [10534])
-      entities(1918)  =  html_entities("swarr                            ",  [8601])
-      entities(1919)  =  html_entities("swarrow                          ",  [8601])
-      entities(1920)  =  html_entities("swnwar                           ",  [10538])
-      entities(1921)  =  html_entities("szlig                            ",  [223])
-      entities(1922)  =  html_entities("target                           ",  [8982])
-      entities(1923)  =  html_entities("tau                              ",  [964])
-      entities(1924)  =  html_entities("tbrk                             ",  [9140])
-      entities(1925)  =  html_entities("tcaron                           ",  [357])
-      entities(1926)  =  html_entities("tcedil                           ",  [355])
-      entities(1927)  =  html_entities("tcy                              ",  [1090])
-      entities(1928)  =  html_entities("tdot                             ",  [8411])
-      entities(1929)  =  html_entities("telrec                           ",  [8981])
-      entities(1930)  =  html_entities("tfr                              ",  [120113])
-      entities(1931)  =  html_entities("there4                           ",  [8756])
-      entities(1932)  =  html_entities("therefore                        ",  [8756])
-      entities(1933)  =  html_entities("theta                            ",  [952])
-      entities(1934)  =  html_entities("thetasym                         ",  [977])
-      entities(1935)  =  html_entities("thetav                           ",  [977])
-      entities(1936)  =  html_entities("thickapprox                      ",  [8776])
-      entities(1937)  =  html_entities("thicksim                         ",  [8764])
-      entities(1938)  =  html_entities("thinsp                           ",  [8201])
-      entities(1939)  =  html_entities("thkap                            ",  [8776])
-      entities(1940)  =  html_entities("thksim                           ",  [8764])
-      entities(1941)  =  html_entities("thorn                            ",  [254])
-      entities(1942)  =  html_entities("tilde                            ",  [732])
-      entities(1943)  =  html_entities("times                            ",  [215])
-      entities(1944)  =  html_entities("timesb                           ",  [8864])
-      entities(1945)  =  html_entities("timesbar                         ",  [10801])
-      entities(1946)  =  html_entities("timesd                           ",  [10800])
-      entities(1947)  =  html_entities("tint                             ",  [8749])
-      entities(1948)  =  html_entities("toea                             ",  [10536])
-      entities(1949)  =  html_entities("top                              ",  [8868])
-      entities(1950)  =  html_entities("topbot                           ",  [9014])
-      entities(1951)  =  html_entities("topcir                           ",  [10993])
-      entities(1952)  =  html_entities("topf                             ",  [120165])
-      entities(1953)  =  html_entities("topfork                          ",  [10970])
-      entities(1954)  =  html_entities("tosa                             ",  [10537])
-      entities(1955)  =  html_entities("tprime                           ",  [8244])
-      entities(1956)  =  html_entities("trade                            ",  [8482])
-      entities(1957)  =  html_entities("triangle                         ",  [9653])
-      entities(1958)  =  html_entities("triangledown                     ",  [9663])
-      entities(1959)  =  html_entities("triangleleft                     ",  [9667])
-      entities(1960)  =  html_entities("trianglelefteq                   ",  [8884])
-      entities(1961)  =  html_entities("triangleq                        ",  [8796])
-      entities(1962)  =  html_entities("triangleright                    ",  [9657])
-      entities(1963)  =  html_entities("trianglerighteq                  ",  [8885])
-      entities(1964)  =  html_entities("tridot                           ",  [9708])
-      entities(1965)  =  html_entities("trie                             ",  [8796])
-      entities(1966)  =  html_entities("triminus                         ",  [10810])
-      entities(1967)  =  html_entities("triplus                          ",  [10809])
-      entities(1968)  =  html_entities("trisb                            ",  [10701])
-      entities(1969)  =  html_entities("tritime                          ",  [10811])
-      entities(1970)  =  html_entities("trpezium                         ",  [9186])
-      entities(1971)  =  html_entities("tscr                             ",  [120009])
-      entities(1972)  =  html_entities("tscy                             ",  [1094])
-      entities(1973)  =  html_entities("tshcy                            ",  [1115])
-      entities(1974)  =  html_entities("tstrok                           ",  [359])
-      entities(1975)  =  html_entities("twixt                            ",  [8812])
-      entities(1976)  =  html_entities("twoheadleftarrow                 ",  [8606])
-      entities(1977)  =  html_entities("twoheadrightarrow                ",  [8608])
-      entities(1978)  =  html_entities("uArr                             ",  [8657])
-      entities(1979)  =  html_entities("uHar                             ",  [10595])
-      entities(1980)  =  html_entities("uacute                           ",  [250])
-      entities(1981)  =  html_entities("uarr                             ",  [8593])
-      entities(1982)  =  html_entities("ubrcy                            ",  [1118])
-      entities(1983)  =  html_entities("ubreve                           ",  [365])
-      entities(1984)  =  html_entities("ucirc                            ",  [251])
-      entities(1985)  =  html_entities("ucy                              ",  [1091])
-      entities(1986)  =  html_entities("udarr                            ",  [8645])
-      entities(1987)  =  html_entities("udblac                           ",  [369])
-      entities(1988)  =  html_entities("udhar                            ",  [10606])
-      entities(1989)  =  html_entities("ufisht                           ",  [10622])
-      entities(1990)  =  html_entities("ufr                              ",  [120114])
-      entities(1991)  =  html_entities("ugrave                           ",  [249])
-      entities(1992)  =  html_entities("uharl                            ",  [8639])
-      entities(1993)  =  html_entities("uharr                            ",  [8638])
-      entities(1994)  =  html_entities("uhblk                            ",  [9600])
-      entities(1995)  =  html_entities("ulcorn                           ",  [8988])
-      entities(1996)  =  html_entities("ulcorner                         ",  [8988])
-      entities(1997)  =  html_entities("ulcrop                           ",  [8975])
-      entities(1998)  =  html_entities("ultri                            ",  [9720])
-      entities(1999)  =  html_entities("umacr                            ",  [363])
-      entities(2000)  =  html_entities("uml                              ",  [168])
-      entities(2001)  =  html_entities("uogon                            ",  [371])
-      entities(2002)  =  html_entities("uopf                             ",  [120166])
-      entities(2003)  =  html_entities("uparrow                          ",  [8593])
-      entities(2004)  =  html_entities("updownarrow                      ",  [8597])
-      entities(2005)  =  html_entities("upharpoonleft                    ",  [8639])
-      entities(2006)  =  html_entities("upharpoonright                   ",  [8638])
-      entities(2007)  =  html_entities("uplus                            ",  [8846])
-      entities(2008)  =  html_entities("upsi                             ",  [965])
-      entities(2009)  =  html_entities("upsih                            ",  [978])
-      entities(2010)  =  html_entities("upsilon                          ",  [965])
-      entities(2011)  =  html_entities("upuparrows                       ",  [8648])
-      entities(2012)  =  html_entities("urcorn                           ",  [8989])
-      entities(2013)  =  html_entities("urcorner                         ",  [8989])
-      entities(2014)  =  html_entities("urcrop                           ",  [8974])
-      entities(2015)  =  html_entities("uring                            ",  [367])
-      entities(2016)  =  html_entities("urtri                            ",  [9721])
-      entities(2017)  =  html_entities("uscr                             ",  [120010])
-      entities(2018)  =  html_entities("utdot                            ",  [8944])
-      entities(2019)  =  html_entities("utilde                           ",  [361])
-      entities(2020)  =  html_entities("utri                             ",  [9653])
-      entities(2021)  =  html_entities("utrif                            ",  [9652])
-      entities(2022)  =  html_entities("uuarr                            ",  [8648])
-      entities(2023)  =  html_entities("uuml                             ",  [252])
-      entities(2024)  =  html_entities("uwangle                          ",  [10663])
-      entities(2025)  =  html_entities("vArr                             ",  [8661])
-      entities(2026)  =  html_entities("vBar                             ",  [10984])
-      entities(2027)  =  html_entities("vBarv                            ",  [10985])
-      entities(2028)  =  html_entities("vDash                            ",  [8872])
-      entities(2029)  =  html_entities("vangrt                           ",  [10652])
-      entities(2030)  =  html_entities("varepsilon                       ",  [1013])
-      entities(2031)  =  html_entities("varkappa                         ",  [1008])
-      entities(2032)  =  html_entities("varnothing                       ",  [8709])
-      entities(2033)  =  html_entities("varphi                           ",  [981])
-      entities(2034)  =  html_entities("varpi                            ",  [982])
-      entities(2035)  =  html_entities("varpropto                        ",  [8733])
-      entities(2036)  =  html_entities("varr                             ",  [8597])
-      entities(2037)  =  html_entities("varrho                           ",  [1009])
-      entities(2038)  =  html_entities("varsigma                         ",  [962])
-      entities(2039)  =  html_entities("varsubsetneq                     ",  [8842,     65024])
-      entities(2040)  =  html_entities("varsubsetneqq                    ",  [10955,    65024])
-      entities(2041)  =  html_entities("varsupsetneq                     ",  [8843,     65024])
-      entities(2042)  =  html_entities("varsupsetneqq                    ",  [10956,    65024])
-      entities(2043)  =  html_entities("vartheta                         ",  [977])
-      entities(2044)  =  html_entities("vartriangleleft                  ",  [8882])
-      entities(2045)  =  html_entities("vartriangleright                 ",  [8883])
-      entities(2046)  =  html_entities("vcy                              ",  [1074])
-      entities(2047)  =  html_entities("vdash                            ",  [8866])
-      entities(2048)  =  html_entities("vee                              ",  [8744])
-      entities(2049)  =  html_entities("veebar                           ",  [8891])
-      entities(2050)  =  html_entities("veeeq                            ",  [8794])
-      entities(2051)  =  html_entities("vellip                           ",  [8942])
-      entities(2052)  =  html_entities("verbar                           ",  [124])
-      entities(2053)  =  html_entities("vert                             ",  [124])
-      entities(2054)  =  html_entities("vfr                              ",  [120115])
-      entities(2055)  =  html_entities("vltri                            ",  [8882])
-      entities(2056)  =  html_entities("vnsub                            ",  [8834,     8402])
-      entities(2057)  =  html_entities("vnsup                            ",  [8835,     8402])
-      entities(2058)  =  html_entities("vopf                             ",  [120167])
-      entities(2059)  =  html_entities("vprop                            ",  [8733])
-      entities(2060)  =  html_entities("vrtri                            ",  [8883])
-      entities(2061)  =  html_entities("vscr                             ",  [120011])
-      entities(2062)  =  html_entities("vsubnE                           ",  [10955,    65024])
-      entities(2063)  =  html_entities("vsubne                           ",  [8842,     65024])
-      entities(2064)  =  html_entities("vsupnE                           ",  [10956,    65024])
-      entities(2065)  =  html_entities("vsupne                           ",  [8843,     65024])
-      entities(2066)  =  html_entities("vzigzag                          ",  [10650])
-      entities(2067)  =  html_entities("wcirc                            ",  [373])
-      entities(2068)  =  html_entities("wedbar                           ",  [10847])
-      entities(2069)  =  html_entities("wedge                            ",  [8743])
-      entities(2070)  =  html_entities("wedgeq                           ",  [8793])
-      entities(2071)  =  html_entities("weierp                           ",  [8472])
-      entities(2072)  =  html_entities("wfr                              ",  [120116])
-      entities(2073)  =  html_entities("wopf                             ",  [120168])
-      entities(2074)  =  html_entities("wp                               ",  [8472])
-      entities(2075)  =  html_entities("wr                               ",  [8768])
-      entities(2076)  =  html_entities("wreath                           ",  [8768])
-      entities(2077)  =  html_entities("wscr                             ",  [120012])
-      entities(2078)  =  html_entities("xcap                             ",  [8898])
-      entities(2079)  =  html_entities("xcirc                            ",  [9711])
-      entities(2080)  =  html_entities("xcup                             ",  [8899])
-      entities(2081)  =  html_entities("xdtri                            ",  [9661])
-      entities(2082)  =  html_entities("xfr                              ",  [120117])
-      entities(2083)  =  html_entities("xhArr                            ",  [10234])
-      entities(2084)  =  html_entities("xharr                            ",  [10231])
-      entities(2085)  =  html_entities("xi                               ",  [958])
-      entities(2086)  =  html_entities("xlArr                            ",  [10232])
-      entities(2087)  =  html_entities("xlarr                            ",  [10229])
-      entities(2088)  =  html_entities("xmap                             ",  [10236])
-      entities(2089)  =  html_entities("xnis                             ",  [8955])
-      entities(2090)  =  html_entities("xodot                            ",  [10752])
-      entities(2091)  =  html_entities("xopf                             ",  [120169])
-      entities(2092)  =  html_entities("xoplus                           ",  [10753])
-      entities(2093)  =  html_entities("xotime                           ",  [10754])
-      entities(2094)  =  html_entities("xrArr                            ",  [10233])
-      entities(2095)  =  html_entities("xrarr                            ",  [10230])
-      entities(2096)  =  html_entities("xscr                             ",  [120013])
-      entities(2097)  =  html_entities("xsqcup                           ",  [10758])
-      entities(2098)  =  html_entities("xuplus                           ",  [10756])
-      entities(2099)  =  html_entities("xutri                            ",  [9651])
-      entities(2100)  =  html_entities("xvee                             ",  [8897])
-      entities(2101)  =  html_entities("xwedge                           ",  [8896])
-      entities(2102)  =  html_entities("yacute                           ",  [253])
-      entities(2103)  =  html_entities("yacy                             ",  [1103])
-      entities(2104)  =  html_entities("ycirc                            ",  [375])
-      entities(2105)  =  html_entities("ycy                              ",  [1099])
-      entities(2106)  =  html_entities("yen                              ",  [165])
-      entities(2107)  =  html_entities("yfr                              ",  [120118])
-      entities(2108)  =  html_entities("yicy                             ",  [1111])
-      entities(2109)  =  html_entities("yopf                             ",  [120170])
-      entities(2110)  =  html_entities("yscr                             ",  [120014])
-      entities(2111)  =  html_entities("yucy                             ",  [1102])
-      entities(2112)  =  html_entities("yuml                             ",  [255])
-      entities(2113)  =  html_entities("zacute                           ",  [378])
-      entities(2114)  =  html_entities("zcaron                           ",  [382])
-      entities(2115)  =  html_entities("zcy                              ",  [1079])
-      entities(2116)  =  html_entities("zdot                             ",  [380])
-      entities(2117)  =  html_entities("zeetrf                           ",  [8488])
-      entities(2118)  =  html_entities("zeta                             ",  [950])
-      entities(2119)  =  html_entities("zfr                              ",  [120119])
-      entities(2120)  =  html_entities("zhcy                             ",  [1078])
-      entities(2121)  =  html_entities("zigrarr                          ",  [8669])
-      entities(2122)  =  html_entities("zopf                             ",  [120171])
-      entities(2123)  =  html_entities("zscr                             ",  [120015])
-      entities(2124)  =  html_entities("zwj                              ",  [8205])
-      entities(2125)  =  html_entities("zwnj                             ",  [8204])
-      tokens=entities%name
-   endif
-
+   call init_entities()
    ! dump table to stdout
    if(.not.present(str))then
       do i=1,size(entities)
@@ -10006,7 +10187,7 @@ character(len=80)                      :: line
          write(line,     '(*(g0))'             ) entities(i)%name,' ',temp
          write(line(40:),'(*(i0:,","))'        ) entities(i)%codes
          write(line(65:),'(2x,*("U+",z0:,","))') entities(i)%codes
-         write(stdout,'(g0)')line
+         write(stdout,'(g0)')trim(line)
       enddo
       return
    endif
@@ -10039,7 +10220,7 @@ character(len=80)                      :: line
                string%codes(j)=icode
                i=i+len(token)+1
             else
-               pos=binary_search_chr(tokens,token)
+               pos=binary_search_chr(entities%name,token)
                if(pos > 0)then
                j=j+1
                isz=size(entities(pos)%codes)
@@ -10073,13 +10254,13 @@ end function expand_html_au
 !===================================================================================================================================
 !>
 !!##NAME
-!!     ESCAPE(3f) - [M_unicode:CONVERSION] expand C++ escape sequences
+!!     expand_backslash(3f) - [M_unicode:CONVERSION] expand C++ escape sequences
 !!     (LICENSE:MIT)
 !!
 !!##SYNOPSIS
 !!
 !!
-!!    function escape(line,protect) result(out)
+!!    function expand_backslash(line,protect) result(out)
 !!
 !!     type(unicode_type),intent(in)          :: line
 !!     ! or
@@ -10092,7 +10273,7 @@ end function expand_html_au
 !!     type(unicode_type)                     :: out
 !!
 !!##DESCRIPTION
-!!    ESCAPE(3) expands commonly used C++ escape sequences that represent
+!!    expand_backslash(3) expands commonly used C++ escape sequences that represent
 !!    glyphs or control characters.
 !!
 !!    Escape sequences
@@ -10136,10 +10317,11 @@ end function expand_html_au
 !!
 !!   Sample Program:
 !!
-!!    program demo_escape
+!!    program demo_expand_backslash
 !!    ! demonstrate filter to expand C-like escape sequences in input lines
 !!    use iso_fortran_env, only : stdout => output_unit
-!!    use M_unicode,       only : ut=>unicode_type,ch=>character,len,escape
+!!    use M_unicode,       only : ut=>unicode_type,ch=>character,len
+!!    use M_unicode,       only : expand_backslash
 !!    use M_unicode,       only : assignment(=), trim
 !!    implicit none
 !!    type(ut),allocatable  :: poem(:)
@@ -10175,7 +10357,7 @@ end function expand_html_au
 !!       'Jura, mais un peu tard, qu\u2019on ne l\u2019y prendrait plus.'),&
 !!       ut( ' -- Jean de la Fontaine')]
 !!       !
-!!       poem=escape(poem)
+!!       poem=expand_backslash(poem)
 !!       write(stdout,'(g0)')ch(poem)
 !!       !
 !!       test=[ &
@@ -10185,10 +10367,10 @@ end function expand_html_au
 !!        '\tA\a               ',& ! ring bell at end if supported
 !!        '\nONE\nTWO\nTHREE   ',& ! place one word per line
 !!        '\\                  ']
-!!       test=trim(escape(test))
+!!       test=trim(expand_backslash(test))
 !!       write(*,'(a)')(test(i)%character(),i=1,size(test))
 !!       !
-!!    end program demo_escape
+!!    end program demo_expand_backslash
 !!
 !!  Partial Results (with nonprintable characters shown visible):
 !!
@@ -10206,9 +10388,9 @@ end function expand_html_au
 !!
 !!##LICENSE
 !!     MIT
-impure elemental function escape_uu(line,protect) result(out)
+impure elemental function expand_backslash_uu(line,protect) result(out)
 
-! ident_19="@(#) M_unicode escape(3f) return string with escape sequences expanded"
+! ident_19="@(#) M_unicode expand_backslash(3f) return string with escape sequences expanded"
 
 type(unicode_type),intent(in)          :: line
 type(unicode_type),intent(in),optional :: protect ! default is backslash
@@ -10361,9 +10543,9 @@ integer,parameter  :: x=ichar('x'),XX=ichar('X'),h=ichar('h'),HH=ichar('H')
       if(i >= lgth)exit EXP
    enddo EXP
 
-end function escape_uu
+end function expand_backslash_uu
 !===================================================================================================================================
-impure elemental function escape_aa(line,protect) result(out)
+impure elemental function expand_backslash_aa(line,protect) result(out)
 character(len=*),intent(in)          :: line
 character(len=1),intent(in)          :: protect
 type(unicode_type)                   :: uline
@@ -10371,26 +10553,26 @@ type(unicode_type)                   :: uprotect
 type(unicode_type)                   :: out
    call assign_str_char ( uline, line )
    call assign_str_char ( uprotect, protect )
-   out=escape(uline,uprotect)
-end function escape_aa
+   out=expand_backslash(uline,uprotect)
+end function expand_backslash_aa
 !===================================================================================================================================
-impure elemental function escape_au(line,protect) result(out)
+impure elemental function expand_backslash_au(line,protect) result(out)
 character(len=*),intent(in)            :: line
 type(unicode_type),intent(in),optional :: protect
 type(unicode_type)                     :: uline
 type(unicode_type)                     :: out
    call assign_str_char ( uline, line )
-   out=escape(uline,protect)
-end function escape_au
+   out=expand_backslash(uline,protect)
+end function expand_backslash_au
 !===================================================================================================================================
-impure elemental function escape_ua(line,protect) result(out)
+impure elemental function expand_backslash_ua(line,protect) result(out)
 type(unicode_type),intent(in)        :: line
 character(len=1),intent(in)          :: protect
 type(unicode_type)                   :: uprotect
 type(unicode_type)                   :: out
    call assign_str_char ( uprotect, protect )
-   out=escape(line,uprotect)
-end function escape_ua
+   out=expand_backslash(line,uprotect)
+end function expand_backslash_ua
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -10567,6 +10749,145 @@ do i=1,len(line)
    out=out//str
 enddo
 end function add_backslash_u
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!     ADD_HTML(3f) - [M_unicode:CONVERSION] Convert UTF-8 encoded data to
+!!     ASCII-7 HTML decimal code representation
+!!     (LICENSE:MIT)
+!!
+!!##SYNOPSIS
+!!
+!!
+!!    function add_html(line) result(out)
+!!
+!!     type(unicode_type),intent(in) :: line
+!!      or
+!!     character(len=*),intent(in)   :: line
+!!
+!!     character(len=:),allocatable  :: out
+!!
+!!##DESCRIPTION
+!!    ADD_HTML(3) returns a string with non-printable ASCII-7 characters
+!!    and UTF8 (ie. non-ASCII-7) characters encoded as HTML
+!!
+!!    Each converted character is printed in the form
+!!
+!!     &#NNNNNN;
+!!
+!!     where NNNNNN is the Unicode codepoint value in decimal.
+!!
+!!##OPTIONS
+!!     LINE   An ASCII bytestream optionally containing UTF-8 encoded data
+!!            or a UNICODE_TYPE() string to convert to an ASCII string
+!!            containing HTML codes
+!!##RETURNS
+!!
+!!    The return value is the input line with all characters not representing
+!!    printable ASCII characters converted to their HTML equivalents
+!!    sequences.
+!!
+!!##EXAMPLES
+!!
+!!
+!!   Sample Program:
+!!
+!!      program demo_add_html
+!!      ! filter to replace all but printable ASCII-7 characters
+!!      ! with HTML entitities of the form &name; and &#NNNNNNNN;
+!!      use iso_fortran_env, only : stdout => output_unit
+!!      use M_unicode,       only : add_html
+!!      use M_unicode,       only : assignment(=)
+!!      use M_unicode,       only : ut => unicode_type
+!!      implicit none
+!!      character(len=:),allocatable :: poem(:)
+!!      type(ut)                     :: uline
+!!      character(len=:),allocatable :: aline
+!!      integer                      :: i
+!!         !
+!!         ! “The Crow and the Fox” by Jean de la Fontaine
+!!         !
+!!         poem=[character(len=255) :: &
+!!         'Le Corbeau et le Renard                               ',&
+!!         '                                                      ',&
+!!         'Maître Corbeau, sur un arbre perché,                  ',&
+!!         'Tenait en son bec un fromage.                         ',&
+!!         'Maître Renard, par l’odeur alléché,                   ',&
+!!         'Lui tint à peu près ce langage :                      ',&
+!!         '«Hé ! bonjour, Monsieur du Corbeau.                   ',&
+!!         'Que vous êtes joli ! que vous me semblez beau !       ',&
+!!         'Sans mentir, si votre ramage                          ',&
+!!         'Se rapporte à votre plumage,                          ',&
+!!         'Vous êtes le Phénix des hôtes de ces bois.»           ',&
+!!         'A ces mots le Corbeau ne se sent pas de joie ;        ',&
+!!         'Et pour montrer sa belle voix,                        ',&
+!!         'Il ouvre un large bec, laisse tomber sa proie.        ',&
+!!         'Le Renard s’en saisit, et dit : «Mon bon Monsieur,    ',&
+!!         'Apprenez que tout flatteur                            ',&
+!!         'Vit aux dépens de celui qui l’écoute :                ',&
+!!         'Cette leçon vaut bien un fromage, sans doute.»        ',&
+!!         'Le Corbeau, honteux et confus,                        ',&
+!!         'Jura, mais un peu tard, qu’on ne l’y prendrait plus.  ',&
+!!         ' -- Jean de la Fontaine                               ']
+!!
+!!         do i=1,size(poem)
+!!            ! convert UTF-8 to UNICODE_TYPE for demonstration purposes
+!!            uline=poem(i)
+!!            aline=add_html(uline)
+!!            write(stdout,'(g0)')trim(aline)
+!!         enddo
+!!
+!!         do i=1,size(poem)
+!!            aline=add_html(poem(i))
+!!            write(stdout,'(g0)')trim(aline)
+!!         enddo
+!!
+!!      end program demo_add_html
+!!
+!!##AUTHOR
+!!     John S. Urban
+!!
+!!##LICENSE
+!!     MIT
+function add_html_ascii(line) result(out)
+character(len=*),intent(in)   :: line
+character(len=:),allocatable  :: out
+type(unicode_type)            :: uline
+   call assign_str_char ( uline, line )
+   out=add_html(uline)
+end function add_html_ascii
+
+function add_html_u(line) result(out)
+!$@(#) M_unicode::add_html(3f): return string with non-printable ASCII-8 and non-ASCII-7 characters encoded as HTML
+type(unicode_type),intent(in) :: line
+character(len=:),allocatable  :: out
+integer                       :: letter
+character(len=20)             :: str
+integer                       :: i
+character(len=*),parameter    :: f = '("&#",i0,";")'
+
+out=''
+do i=1,len(line)
+   letter=line%codes(i)
+   select case(letter)
+   case(32:126)
+    out=out//achar(letter)
+    cycle
+   case(0:31,127:255)
+    write(str,f)letter
+   case(int(z'FF')+1:int(z'FFFF'))
+    write(str,f)letter
+   case(int(z'FFFF')+1:int(z'110000')) ! 1,114,112
+    write(str,f)letter
+   case default
+    write(stderr,'("<ERROR>invalid unicode codepoint=",i0)') letter
+    write(str,'("\?",i0,"\?")')letter
+   end select
+   out=out//trim(str)
+enddo
+end function add_html_u
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -11384,12 +11705,18 @@ type(unicode_type)             :: string_out
    string_out=expandtabs(self,tab_size)
 end function oop_expandtabs
 !===================================================================================================================================
-function oop_escape(self,protect) result (string_out)
+function oop_expand_backslash(self,protect) result (string_out)
 class(unicode_type),intent(in)       :: self
 character(len=1),intent(in),optional :: protect
 type(unicode_type)                   :: string_out
-   string_out=escape(self,protect)
-end function oop_escape
+   string_out=expand_backslash(self,protect)
+end function oop_expand_backslash
+!===================================================================================================================================
+function oop_add_html(self) result (string_out)
+class(unicode_type),intent(in)       :: self
+type(unicode_type)                   :: string_out
+   call assign_str_char ( string_out, add_html_u(self) )
+end function oop_add_html
 !===================================================================================================================================
 function oop_add_backslash(self) result (string_out)
 class(unicode_type),intent(in)       :: self
@@ -11856,7 +12183,7 @@ end function readline
 !!
 !!    program demo_slurp
 !!    use M_unicode, only : slurp, ut=>unicode_type
-!!    use M_unicode, only : add_backslash, escape
+!!    use M_unicode, only : add_backslash, expand_backslash
 !!    use M_unicode, only : assignment(=)
 !!    implicit none
 !!    type(ut),allocatable         :: text(:)
@@ -11883,7 +12210,7 @@ end function readline
 !!
 !!       ! deencode escape sequences and write data again
 !!       do i=1,size(text)
-!!          text(i)=escape(text(i))
+!!          text(i)=expand_backslash(text(i))
 !!       enddo
 !!       call write_text()
 !!
@@ -11947,7 +12274,7 @@ type(unicode_type),allocatable        :: text(:)     ! array to hold file
 type(unicode_type)                    :: line
 character(len=:),allocatable          :: filename_
 integer                               :: nchars      ! holds size of file
-integer                               :: iostat=0
+integer                               :: iostat
 integer                               :: lun
 integer                               :: scratch
 integer                               :: icount
@@ -12077,18 +12404,18 @@ end function slurp
 !!
 !!##LICENSE
 !!     MIT
-recursive function afmt(generic,format) result (line)
+recursive function afmt(general,format) result (line)
 
 ! ident_25="@(#) M_unicode afmt(3f) convert any intrinsic to a CHARACTER variable using specified format"
 
-class(*),intent(in)                  :: generic
+class(*),intent(in)                  :: general
 character(len=*),intent(in),optional :: format
 character(len=:),allocatable         :: line
 character(len=:),allocatable         :: fmt_local
 character(len=:),allocatable         :: re,im
 integer                              :: iostat
 character(len=255)                   :: iomsg
-character(len=1),parameter           :: null=char(0)
+character(len=1),parameter           :: null_ch=char(0)
 integer                              :: iilen
 logical                              :: trimit
    if(present(format))then
@@ -12102,13 +12429,16 @@ logical                              :: trimit
    ! add cannot use SIZE= or POS= or ADVANCE='NO' on WRITE() on INTERNAL READ,
    ! and do not want to trim as trailing spaces can be significant
    if(fmt_local == '')then
-      select type(generic)
+      select type(general)
          type is (integer(kind=int8));     fmt_local='(i0,a)'
          type is (integer(kind=int16));    fmt_local='(i0,a)'
          type is (integer(kind=int32));    fmt_local='(i0,a)'
          type is (integer(kind=int64));    fmt_local='(i0,a)'
          type is (real(kind=real32));      fmt_local='(1pg0,a)'
          type is (real(kind=real64));      fmt_local='(1pg0,a)'
+#ifdef FLOAT128
+         type is (real(kind=real128));     fmt_local='(1pg0,a)'
+#endif
          type is (logical);                fmt_local='(l1,a)'
          type is (character(len=*));       fmt_local='(a,a)'
                  trimit=.false.
@@ -12130,39 +12460,42 @@ logical                              :: trimit
    if(allocated(line))deallocate(line)
    allocate(character(len=256) :: line) ! cannot currently write into allocatable variable
    iostat=0
-   select type(generic)
-     type is (integer(kind=int8));  write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (integer(kind=int16)); write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (integer(kind=int32)); write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (integer(kind=int64)); write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (real(kind=real32));   write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (real(kind=real64));   write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (logical);             write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (character(len=*));    write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-     type is (unicode_type);        write(line,fmt_local,iostat=iostat,iomsg=iomsg) character(generic),null
+   select type(general)
+     type is (integer(kind=int8));  write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+     type is (integer(kind=int16)); write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+     type is (integer(kind=int32)); write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+     type is (integer(kind=int64)); write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+     type is (real(kind=real32));   write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+     type is (real(kind=real64));   write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+#ifdef FLOAT128
+     type is (real(kind=real128));  write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+#endif
+     type is (logical);             write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+     type is (character(len=*));    write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
+     type is (unicode_type);        write(line,fmt_local,iostat=iostat,iomsg=iomsg) character(general),null_ch
      type is (complex);
         if(trimit)then
-           re=afmt(real(generic))
-           im=afmt(aimag(generic))
+           re=afmt(real(general))
+           im=afmt(aimag(general))
            call trimzeros_(re)
            call trimzeros_(im)
            fmt_local='("(",g0,",",g0,")",a)'
-           write(line,fmt_local,iostat=iostat,iomsg=iomsg) trim(re),trim(im),null
+           write(line,fmt_local,iostat=iostat,iomsg=iomsg) trim(re),trim(im),null_ch
            trimit=.false.
         else
-           write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
+           write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
         endif
      type is (complex(kind=real64));
         if(trimit)then
-           re=afmt(real(generic))
-           im=afmt(aimag(generic))
+           re=afmt(real(general))
+           im=afmt(aimag(general))
            call trimzeros_(re)
            call trimzeros_(im)
            fmt_local='("(",g0,",",g0,")",a)'
-           write(line,fmt_local,iostat=iostat,iomsg=iomsg) trim(re),trim(im),null
+           write(line,fmt_local,iostat=iostat,iomsg=iomsg) trim(re),trim(im),null_ch
            trimit=.false.
         else
-           write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
+           write(line,fmt_local,iostat=iostat,iomsg=iomsg) general,null_ch
         endif
      class default
         stop '<ERROR>*afmt* unknown type'
@@ -12170,7 +12503,7 @@ logical                              :: trimit
    if(iostat /= 0)then
       line='<ERROR>'//trim(iomsg)
    else
-      iilen=index(line,null,back=.true.)
+      iilen=index(line,null_ch,back=.true.)
       if(iilen == 0)iilen=len(line)
       line=line(:iilen-1)
    endif
@@ -12179,25 +12512,25 @@ logical                              :: trimit
 
 end function afmt
 !===================================================================================================================================
-impure elemental function fmt_ga(generic,format) result (line)
+impure elemental function fmt_ga(general,format) result (line)
 
 ! ident_26="@(#) M_unicode afmt(3f) convert any intrinsic to a CHARACTER variable using specified format"
 
-class(*),intent(in)                  :: generic
+class(*),intent(in)                  :: general
 character(len=*),intent(in),optional :: format
 type(unicode_type)                   :: line
-   call assign_str_char( line, afmt(generic,format) ) !line=afmt(generic,format)
+   call assign_str_char( line, afmt(general,format) ) !line=afmt(general,format)
 end function fmt_ga
-impure elemental function fmt_gs(generic,format) result (line)
+impure elemental function fmt_gs(general,format) result (line)
 
 ! ident_27="@(#) M_unicode afmt(3f) convert any intrinsic to a CHARACTER variable using specified format"
 
-class(*),intent(in)           :: generic
+class(*),intent(in)           :: general
 type(unicode_type),intent(in) :: format
 type(unicode_type)            :: line
 character(len=:),allocatable  :: aformat
    call assign_char_str(aformat, format)
-   call assign_str_char(line,afmt(generic,aformat)) !line=afmt(generic,aformat)
+   call assign_str_char(line,afmt(general,aformat)) !line=afmt(general,aformat)
 end function fmt_gs
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -12304,14 +12637,14 @@ end subroutine trimzeros_
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-impure elemental function concat_uu_(lhs,rhs) result (string)
+impure elemental function concat_u_u(lhs,rhs) result (string)
 type(unicode_type),intent(in) :: lhs
 type(unicode_type),intent(in) :: rhs
 type(unicode_type)            :: string1, string2, string
    string1 = fmt(lhs)
    string2 = fmt(rhs)
    string%codes=[string1%codes,string2%codes]
-end function concat_uu_
+end function concat_u_u
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -12333,207 +12666,24 @@ type(unicode_type)  :: string1, string2, string
 end function concat_g_g
 !===================================================================================================================================
 ! maybe concat_g_g is non-standard, but intel compiler requires naming everything
+! remove for now, possibly expand via prep(1) template later for more types
 
-impure elemental function concat_u_g(lhs,rhs) result (string)
-type(unicode_type),intent(in) :: lhs
-class(*),intent(in)           :: rhs
-type(unicode_type)            :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_u_g
-
-impure elemental function concat_g_u(lhs,rhs) result (string)
-class(*),intent(in)           :: lhs
+impure elemental function concat_character_u(lhs,rhs) result (string)
+character(len=*),intent(in)   :: lhs
 type(unicode_type),intent(in) :: rhs
-type(unicode_type)            :: string1, string2, string
+type(unicode_type)            :: string1, string
    string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_u
+   string%codes=[string1%codes,rhs%codes]
+end function concat_character_u
 
-impure elemental function concat_int8_g(lhs,rhs) result (string)
-integer(kind=int8),intent(in) :: lhs
-class(*),intent(in)           :: rhs
-type(unicode_type)            :: string1, string2, string
-   string1 = fmt(lhs)
+impure elemental function concat_u_character(lhs,rhs) result (string)
+type(unicode_type),intent(in) :: lhs
+character(len=*),intent(in)   :: rhs
+type(unicode_type)            :: string2, string
    string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_int8_g
+   string%codes=[lhs%codes,string2%codes]
+end function concat_u_character
 
-impure elemental function concat_g_int8(lhs,rhs) result (string)
-class(*),intent(in)           :: lhs
-integer(kind=int8),intent(in) :: rhs
-type(unicode_type)            :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_int8
-
-impure elemental function concat_int16_g(lhs,rhs) result (string)
-integer(kind=int16),intent(in) :: lhs
-class(*),intent(in)            :: rhs
-type(unicode_type)             :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_int16_g
-
-impure elemental function concat_g_int16(lhs,rhs) result (string)
-class(*),intent(in)            :: lhs
-integer(kind=int16),intent(in) :: rhs
-type(unicode_type)             :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_int16
-
-impure elemental function concat_int32_g(lhs,rhs) result (string)
-integer(kind=int32),intent(in) :: lhs
-class(*),intent(in)            :: rhs
-type(unicode_type)             :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_int32_g
-
-impure elemental function concat_g_int32(lhs,rhs) result (string)
-class(*),intent(in)            :: lhs
-integer(kind=int32),intent(in) :: rhs
-type(unicode_type)             :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_int32
-
-impure elemental function concat_int64_g(lhs,rhs) result (string)
-integer(kind=int64),intent(in) :: lhs
-class(*),intent(in)            :: rhs
-type(unicode_type)             :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_int64_g
-
-impure elemental function concat_g_int64(lhs,rhs) result (string)
-class(*),intent(in)            :: lhs
-integer(kind=int64),intent(in) :: rhs
-type(unicode_type)             :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_int64
-
-impure elemental function concat_real32_g(lhs,rhs) result (string)
-real(kind=real32),intent(in) :: lhs
-class(*),intent(in)          :: rhs
-type(unicode_type)           :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_real32_g
-
-impure elemental function concat_g_real32(lhs,rhs) result (string)
-class(*),intent(in)          :: lhs
-real(kind=real32),intent(in) :: rhs
-type(unicode_type)           :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_real32
-
-impure elemental function concat_real64_g(lhs,rhs) result (string)
-real(kind=real64),intent(in) :: lhs
-class(*),intent(in)          :: rhs
-type(unicode_type)           :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_real64_g
-
-impure elemental function concat_g_real64(lhs,rhs) result (string)
-class(*),intent(in)          :: lhs
-real(kind=real64),intent(in) :: rhs
-type(unicode_type)           :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_real64
-
-impure elemental function concat_complex32_g(lhs,rhs) result (string)
-complex(kind=real32),intent(in) :: lhs
-class(*),intent(in)             :: rhs
-type(unicode_type)              :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_complex32_g
-
-impure elemental function concat_g_complex32(lhs,rhs) result (string)
-class(*),intent(in)             :: lhs
-complex(kind=real32),intent(in) :: rhs
-type(unicode_type)              :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_complex32
-
-impure elemental function concat_complex64_g(lhs,rhs) result (string)
-complex(kind=real64),intent(in) :: lhs
-class(*),intent(in)             :: rhs
-type(unicode_type)              :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_complex64_g
-
-impure elemental function concat_g_complex64(lhs,rhs) result (string)
-class(*),intent(in)             :: lhs
-complex(kind=real64),intent(in) :: rhs
-type(unicode_type)              :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_complex64
-
-impure elemental function concat_character_g(lhs,rhs) result (string)
-character(len=*),intent(in) :: lhs
-class(*),intent(in)         :: rhs
-type(unicode_type)          :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_character_g
-
-impure elemental function concat_g_character(lhs,rhs) result (string)
-class(*),intent(in)         :: lhs
-character(len=*),intent(in) :: rhs
-type(unicode_type)          :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_character
-
-impure elemental function concat_l_g(lhs,rhs) result (string)
-logical,intent(in)          :: lhs
-class(*),intent(in)         :: rhs
-type(unicode_type)          :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_l_g
-
-impure elemental function concat_g_l(lhs,rhs) result (string)
-class(*),intent(in)         :: lhs
-logical,intent(in)          :: rhs
-type(unicode_type)          :: string1, string2, string
-   string1 = fmt(lhs)
-   string2 = fmt(rhs)
-   string%codes=[string1%codes,string2%codes]
-end function concat_g_l
-!===================================================================================================================================
-!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
-!===================================================================================================================================
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -12598,106 +12748,131 @@ end function concat_g_l
 !!
 !!   Example program
 !!
-!!    program demo_glob
-!!    use M_unicode, only : glob, trim, unicode_type, len
-!!    use M_unicode, only : escape
-!!    use M_unicode, only : assignment(=)
-!!    implicit none
-!!    integer :: i
-!!    type(unicode_type),allocatable :: ufiles(:)
-!!    type(unicode_type),allocatable :: matched(:)
-!!    character(len=*),parameter :: &
-!!     filenames(*)= [character(len=256) :: &
-!!    & 'My_favorite_file.F90',    & ! English
-!!    & '我最喜欢的文档.c',        & ! Mandarin_Chinese
-!!    & 'मेरी_पसंदीदा_फ़ाइल.f90',         & ! Hindu
-!!    & 'Mi_archivo_favorito.c',   & ! Spanish
-!!    & 'ملفي_المفضل.h',           & ! Modern_Standard_Arabic
-!!    & 'Mon_fichier_préféré.f90', & ! French
-!!    & 'আমার_প্রিয়_ফাইল',          & ! Bengali
-!!    & 'Meu_arquivo_favorito',    & ! Portuguese
-!!    & 'Мой_любимый_файл',        & ! Russian
-!!    & 'میری_پسندیدہ_فائل.pdf',   & ! Urdu
-!!    & 'src/M_modules.F90',       &
-!!    & 'src/subset.inc',          &
-!!    & 'test/check.f90 ',         &
-!!    & 'app/main.f90 ']
-!!    character(len=*),parameter :: &
-!!     encoded(*)= [character(len=256) :: &
-!!    & 'My_favorite_file.F90',                    & ! English
-!!    & '\u6211\u6700\u559C\u6B22\u7684\u6587\u6863.c', & ! Mandarin_Chinese
-!!    & '\u092E\u0947\u0930\u0940_&
-!!    &\u092A\u0938\u0902\u0926\u0940\u0926\u093E_&
-!!    &\u092B\u093C\u093E\u0907\u0932.f90',        & ! Hindu
-!!    & 'Mi_archivo_favorito.c',                   & ! Spanish
-!!    & '\u0645\u0644\u0641\u064A_&
-!!    &\u0627\u0644\u0645\u0641\u0636\u0644.h ',   & ! Modern_Standard_Arabic
-!!    & 'Mon_fichier_pr\xE9f\xE9r\xE9.f90',        & ! French
-!!    & '\u0986\u09AE\u09BE\u09B0_\u09AA\u09CD\u09B0\u09BF\u09AF\u09BC_&
-!!    &\u09AB\u09BE\u0987\u09B2',                  & ! Bengali
-!!    & 'Meu_arquivo_favorito',                    & ! Portuguese
-!!    & '\u041C\u043E\u0439_\u043B\u044E\u0431\u0438\u043C\u044B\u0439_&
-!!    &\u0444\u0430\u0439\u043B',                  & ! Russian
-!!    & '\u0645\u06CC\u0631\u06CC_&
-!!    &\u067E\u0633\u0646\u062F\u06CC\u062F\u06C1_&
-!!    &\u0641\u0627\u0626\u0644.pdf',              & ! Urdu
-!!    & 'src/M_modules.F90', &
-!!    & 'src/subset.inc', &
-!!    & 'test/check.f90 ', &
-!!    & 'app/main.f90 ']
-!!    character(len=*),parameter :: &
-!!      g='(*(g0))', g1='(*(g0,1x))', comma='(*(g0:,", ",/))'
+!!     program demo_glob
+!!     use M_unicode, only : glob, trim, unicode_type, len
+!!     use M_unicode, only : expand_backslash
+!!     use M_unicode, only : assignment(=)
+!!     implicit none
+!!     integer :: i
+!!     type(unicode_type),allocatable :: ufiles(:)
+!!     type(unicode_type),allocatable :: matched(:)
+!!     character(len=*),parameter :: &
+!!      filenames(*)= [character(len=256) :: &
+!!      & 'My_favorite_file.F90',    & ! English
+!!      & '我最喜欢的文档.c',         & ! Mandarin_Chinese
+!!      & 'मरी_पसदीदा_फाइल.f90',       & ! Hindu
+!!      & 'Mi_archivo_favorito.c',   & ! Spanish
+!!      & 'ملفي_المفضل.h',         & ! Modern_Standard_Arabic
+!!      & 'Mon_fichier_préféré.f90', & ! French
+!!      & 'আমার_পরিয_ফাইল',          & ! Bengali
+!!      & 'Meu_arquivo_favorito',    & ! Portuguese
+!!      & 'Мой_любимый_файл',          & ! Russian
+!!      & 'میری_پسندیدہ_فائل.pdf',   & ! Urdu
+!!      & 'src/M_modules.F90',       &
+!!      & 'src/subset.inc',          &
+!!      & 'test/check.f90 ',         &
+!!      & 'app/main.f90 ']
+!!     character(len=*),parameter :: &
+!!      encoded(*)= [character(len=256) :: &
+!!      & 'My_favorite_file.F90',                    & ! English
+!!      & '\u6211\u6700\u559C\u6B22\u7684\u6587\u6863.c', & ! Mandarin_Chinese
+!!      & '\u092E\u0947\u0930\u0940_&
+!!      &\u092A\u0938\u0902\u0926\u0940\u0926\u093E_&
+!!      &\u092B\u093C\u093E\u0907\u0932.f90',        & ! Hindu
+!!      & 'Mi_archivo_favorito.c',                   & ! Spanish
+!!      & '\u0645\u0644\u0641\u064A_&
+!!      &\u0627\u0644\u0645\u0641\u0636\u0644.h ',   & ! Modern_Standard_Arabic
+!!      & 'Mon_fichier_pr\xE9f\xE9r\xE9.f90',        & ! French
+!!      & '\u0986\u09AE\u09BE\u09B0_\u09AA\u09CD\u09B0\u09BF\u09AF\u09BC_&
+!!      &\u09AB\u09BE\u0987\u09B2',                  & ! Bengali
+!!      & 'Meu_arquivo_favorito',                    & ! Portuguese
+!!      & '\u041C\u043E\u0439_\u043B\u044E\u0431\u0438\u043C\u044B\u0439_&
+!!      &\u0444\u0430\u0439\u043B',                  & ! Russian
+!!      & '\u0645\u06CC\u0631\u06CC_&
+!!      &\u067E\u0633\u0646\u062F\u06CC\u062F\u06C1_&
+!!      &\u0641\u0627\u0626\u0644.pdf',              & ! Urdu
+!!      & 'src/M_modules.F90', &
+!!      & 'src/subset.inc', &
+!!      & 'test/check.f90 ', &
+!!      & 'app/main.f90 ']
+!!     character(len=*),parameter :: &
+!!         g='(*(g0))', g1='(*(g0,1x))', comma='(*(g0:,", ",/))'
 !!
-!!       ! some basic usage
-!!       write(*,g)merge('PASSED','FAILED',glob("mississipPI", "*issip*PI"))
-!!       write(*,g)merge('PASSED','FAILED',glob("bLah", "bL?h"))
-!!       write(*,g)merge('PASSED','FAILED',glob("bLaH", "?LaH"))
+!!        ! some basic usage
+!!        write(*,g)merge('PASSED','FAILED',glob("mississipPI", "*issip*PI"))
+!!        write(*,g)merge('PASSED','FAILED',glob("bLah", "bL?h"))
+!!        write(*,g)merge('PASSED','FAILED',glob("bLaH", "?LaH"))
 !!
-!!       ! create a list of trimmed filenames
-!!       ufiles=unicode_type(filenames)
-!!       ufiles=trim(ufiles)
-!!       write(*,g)'FILENAMES:'
-!!       call show_filenames(ufiles)
+!!        ! create a list of trimmed filenames
+!!        ufiles=unicode_type(filenames)
+!!        ufiles=trim(ufiles)
+!!        write(*,g)'FILENAMES:'
+!!        call show_filenames(ufiles)
 !!
-!!       ! create a list of trimmed filenames from encoded names
-!!       ufiles=escape(encoded)
-!!       ufiles=trim(ufiles)
-!!       write(*,g)'ENCODED FILENAMES:'
-!!       call show_filenames(ufiles)
+!!        ! create a list of trimmed filenames from encoded names
+!!        ufiles=expand_backslash(encoded)
+!!        ufiles=trim(ufiles)
+!!        write(*,g)'ENCODED FILENAMES:'
+!!        call show_filenames(ufiles)
 !!
-!!       ! get filenames ending in ".f90"
-!!       matched=pack(ufiles,glob(ufiles,'*.f90'))
-!!       write(*,g)'MATCHED *.f90:'
-!!       call show_filenames(matched)
+!!        ! get filenames ending in ".f90"
+!!        matched=pack(ufiles,glob(ufiles,'*.f90'))
+!!        write(*,g)'MATCHED *.f90:'
+!!        call show_filenames(matched)
 !!
-!!       ! get filenames ending in ".c"
-!!       matched=pack(ufiles,glob(ufiles,'*.c'))
-!!       write(*,g)'MATCHED *.c:'
-!!       call show_filenames(matched)
+!!        ! get filenames ending in ".c"
+!!        matched=pack(ufiles,glob(ufiles,'*.c'))
+!!        write(*,g)'MATCHED *.c:'
+!!        call show_filenames(matched)
 !!
-!!    contains
-!!    subroutine show_filenames(names)
-!!    type(unicode_type),allocatable :: names(:)
-!!       write(*,g1)':SIZE:',size(names),':LEN:',len(names)
-!!       write(*,comma)(names(i)%character(),i=1,size(names))
-!!    end subroutine show_filenames
+!!        call oop()
 !!
-!!    end program demo_glob
+!!     contains
+!!     subroutine show_filenames(names)
+!!        type(unicode_type),allocatable :: names(:)
+!!        write(*,g1)':SIZE:',size(names),':LEN:',len(names)
+!!        write(*,comma)(names(i)%character(),i=1,size(names))
+!!     end subroutine show_filenames
+!!
+!!     subroutine oop()
+!!     use M_unicode, only : glob,ut=>unicode_type
+!!     use M_unicode, only : write(formatted),ch=>character
+!!     use M_unicode, only : assignment(=)
+!!     use M_unicode, only : operator(//)
+!!     implicit none
+!!     character(len=*),parameter :: u='(DT)'
+!!     type(ut)  :: USTRING
+!!     !
+!!     ! ignoring ς for simplicity
+!!     USTRING='ΑαΒβΓγΔδΕεΖζΗηΘθΙιΚκΛλΜμΝνΞξΟοΠπΡρΣσςΤτΥυΦφΧχΨψΩω'
+!!
+!!     print *,'OOP! Remember to match entire string'
+!!     print u,' string is : ' // USTRING
+!!     ! pattern may be UTF-8 or ASCII
+!!     print *,merge('PASSED','FAILED',USTRING%glob('*Α*Ζ*Ω*'))
+!!     print *,merge('PASSED','FAILED',.not.USTRING%glob('*Ω*Α*Ζ*'))
+!!     ! pattern may be unicode_type
+!!     print *,merge('PASSED','FAILED',USTRING%glob(ut('*Α*Ζ*Ω*')))
+!!     print *,merge('PASSED','FAILED',.not.USTRING%glob(ut('*Ω*Α*Ζ*')))
+!!
+!!     end subroutine oop
+!!     end program demo_glob
 !!
 !! Results:
 !!
+!!  > Mi_archivo_favorito.c
 !!  > PASSED
 !!  > PASSED
 !!  > PASSED
 !!  > FILENAMES:
-!!  > :SIZE: 14 :LEN: 20 9 22 21 13 23 16 20 16 21 17 14 14 12
+!!  > :SIZE: 14 :LEN: 20 9 19 21 13 23 14 20 16 21 17 14 14 12
 !!  > My_favorite_file.F90,
 !!  > 我最喜欢的文档.c,
-!!  > मेरी_पसंदीदा_फ़ाइल.f90,
+!!  > मरी_पसदीदा_फाइल.f90,
 !!  > Mi_archivo_favorito.c,
 !!  > ملفي_المفضل.h,
 !!  > Mon_fichier_préféré.f90,
-!!  > আমার_প্রিয়_ফাইল,
+!!  > আমার_পরিয_ফাইল,
 !!  > Meu_arquivo_favorito,
 !!  > Мой_любимый_файл,
 !!  > میری_پسندیدہ_فائل.pdf,
@@ -12706,13 +12881,13 @@ end function concat_g_l
 !!  > test/check.f90,
 !!  > app/main.f90
 !!  > ENCODED FILENAMES:
-!!  > :SIZE: 14 :LEN: 20 9 22 21 13 23 16 20 16 21 17 14 14 12
+!!  > :SIZE: 14 :LEN: 20 9 22 21 13 22 16 20 16 21 17 14 14 12
 !!  > My_favorite_file.F90,
 !!  > 我最喜欢的文档.c,
 !!  > मेरी_पसंदीदा_फ़ाइल.f90,
 !!  > Mi_archivo_favorito.c,
 !!  > ملفي_المفضل.h,
-!!  > Mon_fichier_préféré.f90,
+!!  > Mon_fichier_prຟéré.f90,
 !!  > আমার_প্রিয়_ফাইল,
 !!  > Meu_arquivo_favorito,
 !!  > Мой_любимый_файл,
@@ -12722,15 +12897,21 @@ end function concat_g_l
 !!  > test/check.f90,
 !!  > app/main.f90
 !!  > MATCHED *.f90:
-!!  > :SIZE: 4 :LEN: 22 23 14 12
+!!  > :SIZE: 4 :LEN: 22 22 14 12
 !!  > मेरी_पसंदीदा_फ़ाइल.f90,
-!!  > Mon_fichier_préféré.f90,
+!!  > Mon_fichier_prຟéré.f90,
 !!  > test/check.f90,
 !!  > app/main.f90
 !!  > MATCHED *.c:
 !!  > :SIZE: 2 :LEN: 9 21
 !!  > 我最喜欢的文档.c,
 !!  > Mi_archivo_favorito.c
+!!  >  OOP! Remember to match entire string
+!!  >  string is : ΑαΒβΓγΔδΕεΖζΗηΘθΙιΚκΛλΜμΝνΞξΟοΠπΡρΣσςΤτΥυΦφΧχΨψΩω
+!!  >  PASSED
+!!  >  PASSED
+!!  >  PASSED
+!!  >  PASSED
 !!
 !!##AUTHOR
 !!   John S. Urban
@@ -12750,7 +12931,7 @@ type(unicode_type),intent(in) :: tame       ! A string without wildcards
 type(unicode_type),intent(in) :: wild       ! A (potentially) corresponding string with wildcards
 type(unicode_type)            :: tametext
 type(unicode_type)            :: wildtext
-integer,parameter             :: NULL=0
+integer,parameter             :: NULL_CH=0
 integer,parameter             :: STAR=ichar('*')
 integer,parameter             :: QUESTION=ichar('?')
 integer                       :: wlen
@@ -12760,11 +12941,11 @@ type(unicode_type)            :: tmp1, ut_NULL
 type(unicode_type)            :: tbookmark, wbookmark
 ! These two values are set when we observe a wildcard character. They
 ! represent the locations, in the two strings, from which we start once we have observed it.
-   tametext%codes=[tame%codes,NULL]
-   wildtext%codes=[wild%codes,NULL]
-   tbookmark%codes = [NULL]
-   wbookmark%codes = [NULL]
-   ut_NULL%codes = [NULL]
+   tametext%codes=[tame%codes,NULL_CH]
+   wildtext%codes=[wild%codes,NULL_CH]
+   tbookmark%codes = [NULL_CH]
+   wbookmark%codes = [NULL_CH]
+   ut_NULL%codes = [NULL_CH]
    wlen=size(wild%codes)
    wi=1
    ti=1
@@ -12777,7 +12958,7 @@ type(unicode_type)            :: tbookmark, wbookmark
                exit
             endif
          enddo
-         if(wildtext%codes(wi) == NULL) then        ! "x" matches "*"
+         if(wildtext%codes(wi) == NULL_CH) then        ! "x" matches "*"
             glob_uu_=.true.
             return
          endif
@@ -12785,7 +12966,7 @@ type(unicode_type)            :: tbookmark, wbookmark
             ! Fast-forward to next possible match.
             do while (tametext%codes(ti)  /=  wildtext%codes(wi))
                ti=ti+1
-               if (tametext%codes(ti) == NULL)then
+               if (tametext%codes(ti) == NULL_CH)then
                   glob_uu_=.false.
                   return                            ! "x" doesn't match "*y*"
                endif
@@ -12811,7 +12992,7 @@ type(unicode_type)            :: tbookmark, wbookmark
                   wi=wi+1
                endif
             endif
-            if (tametext%codes(ti) /= NULL) then
+            if (tametext%codes(ti) /= NULL_CH) then
                ti=ti+1
                cycle                             ! "mississippi" matches "*sip*"
             endif
@@ -12824,14 +13005,14 @@ type(unicode_type)            :: tbookmark, wbookmark
       if (ti > size(tametext%codes)) then
          glob_uu_=.false.
          return
-      elseif (tametext%codes(ti) == NULL) then      ! How do you match a tame text string?
-         if(wildtext%codes(wi) /= NULL)then
+      elseif (tametext%codes(ti) == NULL_CH) then   ! How do you match a tame text string?
+         if(wildtext%codes(wi) /= NULL_CH)then
             do while (wildtext%codes(wi) == STAR)   ! The tame way: unique up on it!
-               wi=wi+1                           ! "x" matches "x*"
-               if(wildtext%codes(wi) == NULL)exit
+               wi=wi+1                              ! "x" matches "x*"
+               if(wildtext%codes(wi) == NULL_CH)exit
             enddo
          endif
-         if (wildtext%codes(wi) == NULL)then
+         if (wildtext%codes(wi) == NULL_CH)then
             glob_uu_=.true.
             return                               ! "x" matches "x"
          endif
@@ -12871,9 +13052,6 @@ end function glob_ua
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-!===================================================================================================================================
-!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
-!===================================================================================================================================
 !> Write string to connected formatted unit.
 subroutine write_formatted(string, unit, iotype, v_list, iostat, iomsg)
 class(unicode_type), intent(in) :: string
@@ -12903,8 +13081,804 @@ end subroutine write_formatted
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-end module M_unicode
+!>
+!!##NAME
+!!    keyword(3f) - [M_unicode] substitute HTML-like keywords with other strings
+!!    (LICENSE:MIT)
+!!
+!!##SYNOPSIS
+!!
+!!      function keyword(string) result (expanded)
+!!
+!!        ! scalar
+!!        character(len=*),intent(in) :: string
+!!        ! or
+!!        type(unicode_type),intent(in) :: string
+!!
+!!        ! or array
+!!        character(len=*),intent(in) :: string(*)
+!!        ! or
+!!        type(unicode_type),intent(in) :: string(*)
+!!
+!!        ! output
+!!        type(unicode_type)             :: expanded
+!!        ! or array
+!!        type(unicode_type),allocatable :: expanded(*)
+!!
+!!##DESCRIPTION
+!!    Strings of the form <name> are replaced with another string.
+!!    Use this HTML-like syntax for purposes such as:
+!!
+!!    +  generate UTF-8 from ASCII-7 abbreviations or keywords.
+!!
+!!           in:   c=<pi><times>d  a=<pi><times>r<S2>
+!!           out:  c=π×d
+!!
+!!    +  expand custom acronyms or abbreviations
+!!
+!!           in:   <DOE>
+!!           out:  DOE(Department of Energy)
+!!
+!!    By default all HTML entity names are predefined including Greek
+!!    letters. Custom substitutions may be defined. The list of keywords
+!!    and their substitution string may be dumped to stdout.
+!!
+!!##OPTIONS
+!!    string        case-sensitive input string  of form
+!!
+!!                      "arbitrary text<keyword>arbitrary text"
+!!##OUTPUT
+!!                  A string with all "<keyword>" strings expanded
+!!                  or optionally left as-is
+!!
+!!##LIMITATIONS
+!!    o you should use "<gt>" and "<lt>" instead of ">" and "<" in an string
+!!      processed by keyword(3f) so that the raw mode will create correct
+!!      input for the keyword(3f) function if read back in.
+!!    o keywords are case-sensitive
+!!
+!!##EXAMPLES
+!!
+!!    Sample program
+!!
+!!     program demo_keyword
+!!     use M_unicode, only : keyword, keyword_mode, keyword_update
+!!     use M_unicode, only : ch=>character
+!!
+!!        call printstuff('raw_mode')
+!!        call printstuff('alias_mode')
+!!
+!!        write(*,'(a)') 'ADDING A CUSTOM SEQUENCE:'
+!!        call keyword_update('blink',char(27)//'[5m')
+!!        call keyword_update('/blink',char(27)//'[25m')
+!!        write(*,'(a)') ch(keyword('<blink>Items for Friday</blink>'))
+!!
+!!     contains
+!!     subroutine printstuff(action)
+!!     character(len=*),intent(in)  :: action
+!!     character(len=:),allocatable :: array(:)
+!!
+!!       call keyword_mode(action=action)
+!!
+!!       array=[character(len=60) :: &
+!!        'TEST ACTION='//action,    &
+!!        'c=<pi><times>d',          &
+!!        'a=<pi><times>r<S2>',      &
+!!        '<Delta><delta>',          &
+!!        'Copyright<copy>']
+!!
+!!       write(*,'(a)') ch(keyword(array))
+!!
+!!     end subroutine printstuff
+!!     end program demo_keyword
+!!
+!!##AUTHOR
+!!    John S. Urban, 2021
+!!
+!!##LICENSE
+!!    MIT
+!!
+!!##SEE ALSO
+!!    keyword_mode(3f), keyword_update(3f)
+function keyword_scalar_ut(string) result (expanded)
+type(unicode_type),intent(in)  :: string
+type(unicode_type)             :: padded
+type(unicode_type)             :: expanded
+type(unicode_type),allocatable :: names(:)
+type(unicode_type)             :: name
+integer                        :: i
+integer                        :: j
+integer                        :: ii
+integer                        :: padded_end
+integer                        :: maxlen
+integer                        :: trimmedlen
+integer                        :: place
+character(len=1)               :: letter
+   if(.not.allocated(mode))then  ! set substitution mode
+      mode='alias_mode'
+      call keyword_load_defaults()
+   endif
 
+   if(mode=='raw_mode')then
+      expanded=string
+      return
+   endif
+
+   maxlen=len(string)
+   trimmedlen=len_trim(string)
+   padded=string .cat. ' '
+   padded_end=len(padded)
+   i=1
+   expanded=''
+   do
+      letter=padded%character(i,i)
+      select case(letter)
+      case('>')  ! should not get here unless unmatched
+         i=i+1
+         expanded=expanded .cat. '>'
+      case('<')  ! assuming not nested for now
+         ii=index(padded%character(i+1,padded_end),'>')
+         if(ii.eq.0)then
+            expanded=expanded//'<'
+            i=i+1
+         else
+            name=padded%character(i+1,i+ii-1)
+            name=trim(adjustl(name))
+            call tokenize(name,set=unicode_type(' ,'),tokens=names)
+            do j=1,size(names)
+               if(names(j).eq.' ')cycle
+               call keyword_locate(keywords,names(j),place)
+
+               if(place.le.0)then     ! unknown name; print what you found
+                  expanded=expanded .cat. padded%character(i,i+ii)
+               else
+                  expanded=expanded .cat. keyword_get(names(j))
+               endif
+            enddo
+            i=ii+i+1
+         endif
+      case default
+         expanded=expanded .cat. padded%character(i,i)
+         i=i+1
+      end select
+      if(i >= trimmedlen+1)exit
+   enddo
+   expanded=expanded .cat. repeat(' ',maxlen-trimmedlen)
+end function keyword_scalar_ut
+
+function keyword_scalar_utf8(string) result (expanded)
+character(len=*),intent(in)             :: string
+type(unicode_type)                      :: expanded
+   ! gfortran does not return allocatable array from a function properly, but works with subroutine
+   expanded=keyword_scalar_ut(unicode_type(string))
+end function keyword_scalar_utf8
+
+function keyword_matrix_ut(strings) result (expanded)
+type(unicode_type),intent(in)  :: strings(:)
+type(unicode_type),allocatable :: expanded(:)
+   ! gfortran does not return allocatable array from a function properly, but works with subroutine
+   call kludge_bug(strings,expanded)
+end function keyword_matrix_ut
+
+function keyword_matrix_utf8(strings) result (expanded)
+character(len=*),intent(in)    :: strings(:)
+type(unicode_type),allocatable :: expanded(:)
+   ! gfortran does not return allocatable array from a function properly, but works with subroutine
+   call kludge_bug(unicode_type(strings),expanded)
+end function keyword_matrix_utf8
+
+subroutine kludge_bug(strings,expanded)
+type(unicode_type),intent(in)  :: strings(:)
+type(unicode_type),allocatable :: expanded(:)
+type(unicode_type)             :: hold
+integer                        :: i
+
+allocate(expanded(0))
+
+if(.not.allocated(mode))then  ! set substitution mode
+   mode='alias_mode'
+   call keyword_load_defaults()
+endif
+
+do i=1,size(strings)
+
+   hold=strings(i)
+
+   hold=trim(keyword_scalar_ut(hold))
+   expanded=[expanded,hold]
+enddo
+
+end subroutine kludge_bug
+
+subroutine keyword_load_defaults()
+! create a dictionary with character keywords, values, and value lengths
+! using the routines for maintaining a list
+integer :: i
+
+   call keyword_wipe_dictionary()
+
+   ! insert and replace entries
+
+   call keyword_update('clear',char(27)//'[H'//char(27)//'[J')
+
+   call keyword_update('sp',' ')
+   call keyword_update('nbsp',char(160))
+   call keyword_update('gt','>')
+   call keyword_update('lt','<')
+   call keyword_update('cr',expand_backslash('\r'))
+
+! The Unicode codepoints for superscript numerals range from U+00B9 (for
+! 1), U+00B2 (for 2), and U+00B3 (for 3) in the Latin-1 range, and U+2070
+! through U+2079 for 0 and 1–9, while subscript numerals range from
+! U+2080 to U+2089.
+!
+! Superscript Numerals
+   call keyword_update('S0', '⁰')  !  U+2070
+   call keyword_update('S1', '¹')  !  U+00B9
+   call keyword_update('S2', '²')  !  U+00B2
+   call keyword_update('S3', '³')  !  U+00B3
+   call keyword_update('S4', '⁴')  !  U+2074
+   call keyword_update('S5', '⁵')  !  U+2075
+   call keyword_update('S6', '⁶')  !  U+2076
+   call keyword_update('S7', '⁷')  !  U+2077
+   call keyword_update('S8', '⁸')  !  U+2078
+   call keyword_update('S9', '⁹')  !  U+2079
+! Sub Numerals
+   call keyword_update('s0',   '₀')  !  U+2080
+   call keyword_update('s1',   '₁')  !  U+2081
+   call keyword_update('s2',   '₂')  !  U+2082
+   call keyword_update('s3',   '₃')  !  U+2083
+   call keyword_update('s4',   '₄')  !  U+2084
+   call keyword_update('s5',   '₅')  !  U+2085
+   call keyword_update('s6',   '₆')  !  U+2086
+   call keyword_update('s7',   '₇')  !  U+2087
+   call keyword_update('s8',   '₈')  !  U+2088
+   call keyword_update('s9',   '₉')  !  U+2089
+
+   ! HTML entities
+   call init_entities()
+   do i=1,size(entities%name)
+      call keyword_update( trim(entities(i)%name), unicode_type(entities(i)%codes) )
+   enddo
+
+   ! terminal control sequences
+   call keyword_update('b',           expand_backslash('\e[34m'),    unicode_type(' ') )
+   call keyword_update('c',           expand_backslash('\e[36m'),    unicode_type(' ') )
+   call keyword_update('e',           expand_backslash('\e[30m'),    unicode_type(' ') )
+   call keyword_update('g',           expand_backslash('\e[32m'),    unicode_type(' ') )
+   call keyword_update('m',           expand_backslash('\e[35m'),    unicode_type(' ') )
+   call keyword_update('r',           expand_backslash('\e[31m'),    unicode_type(' ') )
+   call keyword_update('w',           expand_backslash('\e[37m'),    unicode_type(' ') )
+   call keyword_update('y',           expand_backslash('\e[33m'),    unicode_type(' ') )
+
+   call keyword_update('/b',          expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/c',          expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/e',          expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/g',          expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/m',          expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/r',          expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/w',          expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/y',          expand_backslash('\e[39m'),    unicode_type(' ') )
+
+   call keyword_update('B',           expand_backslash('\e[44m'),    unicode_type(' ') )
+   call keyword_update('C',           expand_backslash('\e[46m'),    unicode_type(' ') )
+   call keyword_update('E',           expand_backslash('\e[40m'),    unicode_type(' ') )
+   call keyword_update('G',           expand_backslash('\e[42m'),    unicode_type(' ') )
+   call keyword_update('M',           expand_backslash('\e[45m'),    unicode_type(' ') )
+   call keyword_update('R',           expand_backslash('\e[41m'),    unicode_type(' ') )
+   call keyword_update('W',           expand_backslash('\e[47m'),    unicode_type(' ') )
+   call keyword_update('Y',           expand_backslash('\e[43m'),    unicode_type(' ') )
+
+   call keyword_update('/B',          expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/C',          expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/E',          expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/G',          expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/M',          expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/R',          expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/W',          expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/Y',          expand_backslash('\e[49m'),    unicode_type(' ') )
+
+   call keyword_update('fg_ebony',    expand_backslash('\e[30m'),    unicode_type(' ') )
+   call keyword_update('fg_blue',     expand_backslash('\e[34m'),    unicode_type(' ') )
+   call keyword_update('fg_cyan',     expand_backslash('\e[36m'),    unicode_type(' ') )
+   call keyword_update('fg_green',    expand_backslash('\e[32m'),    unicode_type(' ') )
+   call keyword_update('fg_magenta',  expand_backslash('\e[35m'),    unicode_type(' ') )
+   call keyword_update('fg_red',      expand_backslash('\e[31m'),    unicode_type(' ') )
+   call keyword_update('fg_white',    expand_backslash('\e[37m'),    unicode_type(' ') )
+   call keyword_update('fg_yellow',   expand_backslash('\e[33m'),    unicode_type(' ') )
+   call keyword_update('/fg_blue',    expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/fg_cyan',    expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/fg_ebony',   expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/fg_green',   expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/fg_magenta', expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/fg_red',     expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/fg_white',   expand_backslash('\e[39m'),    unicode_type(' ') )
+   call keyword_update('/fg_yellow',  expand_backslash('\e[39m'),    unicode_type(' ') )
+
+   call keyword_update('bg_blue',     expand_backslash('\e[44m'),    unicode_type(' ') )
+   call keyword_update('bg_cyan',     expand_backslash('\e[46m'),    unicode_type(' ') )
+   call keyword_update('bg_ebony',    expand_backslash('\e[40m'),    unicode_type(' ') )
+   call keyword_update('bg_green',    expand_backslash('\e[42m'),    unicode_type(' ') )
+   call keyword_update('bg_magenta',  expand_backslash('\e[45m'),    unicode_type(' ') )
+   call keyword_update('bg_red',      expand_backslash('\e[41m'),    unicode_type(' ') )
+   call keyword_update('bg_white',    expand_backslash('\e[47m'),    unicode_type(' ') )
+   call keyword_update('bg_yellow',   expand_backslash('\e[43m'),    unicode_type(' ') )
+   call keyword_update('/bg_blue',    expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/bg_cyan',    expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/bg_ebony',   expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/bg_green',   expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/bg_magenta', expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/bg_red',     expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/bg_white',   expand_backslash('\e[49m'),    unicode_type(' ') )
+   call keyword_update('/bg_yellow',  expand_backslash('\e[49m'),    unicode_type(' ') )
+
+   call keyword_update('underline',   expand_backslash('\e[4m'),     unicode_type(' ') )
+   call keyword_update('ul',          expand_backslash('\e[4m'),     unicode_type(' ') )
+   call keyword_update('/underline',  expand_backslash('\e[24m'),    unicode_type(' ') )
+   call keyword_update('/ul',         expand_backslash('\e[24m'),    unicode_type(' ') )
+
+   call keyword_update('italic',      expand_backslash('\e[3m'),     unicode_type(' ') )
+   call keyword_update('it',          expand_backslash('\e[3m'),     unicode_type(' ') )
+   call keyword_update('/italic',     expand_backslash('\e[23m'),    unicode_type(' ') )
+   call keyword_update('/it',         expand_backslash('\e[23m'),    unicode_type(' ') )
+
+   call keyword_update('inverse',     expand_backslash('\e[7m'),     unicode_type(' ') )
+   call keyword_update('in',          expand_backslash('\e[7m'),     unicode_type(' ') )
+   call keyword_update('/inverse',    expand_backslash('\e[27m'),    unicode_type(' ') )
+   call keyword_update('/in',         expand_backslash('\e[27m'),    unicode_type(' ') )
+
+   call keyword_update('bold',        expand_backslash('\e[1m'),     unicode_type(' ') )
+   call keyword_update('bo',          expand_backslash('\e[1m'),     unicode_type(' ') )
+   call keyword_update('/bold',       expand_backslash('\e[22m'),    unicode_type(' ') )
+   call keyword_update('/bo',         expand_backslash('\e[22m'),    unicode_type(' ') )
+
+   call keyword_update('save',        expand_backslash('\e7'),       unicode_type(' ') )
+   call keyword_update('restore',     expand_backslash('\e8'),       unicode_type(' ') )
+   call keyword_update('reset',       expand_backslash('\e[0m'),     unicode_type(' ') )
+
+   call keyword_update('escape',      expand_backslash('\e'),        unicode_type(' ') )
+   call keyword_update('esc',         expand_backslash('\e'),        unicode_type(' ') )
+   call keyword_update('CSI',         expand_backslash('\e['),       unicode_type(' ') )
+
+   call keyword_update('clear',       expand_backslash('\e[H\e[2J'), unicode_type(' ') )
+
+end subroutine keyword_load_defaults
+!>
+!!##NAME
+!!    keyword_mode(3f) - [M_unicode] select processing mode for output
+!!    from keyword(3f)
+!!    (LICENSE:MIT)
+!!
+!!##SYNOPSIS
+!!
+!!     subroutine keyword_mode(action)
+!!
+!!        character(len=*),intent(in) :: action
+!!        !or
+!!        type(unicode_type),intent(in) :: action
+!!
+!!##DESCRIPTION
+!!    When using the keyword(3f) procedure turn the substitution of strings
+!!    associated with the keywords on or off. That is, turn off string
+!!    processing so keyword(3f) just echos its input.
+!!
+!!##OPTIONS
+!!    ACTION  The current modes and actions supported are
+!!
+!!    raw_mode,raw        echo the input to keyword(3f) as its output
+!!    alias_mode,default  return the alias for a defined <keyword> string.
+!!    plain_mode,plain    return the alias for a defined <keyword> string
+!!                        using the alternate replacement string specified
+!!                        on keyword_update(3f).
+!!    reload              restore original keyword meanings deleted or
+!!                        replaced by calls to keyword_update(3f).
+!!    dump                display keyword dictionary to stdout
+!!    wipe                erase keyword dictionary
+!!
+!!##EXAMPLES
+!!
+!!    Sample program
+!!
+!!     program demo_keyword_mode
+!!     use M_unicode, only : keyword, keyword_mode, character
+!!     implicit none
+!!     character(len=:),allocatable :: lines(:)
+!!     character(len=:),allocatable :: outlines(:)
+!!     integer :: i
+!!        lines=[character(len=110):: &
+!!        &'<delta>',   &
+!!        &'<E><g> c=<pi><times>d </g></E>',  &
+!!        &'<omega>',   &
+!!        &' ']
+!!
+!!        outlines=character(keyword(lines))
+!!        write(*,'(a)')(trim(outlines(i)),i=1,size(outlines))
+!!
+!!        call keyword_mode(action='raw_mode')   ! write as-is
+!!        write(*,'(a)')character(keyword(lines))
+!!
+!!        call keyword_mode(action='plain_mode')  ! return to default mode
+!!        write(*,'(a)')character(keyword(lines))
+!!
+!!        call keyword_mode(action='alias_mode')  ! return to default mode
+!!        write(*,'(a)')character(keyword(lines))
+!!
+!!        call keyword_mode(action='dump')
+!!
+!!     end program demo_keyword_mode
+!!
+!!##AUTHOR
+!!    John S. Urban, 2021
+!!
+!!##LICENSE
+!!    MIT
+subroutine keyword_mode_utf8(action)
+character(len=*),intent(in) :: action
+integer                     :: i
+character(len=*),parameter  :: fmts(*)=[character(len=80) :: '(*(a,t30,"[",a,"]",t60,"[",a,"]"))', '(*(a,1x,"[",a,"]"),"[",a,"]")' ]
+   if(.not.allocated(mode))then  ! set substitution mode
+      mode='alias_mode'
+      call keyword_load_defaults()
+   endif
+   select case(action)
+   case('alias_mode','alias','default','keyword','default_mode')
+      mode='alias_mode'
+   case('plain_mode','plain')
+      mode='plain_mode'
+   case('reload','')
+      call keyword_load_defaults()
+      mode='alias_mode'
+   case('raw_mode','raw')
+      mode='raw_mode'
+   case('wipe')
+      call keyword_wipe_dictionary()
+   case('dump')  ! dump dictionary for debugging
+      if(allocated(keywords))then
+         write(stdout,'(*(a,t30,a))')'KEYWORD','VALUE'
+         do i=size(keywords),1,-1 ! if keyword is less than 30 characters use 30, else whatever length is needed so no truncation
+            write(stdout,fmts(merge(1,2,len_trim(keywords(i)).lt.30))) &
+            & character(trim(keywords(i))), &
+            & character(keyword_values(i)), &
+            & character(plain_keyword_values(i))
+         enddo
+      endif
+   case default
+      write(*,*)'*keyword_mode* unknown action. Try raw_mode|alias_mode|reload|wipe|dump'
+      mode='alias_mode'
+   end select
+end subroutine keyword_mode_utf8
+
+subroutine keyword_mode_ut(action)
+type(unicode_type),intent(in) :: action
+   call keyword_mode_utf8(character(action))
+end subroutine keyword_mode_ut
+
+subroutine keyword_wipe_dictionary()
+   if(allocated(keywords))deallocate(keywords)
+   allocate(keywords(0))
+   if(allocated(keyword_values))deallocate(keyword_values)
+   allocate(keyword_values(0))
+   if(allocated(plain_keyword_values))deallocate(plain_keyword_values)
+   allocate(plain_keyword_values(0))
+end subroutine keyword_wipe_dictionary
+
+!>
+!!##NAME
+!!    keyword_update(3f) - [M_unicode] update internal dictionary given
+!!    keyword and value
+!!    (LICENSE:MIT)
+!!
+!!##SYNOPSIS
+!!
+!!    subroutine keyword_update(key,val,plainval)
+!!
+!!        type(unicode_type),intent(in)           :: key
+!!        type(unicode_type),intent(in),optional  :: val
+!!        type(unicode_type),intent(in),optional  :: plainval
+!!        ! or
+!!        character(len=*),intent(in)           :: key
+!!        character(len=*),intent(in),optional  :: val
+!!        character(len=*),intent(in),optional  :: plainval
+!!
+!!##DESCRIPTION
+!!    Update internal dictionary in M_unicode(3f) module.
+!!
+!!##OPTIONS
+!!    key       name of keyword to add, replace, or delete from dictionary
+!!    val       if present add or replace value associated with keyword. If
+!!              not present remove keyword entry from dictionary.
+!!    plainval  VAL must be present if PLAINVAL is specified. This is the
+!!              value to replace the keyword with if mode is set to
+!!              "plain_mode" via keyword_action(3f). Defaults to the same
+!!              value as VAL.
+!!
+!!##EXAMPLES
+!!
+!!    Sample program
+!!
+!!      program demo_keyword_update
+!!      use M_unicode, only : keyword, keyword_update, ch=>character
+!!         write(*,'(a)') ch(keyword('<clear>TEST CUSTOMIZATIONS:'))
+!!         ! add custom keywords
+!!
+!!         call keyword_update('blink',char(27)//'[5m','')
+!!         call keyword_update('/blink',char(27)//'[25m','')
+!!         write(*,*)
+!!         write(*,'(a)') ch(keyword('<blink>Items for Friday</blink>'))
+!!
+!!         call keyword_update('ouch',keyword( &
+!!         ' <R><bo><w>BIG mistake!</R></w> '))
+!!         write(*,*)
+!!         write(*,'(a)') ch(keyword('<ouch> Did not see that coming.'))
+!!
+!!         write(*,*)
+!!         write(*,'(a)') ch(keyword( &
+!!         'ORIGINALLY: <r>Apple</r>, <b>Sky</b>, <g>Grass</g>'))
+!!
+!!         ! delete
+!!         call keyword_update('r')
+!!         call keyword_update('/r')
+!!
+!!         ! replace (or create)
+!!         call keyword_update('b','<<<<')
+!!         call keyword_update('/b','>>>>')
+!!
+!!         write(*,*)
+!!         write(*,'(a)') ch(keyword( &
+!!         'CUSTOMIZED: <r>Apple</r>, <b>Sky</b>, <g>Grass</g>'))
+!!         write(*,'(a)') ch(keyword('<reset>'))
+!!      end program demo_keyword_update
+!!
+!!##AUTHOR
+!!    John S. Urban, 2021
+!!
+!!##LICENSE
+!!    MIT
+subroutine keyword_update_ut(key)
+type(unicode_type),intent(in)          :: key
+integer                                :: place
+
+if(.not.allocated(mode))then  ! set substitution mode
+   mode='alias_mode'
+   call keyword_load_defaults()
+endif
+
+   call keyword_locate(keywords,key,place)
+   if(place.gt.0)then
+      call keyword_remove(keywords,place)
+      call keyword_remove(keyword_values,place)
+      call keyword_remove(plain_keyword_values,place)
+   endif
+
+end subroutine keyword_update_ut
+
+subroutine keyword_update_utf8(key)
+character(len=*),intent(in)  :: key
+integer                      :: place
+
+if(.not.allocated(mode))then  ! set substitution mode
+   mode='alias_mode'
+   call keyword_load_defaults()
+endif
+
+   call keyword_locate(keywords,unicode_type(key),place)
+   if(place.gt.0)then
+      call keyword_remove(keywords,place)
+      call keyword_remove(keyword_values,place)
+      call keyword_remove(plain_keyword_values,place)
+   endif
+
+end subroutine keyword_update_utf8
+
+subroutine keyword_update_ut_ut(key,valin,plainvalin)
+type(unicode_type),intent(in)          :: key
+type(unicode_type),intent(in)          :: valin
+type(unicode_type),intent(in),optional :: plainvalin
+integer                                :: place
+type(unicode_type)                     :: val
+type(unicode_type)                     :: plainval
+
+if(.not.allocated(mode))then  ! set substitution mode
+   mode='alias_mode'
+   call keyword_load_defaults()
+endif
+
+   val=valin
+   if( present(plainvalin) )then
+      plainval=plainvalin
+   else
+      plainval=val
+   endif
+   ! find where string is or should be
+   call keyword_locate(keywords,key,place)
+   ! if string was not found insert it
+   if(place.lt.1)then
+      call keyword_insert(keywords,key,abs(place))
+      call keyword_insert(keyword_values,val,abs(place))
+      call keyword_insert(plain_keyword_values,plainval,abs(place))
+   else
+      call keyword_replace(keyword_values,val,place)
+      call keyword_replace(plain_keyword_values,plainval,place)
+   endif
+end subroutine keyword_update_ut_ut
+
+subroutine keyword_update_utf8_utf8(key,valin,plainvalin)
+character(len=*),intent(in)          :: key
+character(len=*),intent(in)          :: valin
+character(len=*),intent(in),optional :: plainvalin
+   if( present(plainvalin) )then
+      call keyword_update_ut_ut(unicode_type(key),unicode_type(valin),unicode_type(plainvalin))
+   else
+      call keyword_update_ut_ut(unicode_type(key),unicode_type(valin))
+   endif
+end subroutine keyword_update_utf8_utf8
+
+subroutine keyword_update_ut_utf8(key,valin,plainvalin)
+type(unicode_type),intent(in)        :: key
+character(len=*),intent(in)          :: valin
+character(len=*),intent(in),optional :: plainvalin
+   if( present(plainvalin) )then
+      call keyword_update_ut_ut(key,unicode_type(valin),unicode_type(plainvalin))
+   else
+      call keyword_update_ut_ut(key,unicode_type(valin))
+   endif
+end subroutine keyword_update_ut_utf8
+
+subroutine keyword_update_utf8_ut(key,valin,plainvalin)
+character(len=*),intent(in)            :: key
+type(unicode_type),intent(in)          :: valin
+type(unicode_type),intent(in),optional :: plainvalin
+   if( present(plainvalin) )then
+      call keyword_update_ut_ut(unicode_type(key),valin,plainvalin)
+   else
+      call keyword_update_ut_ut(unicode_type(key),valin)
+   endif
+end subroutine keyword_update_utf8_ut
+
+function keyword_get(key) result(valout)
+type(unicode_type),intent(in) :: key
+type(unicode_type)            :: valout
+integer                       :: place
+   ! find where string is or should be
+   call keyword_locate(keywords,key,place)
+   if(place.lt.1)then
+      valout=unicode_type('')
+   else
+      if(mode.eq.'plain_mode')then
+         valout=trim(plain_keyword_values(place))
+      else
+         valout=trim(keyword_values(place))
+      endif
+      if(len(valout).eq.0)valout=' '
+   endif
+end function keyword_get
+
+subroutine keyword_locate(list,value,place,ier,errmsg)
+type(unicode_type),intent(in)         :: value
+integer,intent(out)                   :: place
+type(unicode_type),allocatable        :: list(:)
+integer,intent(out),optional          :: ier
+character(len=*),intent(out),optional :: errmsg
+integer                               :: i
+character(len=:),allocatable          :: message
+integer                               :: arraysize
+integer                               :: maxtry
+integer                               :: imin, imax
+integer                               :: error
+   if(.not.allocated(list))then
+           allocate(list(0))
+   endif
+   arraysize=size(list)
+
+   error=0
+   if(arraysize.eq.0)then
+      maxtry=0
+      place=-1
+   else
+      maxtry=nint(log(real(arraysize))/log(2.0)+1.0)
+      place=(arraysize+1)/2
+   endif
+   imin=1
+   imax=arraysize
+   message=''
+
+   LOOP: block
+   do i=1,maxtry
+      if(value.eq.list(PLACE))then
+         exit LOOP
+      else if(value.gt.list(place))then
+         imax=place-1
+      else
+         imin=place+1
+      endif
+      if(imin.gt.imax)then
+         place=-imin
+         if(abs(place).gt.arraysize)then ! ran off end of list. Where new value should go or an unsorted input array'
+            exit LOOP
+         endif
+         exit LOOP
+      endif
+      place=(imax+imin)/2
+      if(place.gt.arraysize.or.place.le.0)then
+         message='*keyword_locate* error: search is out of bounds of list. Probably an unsorted input array'
+         error=-1
+         exit LOOP
+      endif
+   enddo
+   message='*keyword_locate* exceeded allowed tries. Probably an unsorted input array'
+   endblock LOOP
+   if(present(ier))then
+      ier=error
+   else if(error.ne.0)then
+      write(stderr,*)message//' VALUE=',trim(value)//' PLACE=',place
+      stop 1
+   endif
+   if(present(errmsg))then
+      errmsg=message
+   endif
+end subroutine keyword_locate
+
+subroutine keyword_remove(list,place)
+type(unicode_type),allocatable :: list(:)
+integer,intent(in)             :: place
+integer                        :: end
+   if(.not.allocated(list))then
+       allocate(list(0))
+   endif
+   end=size(list)
+   if(place.le.0.or.place.gt.end)then                       ! index out of bounds of array
+   elseif(place.eq.end)then                                 ! remove from array
+      list=[list(:place-1) ]
+   else
+      list=[list(:place-1), list(place+1:) ]
+   endif
+end subroutine keyword_remove
+
+subroutine keyword_replace(list,value,place)
+type(unicode_type),intent(in)  :: value
+type(unicode_type),allocatable :: list(:)
+integer,intent(in)             :: place
+integer                        :: tlen
+integer                        :: end
+   if(.not.allocated(list))then
+      allocate(list(0))
+   endif
+   tlen=len_trim(value)
+   end=size(list)
+   if(place.lt.0.or.place.gt.end)then
+       write(stderr,*)'*replace* error: index out of range. end=',end,' index=',place
+   else
+      list(place)=value
+   endif
+end subroutine keyword_replace
+
+subroutine keyword_insert(list,value,place)
+type(unicode_type),intent(in)  :: value
+type(unicode_type),allocatable :: list(:)
+integer,intent(in)             :: place
+integer                        :: end
+   if(.not.allocated(list))then
+      allocate(list(0))
+   endif
+   end=size(list)
+   if(end.eq.0)then                                          ! empty array
+      list=[ value ]
+   elseif(place.eq.1)then                                    ! put in front of array
+      list=[value, list]
+   elseif(place.gt.end)then                                  ! put at end of array
+      list=[list, value ]
+   elseif(place.ge.2.and.place.le.end)then                   ! put in middle of array
+      list=[list(:place-1), value,list(place:) ]
+   else                                                      ! index out of range
+      write(stderr,*)'*keyword_insert* error: index out of range. end=',end,' index=',place,' value=',value
+   endif
+end subroutine keyword_insert
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+end module M_unicode
+ 
+ 
 !>>>>> build/dependencies/M_CLI2/src/M_CLI2.F90
 !VERSION 1.0 2020-01-15
 !VERSION 2.0 2020-08-02
@@ -13321,7 +14295,7 @@ integer                              :: iback
       !   do
       !      call print_dictionary_usage()
       !      read(*,'(a)')string
-      !      if(string.eq.'.')exit
+      !      if(string == '.')exit
       !      call prototype_to_dictionary(string)
       !   enddo
       call print_dictionary_usage()
@@ -14171,9 +15145,9 @@ function change_leading_underscore_to_prefix(string) result(newstring)
 character(len=*) :: string
 character(len=:),allocatable :: newstring
 ! @ is treated as a special character in powershell so allow the underscore to be a prefix
-!x!   if(string.eq.'')then
+!x!   if(string == '')then
 !x!      newstring=string
-!x!   elseif(string(1:1).eq.'_')then
+!x!   elseif(string(1:1) == '_')then
 !x!      newstring=G_RESPONSE_PREFIX//string(2:)
 !x!   else
       newstring=string
@@ -14574,7 +15548,7 @@ end subroutine prototype_to_dictionary
 !!       write(*,*)color,'not in the list'
 !!    endif
 !!
-!!    if(size(ints).eq.3)then
+!!    if(size(ints) == 3)then
 !!       write(*,*)'ints(:) has expected number of values'
 !!    else
 !!       write(*,*)'ints(:) does not have expected number of values'
@@ -14715,12 +15689,12 @@ character(len=:),allocatable          :: kludge(:)
       iilen=len_trim(val_local)
       call locate_key(long,place)                  ! find where string is or should be
       if(place < 1)then                                ! if string was not found insert it
-         call insert_(keywords,long,iabs(place))
-         call insert_(values,val_local,iabs(place))
-         call insert_(counts,iilen,iabs(place))
-         call insert_(shorts,short,iabs(place))
-         call insert_(present_in,.true.,iabs(place))
-         call insert_(mandatory,set_mandatory,iabs(place))
+         call insert_(keywords,long,abs(place))
+         call insert_(values,val_local,abs(place))
+         call insert_(counts,iilen,abs(place))
+         call insert_(shorts,short,abs(place))
+         call insert_(present_in,.true.,abs(place))
+         call insert_(mandatory,set_mandatory,abs(place))
       else
          if(present_in(place))then                      ! if multiple keywords append values with space between them
             if(G_append)then
@@ -15334,7 +16308,7 @@ integer :: iend
    endif
    if(.not.return_with_suffix)then
       iend=index(base,'.',back=.true.)
-      if(iend.gt.1)then
+      if(iend > 1)then
          base=base(:iend-1)
       endif
    endif
@@ -15509,7 +16483,7 @@ logical                      :: next_mandatory
          endif
          call locate_key(current_argument_padded(2:),pointer)
          jj=len(current_argument)
-         if( (pointer <= 0.or.jj.ge.3).and.(G_STRICT) )then  ! name not found
+         if( (pointer <= 0.or.jj >= 3).and.(G_STRICT) )then  ! name not found
             if(G_DEBUG)write(*,gen)'<DEBUG>CMD_ARGS_TO_DICTIONARY:SHORT NOT FOUND:',current_argument_padded(2:)
             ! in strict mode this might be multiple single-character values
             do kk=2,jj
@@ -16851,7 +17825,7 @@ character(len=3),save        :: nan_string='NaN'
       endif
    else
       select case(local_chars(1:1))
-      case('z','Z','h','H')                                     ! assume hexadecimal
+      case('z','Z','h','H','u','U')                                     ! assume hexadecimal
          write(frmt,"('(Z',i0,')')")len(local_chars)
          read(local_chars(2:),frmt,iostat=ierr,iomsg=msg)intg
          valu=dble(intg)
@@ -17715,8 +18689,8 @@ integer           :: ierr
   decodebase=.false.
 
   ipound=index(string_local,'#')                                       ! determine if in form [-]base#whole
-  if(basein == 0.and.ipound > 1)then                                  ! split string into two values
-     call a2i(string_local(:ipound-1),basein_local,ierr)   ! get the decimal value of the base
+  if(basein == 0.and.ipound > 1)then                                   ! split string into two values
+     call a2i(string_local(:ipound-1),basein_local,ierr)               ! get the decimal value of the base
      string_local=string_local(ipound+1:)                              ! now that base is known make string just the value
      if(basein_local >= 0)then                                         ! allow for a negative sign prefix
         out_sign=1
@@ -17787,13 +18761,13 @@ end function decodebase
 !!
 !!##DESCRIPTION
 !!
-!!    LOCATE_(3) finds the index where the VALUE is found or should
-!!    be found in an array. The array must be sorted in descending
-!!    order (highest at top). If VALUE is not found it returns the index
-!!    where the name should be placed at with a negative sign.
+!!    LOCATE_(3) finds the index where the VALUE is found or should be
+!!    found in an array. The array must be sorted in descending order
+!!    (highest at top). If VALUE is not found it returns the index where
+!!    the name should be placed at with a negative sign.
 !!
-!!    The array and list must be of the same type (CHARACTER, DOUBLEPRECISION,
-!!    REAL,INTEGER)
+!!    The array and list must be of the same type (CHARACTER,
+!!    DOUBLEPRECISION, REAL,INTEGER)
 !!
 !!##OPTIONS
 !!
@@ -17914,7 +18888,7 @@ integer                                 :: error
       maxtry=0
       place=-1
    else
-      maxtry=nint(log(float(arraysize))/log(2.0)+1.0)
+      maxtry=nint(log(real(arraysize))/log(2.0)+1.0)
       place=(arraysize+1)/2
    endif
    imin=1
@@ -17934,7 +18908,7 @@ integer                                 :: error
 
       if(imin > imax)then
          place=-imin
-         if(iabs(place) > arraysize)then ! ran off end of list. Where new value should go or an unsorted input array'
+         if(abs(place) > arraysize)then ! ran off end of list. Where new value should go or an unsorted input array'
             exit LOOP
          endif
          exit LOOP
@@ -18835,25 +19809,40 @@ end module M_CLI2
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
+! An example run; using the famous Confucian expression
+! "己所不欲，勿施於人" (jǐ suǒ bù yù, wù shī yú rén) or
+! "What you do not want done to yourself, do not do to others":
+!
+!    codepoints "己所不欲，勿施於人"
+!
+! Odd that hexadecimal values can be used directly and much more compactly in a DATA statement
+! but multiple BOZ values in INT() are not allowed, perhaps because DATA assumes the values are
+! for the type being initialized; and no syntax to allow DATA to initialize a parameter (?)
+! integer,save :: codes(9)
+! data codes/ z'5DF1',z'6240',z'4E0D',z'6B32',z'FF0C',z'52FF',z'65BD',z'65BC',z'4EBA'/
+
+ 
+ 
 !>>>>> app/uni.f90
 program uni
 ! @(#) convert UTF-8 to backslash escape sequences, vice-versa, convert case, ...
-use, intrinsic :: iso_fortran_env, only: stdin => input_unit, stderr => error_unit, stdout => output_unit
-use, intrinsic :: iso_fortran_env, only: iostat_end, iostat_eor
+use,intrinsic :: iso_fortran_env, only: stdin => input_unit, stderr => error_unit, stdout => output_unit
+use,intrinsic :: iso_fortran_env, only: iostat_end, iostat_eor
 use M_unicode, only : readline, split, lower, upper, len, trim, isascii
-use M_unicode, only : expand_html, reverse_line=>reverse
-use M_unicode, only : add_backslash, remove_backslash=>escape
+use M_unicode, only : expand_html, add_html, reverse_line=>reverse
+use M_unicode, only : keyword, keyword_update, keyword_mode
+use M_unicode, only : add_backslash, remove_backslash=>escape, replace
 use M_unicode, only : isascii, slurp, repeat, pound_to_box, add_border
 use M_unicode, only : ut => unicode_type, assignment(=), ch=>character
 use M_unicode, only : operator(==), operator(//)
 use M_CLI2,    only : set_mode, set_args, get_args, sgets, specified, files=>unnamed
 implicit none
-integer                      :: i, j, ulen, alen, iostat, lun, linenum, knd
+integer                      :: i, j, icode, ulen, alen, iostat, lun, linenum, knd
 integer,allocatable          :: ints(:)
 type(ut)                     :: line
 type(ut),allocatable         :: text(:)
-logical                      :: verbose, debug, length, escape, noescape, ucase, lcase, wide
-logical                      :: code, allascii, border, html, entities, example, reverse, nofile
+logical                      :: verbose, debug, length, toescape, noescape, ucase, lcase, findwide, nowide, show_keys
+logical                      :: code, allascii, border, tohtml, nohtml, entities, sample, reverse, nofile, nokeys
 character(len=:),allocatable :: filenames(:), style_box, style_border, styles(:)
 character(len=*),parameter   :: g0='(*(g0))'
 character(len=*),parameter   :: formu= '("char(int(z''",z0,"''),kind=ucs4)":,"// &")'
@@ -18867,6 +19856,7 @@ character(len=256)           :: iomsg
       if(specified('box'))then
             text=pound_to_box(get_text(filenames(i)),style=style_box)
       endif
+
       if(specified('border'))then
             if(specified('box'))then
                text=add_border(text,style=style_border)
@@ -18899,12 +19889,14 @@ character(len=256)           :: iomsg
             line=readline(lun,iostat=iostat)
             if(iostat.ne.0)exit
          endif
-         if(html)     line=expand_html(line)
+         if(nokeys)   line=keyword(line)
+         if(nohtml)   line=expand_html(line)
          if(lcase)    line=lower(line)
          if(ucase)    line=upper(line)
          if(noescape) line=remove_backslash(line)
          if(reverse)  line=reverse_line(line)
-         if(escape)   line=add_backslash(line)
+         if(toescape) line=add_backslash(line)
+         if(tohtml)   line=add_html(line)
          if(code.and.knd==2) then
             ! @(#) generate Fortran statements using KIND='iso_10464' that represents the lines
             if(line.eq.'')then
@@ -18942,15 +19934,247 @@ character(len=256)           :: iomsg
             allascii=isascii(line)
             write(stdout,'(i0.5,1x,i0,1x,a,1x,i0,": ",a)') &
          & linenum,ulen,merge('==','/=',allascii),alen,line%character()
-         elseif(wide)then
+         elseif(findwide)then
             ! write and identify lines not composed entirely of ASCII-7
             ints=line
             if(maxval(ints).gt.127)then
                ! write the line number line in brackets
                write(stdout,'(i8,1x,a)')linenum,'['//ch(line)//']'
-               ! write the line with all but ASCII7 replaced with escape codes
+               ! write the line with all but ASCII-7 replaced with escape codes
                write(stdout,'(9x,a)')'['//add_backslash(line)//']'
             endif
+         elseif(nowide)then
+            ! make common conversions to nearly equivalent ASCII-7 characters
+            line=replace( line, ut([169])    ,'(C)'   )  !  Copyright   ©
+            line=replace( line, ut([174])    ,'(R)'   )  !  Registered  ®
+            line=replace( line, ut([8482])   ,'(TM)'  )  !  Trademark   ™
+            line=replace( line, ut([8212])   ,'--'    )  !  replace em dash with two dashes —
+            line=replace( line, ut([10003])  ,'[x]'   )  !  √ checkmark
+
+            line=replace( line, ut([185])    ,'^1'    )  !  ¹
+            line=replace( line, ut([178])    ,'^2'    )  !  ²
+            line=replace( line, ut([179])    ,'^3'    )  !  ³
+            line=replace( line, ut([64257])  ,'fi'    )  !  ﬁ
+            line=replace( line, ut([64258])  ,'fl'    )  !  ﬂ
+            line=replace( line, ut([64256])  ,'ff'    )  !  ﬀ
+            line=replace( line, ut([64259])  ,'ffi'   )  !  ﬃ
+            line=replace( line, ut([64260])  ,'ffl'   )  !  ﬄ
+
+            line=replace( line, ut([171])     ,'<<'   )  !  «
+            line=replace( line, ut([187])     ,'>>'   )  !  »
+            line=replace( line, ut([10214])   ,'[['   )  !  ⟦
+            line=replace( line, ut([10215])   ,']]'   )  !  ⟧
+            line=replace( line, ut([10216])   ,'<'    )  !  ⟨
+            line=replace( line, ut([10217])   ,'>'    )  !  ⟩
+            line=replace( line, ut([10218])   ,'<<'   )  !  ⟪
+            line=replace( line, ut([10219])   ,'>>'   )  !  ⟫
+            line=replace( line, ut([8252])    ,'!!'   )  !  ‼
+            line=replace( line, ut([8214])    ,'||'   )  !  ‖
+            line=replace( line, ut([449])     ,'||'   )  !  ǁ
+            line=replace( line, ut([177])     ,'+-'   )  !  ±
+            line=replace( line, ut([8723])    ,'-+'   )  !  ∓
+            line=replace( line, ut([8804])    ,'<='   )  !  ≤
+            line=replace( line, ut([8805])    ,'>='   )  !  ≥
+            ! words
+            line=replace( line, ut([176])    ,'degrees' ) ! °
+            line=replace( line, ut([165])    ,'Yen' )     ! ¥ JYP
+            line=replace( line, ut([163])    ,'Pound' )   ! £ GBP
+            line=replace( line, ut([162])    ,'Cent' )    ! ¢
+            line=replace( line, ut([8364])   ,'Euro' )    ! € EUR
+            line=replace( line, ut([960])    ,'pi' )      ! π
+            !fractions
+            line=replace( line, ut([8585])   ,'0/3'   )  !  ↉
+            line=replace( line, ut([189])    ,'1/2'   )  !  ½
+            line=replace( line, ut([8531])   ,'1/3'   )  !  ⅓
+            line=replace( line, ut([188])    ,'1/4'   )  !  ¼
+            line=replace( line, ut([8533])   ,'1/5'   )  !  ⅕
+            line=replace( line, ut([8537])   ,'1/6'   )  !  ⅙
+            line=replace( line, ut([8528])   ,'1/7'   )  !  ⅐
+            line=replace( line, ut([8539])   ,'1/8'   )  !  ⅛
+            line=replace( line, ut([8529])   ,'1/9'   )  !  ⅑
+            line=replace( line, ut([8530])   ,'1/10'  )  !  ⅒
+            line=replace( line, ut([8532])   ,'2/3'   )  !  ⅔
+            line=replace( line, ut([8534])   ,'2/5'   )  !  ⅖
+            line=replace( line, ut([190])    ,'3/4'   )  !  ¾
+            line=replace( line, ut([8535])   ,'3/5'   )  !  ⅗
+            line=replace( line, ut([8540])   ,'3/8'   )  !  ⅜
+            line=replace( line, ut([8536])   ,'4/5'   )  !  ⅘
+            line=replace( line, ut([8538])   ,'5/6'   )  !  ⅚
+            line=replace( line, ut([8541])   ,'5/8'   )  !  ⅝
+            line=replace( line, ut([8542])   ,'7/8'   )  !  ⅞
+            line=replace( line, ut([8543])   ,'1/'    )  !  ⅟
+            !Roman numerals
+            line=replace( line, ut([8544])  ,'I'    )
+            line=replace( line, ut([8545])  ,'II'   )
+            line=replace( line, ut([8546])  ,'III'  )
+            line=replace( line, ut([8547])  ,'IV'   )
+            line=replace( line, ut([8548])  ,'V'    )
+            line=replace( line, ut([8549])  ,'VI'   )
+            line=replace( line, ut([8550])  ,'VII'  )
+            line=replace( line, ut([8551])  ,'VIII' )
+            line=replace( line, ut([8552])  ,'IX'   )
+            line=replace( line, ut([8553])  ,'X'    )
+            line=replace( line, ut([8554])  ,'XI'   )
+            line=replace( line, ut([8555])  ,'XII'  )
+            line=replace( line, ut([8556])  ,'L'    )
+            line=replace( line, ut([8557])  ,'C'    )
+            line=replace( line, ut([8558])  ,'D'    )
+            line=replace( line, ut([8559])  ,'M'    )
+            line=replace( line, ut([8560])  ,'i'    )
+            line=replace( line, ut([8561])  ,'ii'   )
+            line=replace( line, ut([8562])  ,'iii'  )
+            line=replace( line, ut([8563])  ,'iv'   )
+            line=replace( line, ut([8564])  ,'v'    )
+            line=replace( line, ut([8565])  ,'vi'   )
+            line=replace( line, ut([8566])  ,'vii'  )
+            line=replace( line, ut([8567])  ,'viii' )
+            line=replace( line, ut([8568])  ,'ix'   )
+            line=replace( line, ut([8569])  ,'x'    )
+            line=replace( line, ut([8570])  ,'xi'   )
+            line=replace( line, ut([8571])  ,'xii'  )
+            line=replace( line, ut([8572])  ,'l'    )
+            line=replace( line, ut([8573])  ,'c'    )
+            line=replace( line, ut([8574])  ,'d'    )
+            line=replace( line, ut([8575])  ,'m'    )
+            ! ae
+            line=replace( line, ut([482])    ,'AE'  )  !  Ǣ
+            line=replace( line, ut([483])    ,'ae'  )  !  ǣ
+            line=replace( line, ut([198])    ,'AE'  )  !  Æ
+            line=replace( line, ut([508])    ,'AE'  )  !  Ǽ
+            line=replace( line, ut([7425])   ,'AE'  )  !  ᴁ
+            line=replace( line, ut([230])    ,'ae'  )  !  æ
+            line=replace( line, ut([509])    ,'ae'  )  !  ǽ
+
+               ints=line
+
+               do j=1,size(ints)
+                  icode=ints(j)
+                  select case(icode)
+                  case(120782:120791) ! 𝟎 𝟏 𝟐 𝟑 𝟒 𝟓 𝟔 𝟕 𝟖 𝟗
+                        icode=icode-120782+ichar('0')
+                  case(120792:120801) ! 𝟘 𝟙 𝟚 𝟛 𝟜 𝟝 𝟞 𝟟 𝟠 𝟡
+                        icode=icode-120792+ichar('0')
+                  case(120802:120811) ! 𝟢 𝟣 𝟤 𝟥 𝟦 𝟧 𝟨 𝟩 𝟪 𝟫
+                        icode=icode-120802+ichar('0')
+                  case(120812:120821) ! 𝟬 𝟭 𝟮 𝟯 𝟰 𝟱 𝟲 𝟳 𝟴 𝟵
+                        icode=icode-120812+ichar('0')
+                  case(120822:120831) ! 𝟶 𝟷 𝟸 𝟹 𝟺 𝟻 𝟼 𝟽 𝟾 𝟿
+                        icode=icode-120822+ichar('0')
+                  case(65281:65374) ! ！＂＃＄％＆＇（）＊＋，－．／０１２３４５６７８９：；＜＝＞＠
+                                    ! ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ［＼］＾＿｀
+                                    ! ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ｛｜｝～
+                        icode=icode-65281+ichar('!')
+                  case(119808:119833) !  𝐀 𝐁 𝐂 𝐃 𝐄 𝐅 𝐆 𝐇 𝐈 𝐉 𝐊 𝐋 𝐌 𝐍 𝐎 𝐏 𝐐 𝐑 𝐒 𝐓 𝐔 𝐕 𝐖 𝐗 𝐘 𝐙
+                        icode=icode-119808+ichar('A')
+                  case(119834:119859) !  𝐚 𝐛 𝐜 𝐝 𝐞 𝐟 𝐠 𝐡 𝐢 𝐣 𝐤 𝐥 𝐦 𝐧 𝐨 𝐩 𝐪 𝐫 𝐬 𝐭 𝐮 𝐯 𝐰 𝐱 𝐲 𝐳
+                        icode=icode-119834+ichar('a')
+                  case(119860:119885) !  𝐴 𝐵 𝐶 𝐷 𝐸 𝐹 𝐺 𝐻 𝐼 𝐽 𝐾 𝐿 𝑀 𝑁 𝑂 𝑃 𝑄 𝑅 𝑆 𝑇 𝑈 𝑉 𝑊 𝑋 𝑌 𝑍
+                        icode=icode-119860+ichar('A')
+                  case(119886:119911) !  𝑎 𝑏 𝑐 𝑑 𝑒 𝑓 𝑔   𝑖 𝑗 𝑘 𝑙 𝑚 𝑛 𝑜 𝑝 𝑞 𝑟 𝑠 𝑡 𝑢 𝑣 𝑤 𝑥 𝑦 𝑧
+                        icode=icode-119886+ichar('a')
+                  case(119912:119937) !  𝑨 𝑩 𝑪 𝑫 𝑬 𝑭 𝑮 𝑯 𝑰 𝑱 𝑲 𝑳 𝑴 𝑵 𝑶 𝑷 𝑸 𝑹 𝑺 𝑻 𝑼 𝑽 𝑾 𝑿 𝒀 𝒁
+                        icode=icode-119912+ichar('A')
+                  case(119938:119963) !  𝒂 𝒃 𝒄 𝒅 𝒆 𝒇 𝒈 𝒉 𝒊 𝒋 𝒌 𝒍 𝒎 𝒏 𝒐 𝒑 𝒒 𝒓 𝒔 𝒕 𝒖 𝒗 𝒘 𝒙 𝒚 𝒛
+                        icode=icode-119938+ichar('a')
+                  case(119964:119989) !  𝒜 𝒝 𝒞 𝒟 𝒠 𝒡 𝒢 𝒣 𝒤 𝒥 𝒦 𝒧 𝒨 𝒩 𝒪 𝒫 𝒬 𝒭 𝒮 𝒯 𝒰
+
+                        icode=icode-119964+ichar('a')
+                  case(119990:120015) !  𝒶 𝒷 𝒸 𝒹 𝒺 𝒻 𝒼 𝒽 𝒾 𝒿 𝓀 𝓁 𝓂 𝓃 𝓄 𝓅 𝓆 𝓇 𝓈 𝓉 𝓊 𝓋 𝓌 𝓍
+                        icode=icode-119990+ichar('a')
+                  case(120016:120041) !  𝓐 𝓑 𝓒 𝓓 𝓔 𝓕 𝓖 𝓗 𝓘 𝓙 𝓚 𝓛 𝓜 𝓝 𝓞 𝓟 𝓠 𝓡 𝓢 𝓣 𝓤 𝓥 𝓦 𝓧 𝓨 𝓩
+                        icode=icode-120016+ichar('A')
+                  case(120042:120067) !  𝓪 𝓫 𝓬 𝓭 𝓮 𝓯 𝓰 𝓱 𝓲 𝓳 𝓴 𝓵 𝓶 𝓷 𝓸 𝓹 𝓺 𝓻 𝓼 𝓽 𝓾 𝓿 𝔀 𝔁 𝔂 𝔃
+                        icode=icode-120042+ichar('a')
+                  case(120068:120093) !  𝔄 𝔅 𝔆 𝔇 𝔈 𝔉 𝔊 𝔋 𝔌 𝔍 𝔎 𝔏 𝔐 𝔑 𝔒 𝔓 𝔔 𝔕 𝔖 𝔗 𝔘 𝔙 𝔚 𝔛
+                        icode=icode-120068+ichar('A')
+                  case(120094:120119) !  𝔞 𝔟 𝔠 𝔡 𝔢 𝔣 𝔤 𝔥 𝔦 𝔧 𝔨 𝔩 𝔪 𝔫 𝔬 𝔭 𝔮 𝔯 𝔰 𝔱 𝔲 𝔳 𝔴 𝔵 𝔶 𝔷
+                        icode=icode-120094+ichar('a')
+                  case(120120:120144) !  𝔸 𝔹 𝔺 𝔻 𝔼 𝔽 𝔾 𝔿 𝕀 𝕁 𝕂 𝕃 𝕄 𝕅 𝕆 𝕇 𝕈 𝕉 𝕊 𝕋 𝕌 𝕍
+                        icode=icode-120120+ichar('A')
+                  case(120146:120171) !  𝕒 𝕓 𝕔 𝕕 𝕖 𝕗 𝕘 𝕙 𝕚 𝕛 𝕜 𝕝 𝕞 𝕟 𝕠 𝕡 𝕢 𝕣 𝕤 𝕥 𝕦 𝕧 𝕨 𝕩 𝕪 𝕫
+                        icode=icode-120146+ichar('a')
+                  case(120172:120197) !  𝕬 𝕭 𝕮 𝕯 𝕰 𝕱 𝕲 𝕳 𝕴 𝕵 𝕶 𝕷 𝕸 𝕹 𝕺 𝕻 𝕼 𝕽 𝕾 𝕿 𝖀 𝖁 𝖂 𝖃 𝖄 𝖅
+                        icode=icode-120172+ichar('A')
+                  case(120198:120223) !  𝖆 𝖇 𝖈 𝖉 𝖊 𝖋 𝖌 𝖍 𝖎 𝖏 𝖐 𝖑 𝖒 𝖓 𝖔 𝖕 𝖖 𝖗 𝖘 𝖙 𝖚 𝖛 𝖜 𝖝 𝖞 𝖟
+                        icode=icode-120198+ichar('a')
+                  case(120224:120249) !  𝖠 𝖡 𝖢 𝖣 𝖤 𝖥 𝖦 𝖧 𝖨 𝖩 𝖪 𝖫 𝖬 𝖭 𝖮 𝖯 𝖰 𝖱 𝖲 𝖳 𝖴 𝖵 𝖶 𝖷 𝖸 𝖹
+                        icode=icode-120224+ichar('A')
+                  case(120250:120275) !  𝖺 𝖻 𝖼 𝖽 𝖾 𝖿 𝗀 𝗁 𝗂 𝗃 𝗄 𝗅 𝗆 𝗇 𝗈 𝗉 𝗊 𝗋 𝗌 𝗍 𝗎 𝗏 𝗐 𝗑 𝗒 𝗓
+                        icode=icode-120250+ichar('a')
+                  case(120276:120301) !  𝗔 𝗕 𝗖 𝗗 𝗘 𝗙 𝗚 𝗛 𝗜 𝗝 𝗞 𝗟 𝗠 𝗡 𝗢 𝗣 𝗤 𝗥 𝗦 𝗧 𝗨 𝗩 𝗪 𝗫 𝗬 𝗭
+                        icode=icode-120276+ichar('A')
+                  case(120302:120327) !  𝗮 𝗯 𝗰 𝗱 𝗲 𝗳 𝗴 𝗵 𝗶 𝗷 𝗸 𝗹 𝗺 𝗻 𝗼 𝗽 𝗾 𝗿 𝘀 𝘁 𝘂 𝘃 𝘄 𝘅 𝘆 𝘇
+                        icode=icode-120302+ichar('a')
+                  case(120328:120353) !  𝘈 𝘉 𝘊 𝘋 𝘌 𝘍 𝘎 𝘏 𝘐 𝘑 𝘒 𝘓 𝘔 𝘕 𝘖 𝘗 𝘘 𝘙 𝘚 𝘛 𝘜 𝘝 𝘞 𝘟 𝘠 𝘡
+                        icode=icode-120328+ichar('A')
+                  case(120354:120379) !  𝘢 𝘣 𝘤 𝘥 𝘦 𝘧 𝘨 𝘩 𝘪 𝘫 𝘬 𝘭 𝘮 𝘯 𝘰 𝘱 𝘲 𝘳 𝘴 𝘵 𝘶 𝘷 𝘸 𝘹 𝘺 𝘻
+                        icode=icode-120354+ichar('a')
+                  case(120380:120405) !  𝘼 𝘽 𝘾 𝘿 𝙀 𝙁 𝙂 𝙃 𝙄 𝙅 𝙆 𝙇 𝙈 𝙉 𝙊 𝙋 𝙌 𝙍 𝙎 𝙏 𝙐 𝙑 𝙒 𝙓 𝙔 𝙕
+                        icode=icode-120380+ichar('A')
+                  case(120406:120431) !  𝙖 𝙗 𝙘 𝙙 𝙚 𝙛 𝙜 𝙝 𝙞 𝙟 𝙠 𝙡 𝙢 𝙣 𝙤 𝙥 𝙦 𝙧 𝙨 𝙩 𝙪 𝙫 𝙬 𝙭 𝙮 𝙯
+                        icode=icode-120406+ichar('a')
+                  case(120432:120457) !  𝙰 𝙱 𝙲 𝙳 𝙴 𝙵 𝙶 𝙷 𝙸 𝙹 𝙺 𝙻 𝙼 𝙽 𝙾 𝙿 𝚀 𝚁 𝚂 𝚃 𝚄 𝚅 𝚆 𝚇 𝚈 𝚉
+                        icode=icode-120432+ichar('A')
+                  case(120458:120483) !  𝚊 𝚋 𝚌 𝚍 𝚎 𝚏 𝚐 𝚑 𝚒 𝚓 𝚔 𝚕 𝚖 𝚗 𝚘 𝚙 𝚚 𝚛 𝚜 𝚝 𝚞 𝚟 𝚠 𝚡 𝚢 𝚣
+                        icode=icode-120458+ichar('a')
+                  case(127280:127305) !  🄰 🄱 🄲 🄳 🄴 🄵 🄶 🄷 🄸 🄹 🄺 🄻 🄼 🄽 🄾 🄿 🅀 🅁 🅂 🅃 🅄 🅅 🅆 🅇 🅈 🅉
+                        icode=icode-127280+ichar('A')
+                  end select
+                  ints(j)=icode
+               enddo
+
+               ints=merge(  ichar('x'), ints, ints ==  10799) ! ⨯
+               ints=merge(  ichar('('), ints, ints ==  10088) ! ❨
+               ints=merge(  ichar(')'), ints, ints ==  10089) ! ❩
+               ints=merge(  ichar('('), ints, ints ==  10090) ! ❪
+               ints=merge(  ichar(')'), ints, ints ==  10091) ! ❫
+               ints=merge(  ichar('<'), ints, ints ==  10092) ! ❬
+               ints=merge(  ichar('>'), ints, ints ==  10093) ! ❭
+               ints=merge(  ichar('<'), ints, ints ==  10094) ! ❮
+               ints=merge(  ichar('>'), ints, ints ==  10095) ! ❯
+               ints=merge(  ichar('<'), ints, ints ==  10096) ! ❰
+               ints=merge(  ichar('>'), ints, ints ==  10097) ! ❱
+               ints=merge(  ichar('['), ints, ints ==  10098) ! ❲
+               ints=merge(  ichar('['), ints, ints ==  10099) ! ❳
+               ints=merge(  ichar('{'), ints, ints ==  10100) ! ❴
+               ints=merge(  ichar('}'), ints, ints ==  10101) ! ❵
+               ints=merge(  34, ints, ints ==  8220)  ! “ "
+               ints=merge(  34, ints, ints ==  8221)  ! ” "
+               ints=merge(  39, ints, ints ==  8216)  ! ‘ '
+               ints=merge(  39, ints, ints ==  8217)  ! ’ '
+               ints=merge(  42, ints, ints ==  8727)  ! ∗ *
+               ints=merge(  47, ints, ints ==   247)  ! ÷ / QUESTIONABLE
+               ints=merge(  61, ints, ints ==  8208)  ! ‐ -
+               ints=merge(  61, ints, ints ==  8211)  ! ‐ - en dash
+               ints=merge(  61, ints, ints ==  8722)  ! − -
+               ints=merge(  94, ints, ints ==   710)  ! ˆ ^
+               ints=merge(  94, ints, ints ==  8743)  ! ∧ ^
+               ints=merge(  94, ints, ints ==   581)  ! Ʌ ^
+               ints=merge(  86, ints, ints ==  8744)  ! ∨ V
+               ints=merge( 111, ints, ints ==  8226)  ! • o
+               ints=merge( 120, ints, ints ==   215)  ! × x
+               ints=merge( 126, ints, ints ==   732)  ! ˜ ~
+               ints=merge( 124, ints, ints ==  8739)  ! ∣ |
+               ! spaces
+               ints=merge(  32, ints, ints ==   160)
+               ints=merge(  32, ints, ints ==  8192)
+               ints=merge(  32, ints, ints ==  8193)
+               ints=merge(  32, ints, ints ==  8194)
+               ints=merge(  32, ints, ints ==  8195)
+               ints=merge(  32, ints, ints ==  8196)
+               ints=merge(  32, ints, ints ==  8197)
+               ints=merge(  32, ints, ints ==  8198)
+               ints=merge(  32, ints, ints ==  8199)
+               ints=merge(  32, ints, ints ==  8200)
+               ints=merge(  32, ints, ints ==  8201)
+               ints=merge(  32, ints, ints ==  8202)
+               ints=merge(  32, ints, ints ==  8239)
+               ints=merge(  32, ints, ints ==  8287)
+               ints=merge(  32, ints, ints == 12288)
+
+               line=ints
+               ! write the line with all but ASCII-7 replaced with HTML escape codes
+               write(stdout,'(a)')add_html(line)
          else
             write(stdout,g0)line%character()
          endif
@@ -18959,6 +20183,1408 @@ character(len=256)           :: iomsg
          write(stdout,g0)'<ERROR> failed on read of input line ',linenum,':',line%character()
       endif
    enddo DATUM
+! candidates
+! 180  ´
+! 168  ¨
+! 166 ¦ |
+! 448 ǀ
+! 451  ǃ
+! 8725  ∕
+! 750 894  ˮ ;
+! 8209 8210 8213 173  ‑ ‒ ― ­
+! 8218 8219  ‚ ‛
+! 161 ¡ !
+! 170 ª a
+! 172 ¬ !
+! 173 ­ -
+
+
+! 180 ´ '
+! 181 µ u
+! 183 · .
+! 184 ¸ ,
+! 186 º o
+! 192 À A
+! 193 Á A
+! 194 Â A
+! 195 Ã A
+! 196 Ä A
+! 197 Å A
+! 199 Ç C
+! 200 È E
+! 201 É E
+! 202 Ê E
+! 203 Ë E
+! 204 Ì I
+! 205 Í I
+! 206 Î I
+! 207 Ï I
+! 208 Ð D
+! 209 Ñ N
+! 210 Ò O
+! 211 Ó O
+! 212 Ô O
+! 213 Õ O
+! 214 Ö O
+! 215 × x
+! 216 Ø O
+! 217 Ù U
+! 218 Ú U
+! 219 Û U
+! 220 Ü U
+! 221 Ý Y
+! 224 à a
+! 225 á a
+! 226 â a
+! 227 ã a
+! 228 ä a
+! 229 å a
+! 231 ç c
+! 232 è e
+! 233 é e
+! 234 ê e
+! 235 ë e
+! 236 ì i
+! 237 í i
+! 238 î i
+! 239 ï i
+! 240 ð d
+! 241 ñ n
+! 242 ò o
+! 243 ó o
+! 244 ô o
+! 245 õ o
+! 246 ö o
+! 247 ÷ /
+! 248 ø o
+! 249 ù u
+! 250 ú u
+! 251 û u
+! 252 ü u
+! 253 ý y
+! 255 ÿ y
+! 256 Ā A
+! 257 ā a
+! 258 Ă A
+! 259 ă a
+! 260 Ą A
+! 261 ą a
+! 262 Ć C
+! 263 ć c
+! 264 Ĉ C
+! 265 ĉ c
+! 266 Ċ C
+! 267 ċ c
+! 268 Č C
+! 269 č c
+! 270 Ď D
+! 271 ď d
+! 272 Đ D
+! 273 đ d
+! 274 Ē E
+! 275 ē e
+! 276 Ĕ E
+! 277 ĕ e
+! 278 Ė E
+! 279 ė e
+! 280 Ę E
+! 281 ę e
+! 282 Ě E
+! 283 ě e
+! 284 Ĝ G
+! 285 ĝ g
+! 286 Ğ G
+! 287 ğ g
+! 288 Ġ G
+! 289 ġ g
+! 290 Ģ G
+! 291 ģ g
+! 292 Ĥ H
+! 293 ĥ h
+! 294 Ħ H
+! 295 ħ h
+! 296 Ĩ I
+! 297 ĩ i
+! 298 Ī I
+! 299 ī i
+! 300 Ĭ I
+! 301 ĭ i
+! 302 Į I
+! 303 į i
+! 304 İ I
+! 305 ı i
+! 308 Ĵ J
+! 309 ĵ j
+! 310 Ķ K
+! 311 ķ k
+! 312 ĸ q
+! 313 Ĺ L
+! 314 ĺ l
+! 315 Ļ L
+! 316 ļ l
+! 317 Ľ L
+! 318 ľ l
+! 319 Ŀ L
+! 320 ŀ l
+! 321 Ł L
+! 322 ł l
+! 323 Ń N
+! 324 ń n
+! 325 Ņ N
+! 326 ņ n
+! 327 Ň N
+! 328 ň n
+! 330 Ŋ N
+! 331 ŋ n
+! 332 Ō O
+! 333 ō o
+! 334 Ŏ O
+! 335 ŏ o
+! 336 Ő O
+! 337 ő o
+! 340 Ŕ R
+! 341 ŕ r
+! 342 Ŗ R
+! 343 ŗ r
+! 344 Ř R
+! 345 ř r
+! 346 Ś S
+! 347 ś s
+! 348 Ŝ S
+! 349 ŝ s
+! 350 Ş S
+! 351 ş s
+! 352 Š S
+! 353 š s
+! 354 Ţ T
+! 355 ţ t
+! 356 Ť T
+! 357 ť t
+! 358 Ŧ T
+! 359 ŧ t
+! 360 Ũ U
+! 361 ũ u
+! 362 Ū U
+! 363 ū u
+! 364 Ŭ U
+! 365 ŭ u
+! 366 Ů U
+! 367 ů u
+! 368 Ű U
+! 369 ű u
+! 370 Ų U
+! 371 ų u
+! 372 Ŵ W
+! 373 ŵ w
+! 374 Ŷ Y
+! 375 ŷ y
+! 376 Ÿ Y
+! 377 Ź Z
+! 378 ź z
+! 379 Ż Z
+! 380 ż z
+! 381 Ž Z
+! 382 ž z
+! 383 ſ s
+! 384 ƀ b
+! 385 Ɓ B
+! 386 Ƃ B
+! 387 ƃ b
+! 391 Ƈ C
+! 392 ƈ c
+! 393 Ɖ D
+! 394 Ɗ D
+! 395 Ƌ D
+! 396 ƌ d
+! 400 Ɛ E
+! 401 Ƒ F
+! 402 ƒ f
+! 403 Ɠ G
+! 406 Ɩ I
+! 407 Ɨ I
+! 408 Ƙ K
+! 409 ƙ k
+! 410 ƚ l
+! 413 Ɲ N
+! 414 ƞ n
+! 416 Ơ O
+! 417 ơ o
+! 420 Ƥ P
+! 421 ƥ p
+! 427 ƫ t
+! 428 Ƭ T
+! 429 ƭ t
+! 430 Ʈ T
+! 431 Ư U
+! 432 ư u
+! 434 Ʋ V
+! 435 Ƴ Y
+! 436 ƴ y
+! 437 Ƶ Z
+! 438 ƶ z
+! 461 Ǎ A
+! 462 ǎ a
+! 463 Ǐ I
+! 464 ǐ i
+! 465 Ǒ O
+! 466 ǒ o
+! 467 Ǔ U
+! 468 ǔ u
+! 469 Ǖ U
+! 470 ǖ u
+! 471 Ǘ U
+! 472 ǘ u
+! 473 Ǚ U
+! 474 ǚ u
+! 475 Ǜ U
+! 476 ǜ u
+! 478 Ǟ A
+! 479 ǟ a
+! 480 Ǡ A
+! 481 ǡ a
+! 484 Ǥ G
+! 485 ǥ g
+! 486 Ǧ G
+! 487 ǧ g
+! 488 Ǩ K
+! 489 ǩ k
+! 490 Ǫ O
+! 491 ǫ o
+! 492 Ǭ O
+! 493 ǭ o
+! 496 ǰ j
+! 500 Ǵ G
+! 501 ǵ g
+! 504 Ǹ N
+! 505 ǹ n
+! 506 Ǻ A
+! 507 ǻ a
+! 510 Ǿ O
+! 511 ǿ o
+! 512 Ȁ A
+! 513 ȁ a
+! 514 Ȃ A
+! 515 ȃ a
+! 516 Ȅ E
+! 517 ȅ e
+! 518 Ȇ E
+! 519 ȇ e
+! 520 Ȉ I
+! 521 ȉ i
+! 522 Ȋ I
+! 523 ȋ i
+! 524 Ȍ O
+! 525 ȍ o
+! 526 Ȏ O
+! 527 ȏ o
+! 528 Ȑ R
+! 529 ȑ r
+! 530 Ȓ R
+! 531 ȓ r
+! 532 Ȕ U
+! 533 ȕ u
+! 534 Ȗ U
+! 535 ȗ u
+! 536 Ș S
+! 537 ș s
+! 538 Ț T
+! 539 ț t
+! 542 Ȟ H
+! 543 ȟ h
+! 545 ȡ d
+! 548 Ȥ Z
+! 549 ȥ z
+! 550 Ȧ A
+! 551 ȧ a
+! 552 Ȩ E
+! 553 ȩ e
+! 554 Ȫ O
+! 555 ȫ o
+! 556 Ȭ O
+! 557 ȭ o
+! 558 Ȯ O
+! 559 ȯ o
+! 560 Ȱ O
+! 561 ȱ o
+! 562 Ȳ Y
+! 563 ȳ y
+! 564 ȴ l
+! 565 ȵ n
+! 566 ȶ t
+! 567 ȷ j
+! 570 Ⱥ A
+! 571 Ȼ C
+! 572 ȼ c
+! 573 Ƚ L
+! 574 Ⱦ T
+! 575 ȿ s
+! 576 ɀ z
+! 579 Ƀ B
+! 580 Ʉ U
+! 582 Ɇ E
+! 583 ɇ e
+! 584 Ɉ J
+! 585 ɉ j
+! 588 Ɍ R
+! 589 ɍ r
+! 590 Ɏ Y
+! 591 ɏ y
+! 595 ɓ b
+! 597 ɕ c
+! 598 ɖ d
+! 599 ɗ d
+! 603 ɛ e
+! 607 ɟ j
+! 608 ɠ g
+! 609 ɡ g
+! 610 ɢ G
+! 614 ɦ h
+! 615 ɧ h
+! 616 ɨ i
+! 618 ɪ I
+! 619 ɫ l
+! 620 ɬ l
+! 621 ɭ l
+! 625 ɱ m
+! 626 ɲ n
+! 627 ɳ n
+! 628 ɴ N
+! 636 ɼ r
+! 637 ɽ r
+! 638 ɾ r
+! 640 ʀ R
+! 642 ʂ s
+! 648 ʈ t
+! 649 ʉ u
+! 651 ʋ v
+! 655 ʏ Y
+! 656 ʐ z
+! 657 ʑ z
+! 665 ʙ B
+! 667 ʛ G
+! 668 ʜ H
+! 669 ʝ j
+! 671 ʟ L
+! 672 ʠ q
+! 688 ʰ h
+! 690 ʲ j
+! 691 ʳ r
+! 695 ʷ w
+! 696 ʸ y
+! 700 ʼ '
+! 710 ˆ ^
+! 712 ˈ '
+! 715 ˋ `
+! 717 ˍ _
+! 720 ː :
+! 732 ˜ ~
+! 737 ˡ l
+! 738 ˢ s
+! 739 ˣ x
+! 894 ; ;
+! 956 μ u
+
+! 7424 ᴀ A
+! 7427 ᴃ B
+! 7428 ᴄ C
+! 7429 ᴅ D
+! 7430 ᴆ D
+! 7431 ᴇ E
+! 7434 ᴊ J
+! 7435 ᴋ K
+! 7436 ᴌ L
+! 7437 ᴍ M
+! 7439 ᴏ O
+! 7448 ᴘ P
+! 7451 ᴛ T
+! 7452 ᴜ U
+! 7456 ᴠ V
+! 7457 ᴡ W
+! 7458 ᴢ Z
+
+! 7468 ᴬ A
+! 7470 ᴮ B
+! 7472 ᴰ D
+! 7473 ᴱ E
+! 7475 ᴳ G
+! 7476 ᴴ H
+! 7477 ᴵ I
+! 7478 ᴶ J
+! 7479 ᴷ K
+! 7480 ᴸ L
+! 7481 ᴹ M
+! 7482 ᴺ N
+! 7484 ᴼ O
+! 7486 ᴾ P
+! 7487 ᴿ R
+! 7488 ᵀ T
+! 7489 ᵁ U
+! 7490 ᵂ W
+
+! 7491 ᵃ a
+! 7495 ᵇ b
+! 7496 ᵈ d
+! 7497 ᵉ e
+! 7501 ᵍ g
+! 7503 ᵏ k
+! 7504 ᵐ m
+! 7506 ᵒ o
+! 7510 ᵖ p
+! 7511 ᵗ t
+! 7512 ᵘ u
+! 7515 ᵛ v
+! 7522 ᵢ i
+! 7523 ᵣ r
+! 7524 ᵤ u
+! 7525 ᵥ v
+! 7532 ᵬ b
+! 7533 ᵭ d
+! 7534 ᵮ f
+! 7535 ᵯ m
+! 7536 ᵰ n
+! 7537 ᵱ p
+! 7538 ᵲ r
+! 7539 ᵳ r
+! 7540 ᵴ s
+! 7541 ᵵ t
+! 7542 ᵶ z
+! 7547 ᵻ I
+! 7549 ᵽ p
+! 7550 ᵾ U
+! 7552 ᶀ b
+! 7553 ᶁ d
+! 7554 ᶂ f
+! 7555 ᶃ g
+! 7556 ᶄ k
+! 7557 ᶅ l
+! 7558 ᶆ m
+! 7559 ᶇ n
+! 7560 ᶈ p
+! 7561 ᶉ r
+! 7562 ᶊ s
+! 7564 ᶌ v
+! 7565 ᶍ x
+! 7566 ᶎ z
+
+! 7567 ᶏ a
+! 7569 ᶑ d
+! 7570 ᶒ e
+! 7571 ᶓ e
+! 7574 ᶖ i
+! 7577 ᶙ u
+! 7580 ᶜ c
+! 7584 ᶠ f
+! 7611 ᶻ z
+! 7680 Ḁ A
+! 7681 ḁ a
+! 7682 Ḃ B
+! 7683 ḃ b
+! 7684 Ḅ B
+! 7685 ḅ b
+! 7686 Ḇ B
+! 7687 ḇ b
+! 7688 Ḉ C
+! 7689 ḉ c
+! 7690 Ḋ D
+! 7691 ḋ d
+! 7692 Ḍ D
+! 7693 ḍ d
+! 7694 Ḏ D
+! 7695 ḏ d
+! 7696 Ḑ D
+! 7697 ḑ d
+! 7698 Ḓ D
+! 7699 ḓ d
+! 7700 Ḕ E
+! 7701 ḕ e
+! 7702 Ḗ E
+! 7703 ḗ e
+! 7704 Ḙ E
+! 7705 ḙ e
+! 7706 Ḛ E
+! 7707 ḛ e
+! 7708 Ḝ E
+! 7709 ḝ e
+! 7710 Ḟ F
+! 7711 ḟ f
+! 7712 Ḡ G
+! 7713 ḡ g
+! 7714 Ḣ H
+! 7715 ḣ h
+! 7716 Ḥ H
+! 7717 ḥ h
+! 7718 Ḧ H
+! 7719 ḧ h
+! 7720 Ḩ H
+! 7721 ḩ h
+! 7722 Ḫ H
+! 7723 ḫ h
+! 7724 Ḭ I
+! 7725 ḭ i
+! 7726 Ḯ I
+! 7727 ḯ i
+! 7728 Ḱ K
+! 7729 ḱ k
+! 7730 Ḳ K
+! 7731 ḳ k
+! 7732 Ḵ K
+! 7733 ḵ k
+! 7734 Ḷ L
+! 7735 ḷ l
+! 7736 Ḹ L
+! 7737 ḹ l
+! 7738 Ḻ L
+! 7739 ḻ l
+! 7740 Ḽ L
+! 7741 ḽ l
+! 7742 Ḿ M
+! 7743 ḿ m
+! 7744 Ṁ M
+! 7745 ṁ m
+! 7746 Ṃ M
+! 7747 ṃ m
+! 7748 Ṅ N
+! 7749 ṅ n
+! 7750 Ṇ N
+! 7751 ṇ n
+! 7752 Ṉ N
+! 7753 ṉ n
+! 7754 Ṋ N
+! 7755 ṋ n
+! 7756 Ṍ O
+! 7757 ṍ o
+! 7758 Ṏ O
+! 7759 ṏ o
+! 7760 Ṑ O
+! 7761 ṑ o
+! 7762 Ṓ O
+! 7763 ṓ o
+! 7764 Ṕ P
+! 7765 ṕ p
+! 7766 Ṗ P
+! 7767 ṗ p
+! 7768 Ṙ R
+! 7769 ṙ r
+! 7770 Ṛ R
+! 7771 ṛ r
+! 7772 Ṝ R
+! 7773 ṝ r
+! 7774 Ṟ R
+! 7775 ṟ r
+! 7776 Ṡ S
+! 7777 ṡ s
+! 7778 Ṣ S
+! 7779 ṣ s
+! 7780 Ṥ S
+! 7781 ṥ s
+! 7782 Ṧ S
+! 7783 ṧ s
+! 7784 Ṩ S
+! 7785 ṩ s
+! 7786 Ṫ T
+! 7787 ṫ t
+! 7788 Ṭ T
+! 7789 ṭ t
+! 7790 Ṯ T
+! 7791 ṯ t
+! 7792 Ṱ T
+! 7793 ṱ t
+! 7794 Ṳ U
+! 7795 ṳ u
+! 7796 Ṵ U
+! 7797 ṵ u
+! 7798 Ṷ U
+! 7799 ṷ u
+! 7800 Ṹ U
+! 7801 ṹ u
+! 7802 Ṻ U
+! 7803 ṻ u
+! 7804 Ṽ V
+! 7805 ṽ v
+! 7806 Ṿ V
+! 7807 ṿ v
+! 7808 Ẁ W
+! 7809 ẁ w
+! 7810 Ẃ W
+! 7811 ẃ w
+! 7812 Ẅ W
+! 7813 ẅ w
+! 7814 Ẇ W
+! 7815 ẇ w
+! 7816 Ẉ W
+! 7817 ẉ w
+! 7818 Ẋ X
+! 7819 ẋ x
+! 7820 Ẍ X
+! 7821 ẍ x
+! 7822 Ẏ Y
+! 7823 ẏ y
+! 7824 Ẑ Z
+! 7825 ẑ z
+! 7826 Ẓ Z
+! 7827 ẓ z
+! 7828 Ẕ Z
+! 7829 ẕ z
+! 7830 ẖ h
+! 7831 ẗ t
+! 7832 ẘ w
+! 7833 ẙ y
+! 7834 ẚ a
+! 7836 ẜ s
+! 7837 ẝ s
+! 7840 Ạ A
+! 7841 ạ a
+! 7842 Ả A
+! 7843 ả a
+! 7844 Ấ A
+! 7845 ấ a
+! 7846 Ầ A
+! 7847 ầ a
+! 7848 Ẩ A
+! 7849 ẩ a
+! 7850 Ẫ A
+! 7851 ẫ a
+! 7852 Ậ A
+! 7853 ậ a
+! 7854 Ắ A
+! 7855 ắ a
+! 7856 Ằ A
+! 7857 ằ a
+! 7858 Ẳ A
+! 7859 ẳ a
+! 7860 Ẵ A
+! 7861 ẵ a
+! 7862 Ặ A
+! 7863 ặ a
+! 7864 Ẹ E
+! 7865 ẹ e
+! 7866 Ẻ E
+! 7867 ẻ e
+! 7868 Ẽ E
+! 7869 ẽ e
+! 7870 Ế E
+! 7871 ế e
+! 7872 Ề E
+! 7873 ề e
+! 7874 Ể E
+! 7875 ể e
+! 7876 Ễ E
+! 7877 ễ e
+! 7878 Ệ E
+! 7879 ệ e
+! 7880 Ỉ I
+! 7881 ỉ i
+! 7882 Ị I
+! 7883 ị i
+! 7884 Ọ O
+! 7885 ọ o
+! 7886 Ỏ O
+! 7887 ỏ o
+! 7888 Ố O
+! 7889 ố o
+! 7890 Ồ O
+! 7891 ồ o
+! 7892 Ổ O
+! 7893 ổ o
+! 7894 Ỗ O
+! 7895 ỗ o
+! 7896 Ộ O
+! 7897 ộ o
+! 7898 Ớ O
+! 7899 ớ o
+! 7900 Ờ O
+! 7901 ờ o
+! 7902 Ở O
+! 7903 ở o
+! 7904 Ỡ O
+! 7905 ỡ o
+! 7906 Ợ O
+! 7907 ợ o
+! 7908 Ụ U
+! 7909 ụ u
+! 7910 Ủ U
+! 7911 ủ u
+! 7912 Ứ U
+! 7913 ứ u
+! 7914 Ừ U
+! 7915 ừ u
+! 7916 Ử U
+! 7917 ử u
+! 7918 Ữ U
+! 7919 ữ u
+! 7920 Ự U
+! 7921 ự u
+! 7922 Ỳ Y
+! 7923 ỳ y
+! 7924 Ỵ Y
+! 7925 ỵ y
+! 7926 Ỷ Y
+! 7927 ỷ y
+! 7928 Ỹ Y
+! 7929 ỹ y
+! 7932 Ỽ V
+! 7933 ỽ v
+! 7934 Ỿ Y
+! 7935 ỿ y
+! 8175 ` `
+! 8208 ‐ -
+! 8209 ‑ -
+! 8210 ‒ -
+! 8211 – -
+! 8213 ― -
+! 8216 ‘ '
+! 8217 ’ '
+! 8218 ‚ ,
+! 8219 ‛ '
+! 8220 “ "
+! 8221 ” "
+! 8223 ‟ "
+! 8224 † +
+! 8226 • o
+! 8228 ․ .
+! 8245 ‵ `
+! 8249 ‹ <
+! 8250 › >
+! 8260 ⁄ /
+! 8266 ⁊ &
+! 8304 ⁰ 0
+! 8305 ⁱ i
+! 8308 ⁴ 4
+! 8309 ⁵ 5
+! 8310 ⁶ 6
+! 8311 ⁷ 7
+! 8312 ⁸ 8
+! 8313 ⁹ 9
+! 8314 ⁺ +
+! 8316 ⁼ =
+! 8317 ⁽ (
+! 8318 ⁾ )
+! 8319 ⁿ n
+! 8320 ₀ 0
+! 8321 ₁ 1
+! 8322 ₂ 2
+! 8323 ₃ 3
+! 8324 ₄ 4
+! 8325 ₅ 5
+! 8326 ₆ 6
+! 8327 ₇ 7
+! 8328 ₈ 8
+! 8329 ₉ 9
+! 8330 ₊ +
+! 8332 ₌ =
+! 8333 ₍ (
+! 8334 ₎ )
+! 8336 ₐ a
+! 8337 ₑ e
+! 8338 ₒ o
+! 8339 ₓ x
+! 8341 ₕ h
+! 8342 ₖ k
+! 8343 ₗ l
+! 8344 ₘ m
+! 8345 ₙ n
+! 8346 ₚ p
+! 8347 ₛ s
+! 8348 ₜ t
+! 8450 ℂ C
+! 8458 ℊ g
+! 8459 ℋ H
+! 8460 ℌ H
+! 8461 ℍ H
+! 8462 ℎ h
+! 8464 ℐ I
+! 8465 ℑ I
+! 8466 ℒ L
+! 8467 ℓ l
+! 8469 ℕ N
+! 8473 ℙ P
+! 8474 ℚ Q
+! 8475 ℛ R
+! 8476 ℜ R
+! 8477 ℝ R
+! 8484 ℤ Z
+! 8488 ℨ Z
+! 8490 K K
+! 8491 Å A
+! 8492 ℬ B
+! 8493 ℭ C
+! 8494 ℮ e
+! 8495 ℯ e
+! 8496 ℰ E
+! 8497 ℱ F
+! 8499 ℳ M
+! 8500 ℴ o
+! 8505 ℹ i
+! 8517 ⅅ D
+! 8518 ⅆ d
+! 8519 ⅇ e
+! 8520 ⅈ i
+! 8521 ⅉ j
+! 8722 − -
+! 8725 ∕ /
+! 8726 ∖
+! 8727 ∗ *
+! 8758 ∶ :
+! 8764 ∼ ~
+! 9001 〈 <
+! 9002 〉 >
+! 9251 ␣ _
+! 9472 ─ -
+! 9474 │ |
+! 9484 ┌ +
+! 9488 ┐ +
+! 9492 └ +
+! 9496 ┘ +
+! 9500 ├ +
+! 9508 ┤ +
+! 9516 ┬ +
+! 9524 ┴ +
+! 9532 ┼ +
+! 9585 ╱ /
+! 9586 ╲
+! 9702 ◦ o
+! 10187 ⟋ /
+! 10189 ⟍
+! 10222 ⟮ (
+! 10223 ⟯ )
+! 10723 ⧣ #
+! 10725 ⧥ #
+! 10741 ⧵
+! 10744 ⧸ /
+! 10745 ⧹
+! 10748 ⧼ <
+! 10749 ⧽ >
+! 10750 ⧾ +
+! 10751 ⧿ -
+! 11388 ⱼ j
+! 11389 ⱽ V
+! 12296 〈 <
+! 12297 〉 >
+! 12448 ゠ =
+! 64297 ﬩ +
+! 65040 ︐ ,
+! 65043 ︓ :
+! 65044 ︔ ;
+! 65045 ︕ !
+! 65075 ︳ _
+! 65076 ︴ _
+! 65077 ︵ (
+! 65078 ︶ )
+! 65079 ︷ {
+! 65080 ︸ }
+! 65095 ﹇ [
+! 65096 ﹈ ]
+! 65101 ﹍ _
+! 65102 ﹎ _
+! 65103 ﹏ _
+! 65104 ﹐ ,
+! 65106 ﹒ .
+! 65108 ﹔ ;
+! 65109 ﹕ :
+! 65111 ﹗ !
+! 65113 ﹙ (
+! 65114 ﹚ )
+! 65115 ﹛ {
+! 65116 ﹜ }
+! 65119 ﹟ #
+! 65120 ﹠ &
+! 65121 ﹡ *
+! 65122 ﹢ +
+! 65123 ﹣ -
+! 65124 ﹤ <
+! 65125 ﹥ >
+! 65126 ﹦ =
+! 65128 ﹨
+! 65129 ﹩ $
+! 65130 ﹪ %
+! 65131 ﹫ @
+! 733 ˝ ''
+! 9786 ☺ :)
+! 9787 ☻ :)
+! 127232 🄀 0.
+! 127233 🄁 0,
+! 127234 🄂 1,
+! 127235 🄃 2,
+! 127236 🄄 3,
+! 127237 🄅 4,
+! 127238 🄆 5,
+! 127239 🄇 6,
+! 127240 🄈 7,
+! 127241 🄉 8,
+! 127242 🄊 9,
+
+
+! 222 Þ TH
+! 223 ß ss
+! 254 þ th
+! 306 Ĳ IJ
+! 307 ĳ ij
+! 329 ŉ 'n
+! 338 Œ OE
+! 339 œ oe
+! 418 Ƣ OI
+! 419 ƣ oi
+! 405 ƕ hv
+! 455 Ǉ LJ
+! 456 ǈ Lj
+! 457 ǉ lj
+! 458 Ǌ NJ
+! 459 ǋ Nj
+! 460 ǌ nj
+! 497 Ǳ DZ
+! 498 ǲ Dz
+! 499 ǳ dz
+! 568 ȸ db
+! 569 ȹ qp
+! 630 ɶ OE
+! 675 ʣ dz
+! 677 ʥ dz
+! 678 ʦ ts
+! 682 ʪ ls
+! 683 ʫ lz
+! 1423 ֏ AMD
+! 7531 ᵫ ue
+! 7546 ᵺ th
+! 7838 ẞ SS
+! 7930 Ỻ LL
+! 7931 ỻ ll
+! 8229 ‥ ..
+! 8230 … ...
+! 8246 ‶ ``
+! 8247 ‷ ```
+! 8222 „ ,,
+! 8264 ⁈ ?!
+! 8352 ₠ CE
+! 8353 ₡ C=
+! 8354 ₢ Cr
+! 8355 ₣ Fr.
+! 8356 ₤ L.
+! 8359 ₧ Pts
+! 8360 ₨ Rs
+! 8361 ₩ KRW
+! 8362 ₪ ILS
+! 8363 ₫ Dong
+! 8367 ₯ GRD
+! 8369 ₱ PHP
+! 8372 ₴ UAH
+! 8376 ₸ KZT
+! 8377 ₹ INR
+! 8378 ₺ TL
+! 8381 ₽ RUB
+! 8382 ₾ GEL
+! 8448 ℀ a/c
+! 8449 ℁ a/s
+! 8453 ℅ c/o
+! 8454 ℆ c/u
+! 8470 № No
+! 8478 ℞ Rx
+! 8480 ℠ SM
+! 8481 ℡ TEL
+! 8507 ℻ FAX
+!
+! 8592 ← <-
+! 8594 → ->
+! 8596 ↔ <->
+! 8622 ↮ !<->
+! 8653 ⇍ !<=
+! 8654 ⇎ !<=>
+! 8655 ⇏ !=>
+! 8656 ⇐ <=
+! 8658 ⇒ =>
+! 8660 ⇔ <=>
+! 8741 ∥ ||
+! 8769 ≁ !~
+! 8772 ≄ !~-
+! 8775 ≇ !~=
+! 8777 ≉ !~~
+! 8800 ≠ !=
+! 8802 ≢ !==
+! 8810 ≪ <<
+! 8811 ≫ >>
+! 8814 ≮ !<
+! 8815 ≯ !>
+! 8816 ≰ !<=
+! 8817 ≱ !>=
+! 8820 ≴ !<~
+! 8821 ≵ !>~
+! 8824 ≸ !<>
+! 8825 ≹ !><
+! 8920 ⋘ <<<
+! 8921 ⋙ >>>
+! 9216 ␀ NUL
+! 9217 ␁ SOH
+! 9218 ␂ STX
+! 9219 ␃ ETX
+! 9220 ␄ EOT
+! 9221 ␅ ENQ
+! 9222 ␆ ACK
+! 9223 ␇ BEL
+! 9224 ␈ BS
+! 9225 ␉ HT
+! 9226 ␊ LF
+! 9227 ␋ VT
+! 9228 ␌ FF
+! 9229 ␍ CR
+! 9230 ␎ SO
+! 9231 ␏ SI
+! 9232 ␐ DLE
+! 9233 ␑ DC1
+! 9234 ␒ DC2
+! 9235 ␓ DC3
+! 9236 ␔ DC4
+! 9237 ␕ NAK
+! 9238 ␖ SYN
+! 9239 ␗ ETB
+! 9240 ␘ CAN
+! 9241 ␙ EM
+! 9242 ␚ SUB
+! 9243 ␛ ESC
+! 9244 ␜ FS
+! 9245 ␝ GS
+! 9246 ␞ RS
+! 9247 ␟ US
+! 9248 ␠ SP
+! 9249 ␡ DEL
+! 9252 ␤ NL
+! 9312 ① (1)
+! 9313 ② (2)
+! 9314 ③ (3)
+! 9315 ④ (4)
+! 9316 ⑤ (5)
+! 9317 ⑥ (6)
+! 9318 ⑦ (7)
+! 9319 ⑧ (8)
+! 9320 ⑨ (9)
+! 9321 ⑩ (10)
+! 9322 ⑪ (11)
+! 9323 ⑫ (12)
+! 9324 ⑬ (13)
+! 9325 ⑭ (14)
+! 9326 ⑮ (15)
+! 9327 ⑯ (16)
+! 9328 ⑰ (17)
+! 9329 ⑱ (18)
+! 9330 ⑲ (19)
+! 9331 ⑳ (20)
+! 9332 ⑴ (1)
+! 9333 ⑵ (2)
+! 9334 ⑶ (3)
+! 9335 ⑷ (4)
+! 9336 ⑸ (5)
+! 9337 ⑹ (6)
+! 9338 ⑺ (7)
+! 9339 ⑻ (8)
+! 9340 ⑼ (9)
+! 9341 ⑽ (10)
+! 9342 ⑾ (11)
+! 9343 ⑿ (12)
+! 9344 ⒀ (13)
+! 9345 ⒁ (14)
+! 9346 ⒂ (15)
+! 9347 ⒃ (16)
+! 9348 ⒄ (17)
+! 9349 ⒅ (18)
+! 9350 ⒆ (19)
+! 9351 ⒇ (20)
+! 9352 ⒈ 1.
+! 9353 ⒉ 2.
+! 9354 ⒊ 3.
+! 9355 ⒋ 4.
+! 9356 ⒌ 5.
+! 9357 ⒍ 6.
+! 9358 ⒎ 7.
+! 9359 ⒏ 8.
+! 9360 ⒐ 9.
+! 9361 ⒑ 10.
+! 9362 ⒒ 11.
+! 9363 ⒓ 12.
+! 9364 ⒔ 13.
+! 9365 ⒕ 14.
+! 9366 ⒖ 15.
+! 9367 ⒗ 16.
+! 9368 ⒘ 17.
+! 9369 ⒙ 18.
+! 9370 ⒚ 19.
+! 9371 ⒛ 20.
+! 9372 ⒜ (a)
+! 9373 ⒝ (b)
+! 9374 ⒞ (c)
+! 9375 ⒟ (d)
+! 9376 ⒠ (e)
+! 9377 ⒡ (f)
+! 9378 ⒢ (g)
+! 9379 ⒣ (h)
+! 9380 ⒤ (i)
+! 9381 ⒥ (j)
+! 9382 ⒦ (k)
+! 9383 ⒧ (l)
+! 9384 ⒨ (m)
+! 9385 ⒩ (n)
+! 9386 ⒪ (o)
+! 9387 ⒫ (p)
+! 9388 ⒬ (q)
+! 9389 ⒭ (r)
+! 9390 ⒮ (s)
+! 9391 ⒯ (t)
+! 9392 ⒰ (u)
+! 9393 ⒱ (v)
+! 9394 ⒲ (w)
+! 9395 ⒳ (x)
+! 9396 ⒴ (y)
+! 9397 ⒵ (z)
+! 9398 Ⓐ (A)
+! 9399 Ⓑ (B)
+! 9400 Ⓒ (C)
+! 9401 Ⓓ (D)
+! 9402 Ⓔ (E)
+! 9403 Ⓕ (F)
+! 9404 Ⓖ (G)
+! 9405 Ⓗ (H)
+! 9406 Ⓘ (I)
+! 9407 Ⓙ (J)
+! 9408 Ⓚ (K)
+! 9409 Ⓛ (L)
+! 9410 Ⓜ (M)
+! 9411 Ⓝ (N)
+! 9412 Ⓞ (O)
+! 9413 Ⓟ (P)
+! 9414 Ⓠ (Q)
+! 9415 Ⓡ (R)
+! 9416 Ⓢ (S)
+! 9417 Ⓣ (T)
+! 9418 Ⓤ (U)
+! 9419 Ⓥ (V)
+! 9420 Ⓦ (W)
+! 9421 Ⓧ (X)
+! 9422 Ⓨ (Y)
+! 9423 Ⓩ (Z)
+! 9424 ⓐ (a)
+! 9425 ⓑ (b)
+! 9426 ⓒ (c)
+! 9427 ⓓ (d)
+! 9428 ⓔ (e)
+! 9429 ⓕ (f)
+! 9430 ⓖ (g)
+! 9431 ⓗ (h)
+! 9432 ⓘ (i)
+! 9433 ⓙ (j)
+! 9434 ⓚ (k)
+! 9435 ⓛ (l)
+! 9436 ⓜ (m)
+! 9437 ⓝ (n)
+! 9438 ⓞ (o)
+! 9439 ⓟ (p)
+! 9440 ⓠ (q)
+! 9441 ⓡ (r)
+! 9442 ⓢ (s)
+! 9443 ⓣ (t)
+! 9444 ⓤ (u)
+! 9445 ⓥ (v)
+! 9446 ⓦ (w)
+! 9447 ⓧ (x)
+! 9448 ⓨ (y)
+! 9449 ⓩ (z)
+! 9450 ⓪ (0)
+! 10220 ⟬ ((
+! 10221 ⟭ ))
+! 10624 ⦀ |||
+! 10627 ⦃ {|
+! 10628 ⦄ |}
+! 10629 ⦅ ((
+! 10630 ⦆ ))
+! 10631 ⦇ (|
+! 10632 ⦈ |)
+! 10633 ⦉ <|
+! 10634 ⦊ |>
+! 10868 ⩴ ::=
+! 10869 ⩵ ==
+! 10870 ⩶ ===
+! 12880 ㉐ PTE
+! 12881 ㉑ (21)
+! 12882 ㉒ (22)
+! 12883 ㉓ (23)
+! 12884 ㉔ (24)
+! 12885 ㉕ (25)
+! 12886 ㉖ (26)
+! 12887 ㉗ (27)
+! 12888 ㉘ (28)
+! 12889 ㉙ (29)
+! 12890 ㉚ (30)
+! 12891 ㉛ (31)
+! 12892 ㉜ (32)
+! 12893 ㉝ (33)
+! 12894 ㉞ (34)
+! 12895 ㉟ (35)
+! 12977 ㊱ (36)
+! 12978 ㊲ (37)
+! 12979 ㊳ (38)
+! 12980 ㊴ (39)
+! 12981 ㊵ (40)
+! 12982 ㊶ (41)
+! 12983 ㊷ (42)
+! 12984 ㊸ (43)
+! 12985 ㊹ (44)
+! 12986 ㊺ (45)
+! 12987 ㊻ (46)
+! 12988 ㊼ (47)
+! 12989 ㊽ (48)
+! 12990 ㊾ (49)
+! 12991 ㊿ (50)
+
+! 13004 ㋌ Hg
+! 13005 ㋍ erg
+! 13006 ㋎ eV
+! 13007 ㋏ LTD
+! 13169 ㍱ hPa
+! 13170 ㍲ da
+! 13171 ㍳ AU
+! 13172 ㍴ bar
+! 13173 ㍵ oV
+! 13174 ㍶ pc
+! 13175 ㍷ dm
+! 13176 ㍸ dm^2
+! 13177 ㍹ dm^3
+! 13178 ㍺ IU
+! 13184 ㎀ pA
+! 13185 ㎁ nA
+! 13186 ㎂ uA
+! 13187 ㎃ mA
+! 13188 ㎄ kA
+! 13189 ㎅ KB
+! 13190 ㎆ MB
+! 13191 ㎇ GB
+! 13192 ㎈ cal
+! 13193 ㎉ kcal
+! 13194 ㎊ pF
+! 13195 ㎋ nF
+! 13196 ㎌ uF
+! 13197 ㎍ ug
+! 13198 ㎎ mg
+! 13199 ㎏ kg
+! 13200 ㎐ Hz
+! 13201 ㎑ kHz
+! 13202 ㎒ MHz
+! 13203 ㎓ GHz
+! 13204 ㎔ THz
+! 13205 ㎕ ul
+! 13206 ㎖ ml
+! 13207 ㎗ dl
+! 13208 ㎘ kl
+! 13209 ㎙ fm
+! 13210 ㎚ nm
+! 13211 ㎛ um
+! 13212 ㎜ mm
+! 13213 ㎝ cm
+! 13214 ㎞ km
+! 13215 ㎟ mm^2
+! 13216 ㎠ cm^2
+! 13217 ㎡ m^2
+! 13218 ㎢ km^2
+! 13219 ㎣ mm^3
+! 13220 ㎤ cm^3
+! 13221 ㎥ m^3
+! 13222 ㎦ km^3
+! 13223 ㎧ m/s
+! 13224 ㎨ m/s^2
+! 13225 ㎩ Pa
+! 13226 ㎪ kPa
+! 13227 ㎫ MPa
+! 13228 ㎬ GPa
+! 13229 ㎭ rad
+! 13230 ㎮ rad/s
+! 13231 ㎯ rad/s^2
+! 13232 ㎰ ps
+! 13233 ㎱ ns
+! 13234 ㎲ us
+! 13235 ㎳ ms
+! 13236 ㎴ pV
+! 13237 ㎵ nV
+! 13238 ㎶ uV
+! 13239 ㎷ mV
+! 13240 ㎸ kV
+! 13241 ㎹ MV
+! 13242 ㎺ pW
+! 13243 ㎻ nW
+! 13244 ㎼ uW
+! 13245 ㎽ mW
+! 13246 ㎾ kW
+! 13247 ㎿ MW
+! 13250 ㏂ a.m.
+! 13251 ㏃ Bq
+! 13252 ㏄ cc
+! 13253 ㏅ cd
+! 13254 ㏆ C/kg
+! 13255 ㏇ Co.
+! 13256 ㏈ dB
+! 13257 ㏉ Gy
+! 13258 ㏊ ha
+! 13259 ㏋ HP
+! 13260 ㏌ in
+! 13261 ㏍ KK
+! 13262 ㏎ KM
+! 13263 ㏏ kt
+! 13264 ㏐ lm
+! 13265 ㏑ ln
+! 13266 ㏒ log
+! 13267 ㏓ lx
+! 13268 ㏔ mb
+! 13269 ㏕ mil
+! 13270 ㏖ mol
+! 13271 ㏗ PH
+! 13272 ㏘ p.m.
+! 13273 ㏙ PPM
+! 13274 ㏚ PR
+! 13275 ㏛ sr
+! 13276 ㏜ Sv
+! 13277 ㏝ Wb
+! 13278 ㏞ V/m
+! 13279 ㏟ A/m
+! 13311 ㏿ gal
+
+! 64261 ﬅ st
+! 64262 ﬆ st
+! 65049 ︙ ...
+! 65072 ︰ ..
+! 127248 🄐 (A)
+! 127249 🄑 (B)
+! 127250 🄒 (C)
+! 127251 🄓 (D)
+! 127252 🄔 (E)
+! 127253 🄕 (F)
+! 127254 🄖 (G)
+! 127255 🄗 (H)
+! 127256 🄘 (I)
+! 127257 🄙 (J)
+! 127258 🄚 (K)
+! 127259 🄛 (L)
+! 127260 🄜 (M)
+! 127261 🄝 (N)
+! 127262 🄞 (O)
+! 127263 🄟 (P)
+! 127264 🄠 (Q)
+! 127265 🄡 (R)
+! 127266 🄢 (S)
+! 127267 🄣 (T)
+! 127268 🄤 (U)
+! 127269 🄥 (V)
+! 127270 🄦 (W)
+! 127271 🄧 (X)
+! 127272 🄨 (Y)
+! 127273 🄩 (Z)
+! 127275 🄫 (C)
+! 127276 🄬 (R)
+! 127277 🄭 (CD)
+! 127278 🄮 (WZ)
+! 127306 🅊 HV
+! 127307 🅋 MV
+! 127308 🅌 SD
+! 127309 🅍 SS
+! 127310 🅎 PPV
+! 127311 🅏 WC
+! 127338 🅪 MC
+! 127339 🅫 MD
+! 127340 🅬 MR
+! 127376 🆐 DJ
 contains
 subroutine setup()
 !! Put everything to do with command parsing here
@@ -18979,44 +21605,55 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   (LICENSE:PD)                                                                 ',&
 '                                                                                ',&
 'SYNOPSIS                                                                        ',&
-'    uni [--escape|--noescape] [--lcase|--ucase] --html --reverse |              ',&
-'    [ [--box STYLE | --border STYLE]                                            ',&
-'    --start STARTCODE --finish ENDCODE |                                        ',&
-'    --code [--styles NAMES] |                                                   ',&
-'    --wide |                                                                    ',&
-'    --length |                                                                  ',&
-'    --entities |                                                                ',&
-'    --example |                                                                 ',&
-'    --text |                                                                    ',&
-'    infile(s)                                                                   ',&
+'    uni [--toescape|--noescape] | [--tohtml|--nohtml] | [--code] | [--nokeys]   ',&
+'    [--lcase|--ucase] [--reverse] [--box STYLE --border STYLE] |                ',&
+'    [--text | infile(s)] |                                                      ',&
 '                                                                                ',&
-'To see short names and defaults enter "uni --usage"                             ',&
+'    uni --findwide | --nowide [--text | infile(s)]                              ',&
+'                                                                                ',&
+'    uni --length  [--text | infile(s)]                                          ',&
+'                                                                                ',&
+'    uni [--start STARTCODE] [--finish ENDCODE] [--styles STYLE_NAMES]           ',&
+'                                                                                ',&
+'    uni --entities                                                              ',&
+'                                                                                ',&
+'    uni --show_keys                                                             ',&
+'                                                                                ',&
+'    uni --sample                                                                ',&
+'                                                                                ',&
+'   To see short names and defaults enter "uni --usage"                          ',&
 '                                                                                ',&
 'DESCRIPTION                                                                     ',&
 '   uni performs operations such as                                              ',&
 '                                                                                ',&
-'   + converting between UTF-8 and ASCII-7 C-style escape sequences              ',&
+'   + locating multi-byte characters in what is primarily an ASCII file          ',&
+'                                                                                ',&
+'   + convert between UTF-8 and C-style escape sequences                         ',&
+'   + converting between HTML entity names and UTF-8                             ',&
+'                                                                                ',&
 '   + changing case of multi-byte characters                                     ',&
 '   + drawing box characters using "#" characters                                ',&
-'   + displaying ranges of Unicode characters in several common formats          ',&
+'                                                                                ',&
+'   + displaying ranges of Unicode characters in common formats                  ',&
 '     for use in generating code or text or HTML                                 ',&
-'   + locating multi-byte characters in what is primarily an ASCII file          ',&
-'   + converting html entity characters to UTF-8                                 ',&
-'   + identifying sundry UTF-8 encoded text.                                     ',&
+'                                                                                ',&
+'   + describing or identifying sundry UTF-8 encoded text.                       ',&
 '                                                                                ',&
 '   uni(1) defaults to displaying only lines containing a wide                   ',&
 '   (ie. multi-byte) character along with the line number; with each line        ',&
 '   as-is and then with wide characters converted to C++-style escape            ',&
-'   sequences. That is, the default is "uni --wide".                             ',&
+'   sequences. That is, the default is "uni --findwide".                         ',&
 '                                                                                ',&
-'   The primary Unicode block for the Greek alphabet is the Greek                ',&
-'   and Coptic section (U+0370-U+03FF; standard letters, numbers, and            ',&
-'   symbols) which contains most modern monotonic Greek letters while            ',&
-'   the Greek Extended block (U+1F00-U+1FFF; additional characters with          ',&
-'   diacritics). is used for polytonic Greek. So to see the basic Greek          ',&
-'   alphabet enter                                                               ',&
+'   uni(1) can display a range of characters. For example, The primary           ',&
+'   Unicode block for the Greek alphabet is the Greek and Coptic section         ',&
+'   (U+0370-U+03FF; standard letters, numbers, and symbols) which contains       ',&
+'   most modern monotonic Greek letters while the Greek Extended block           ',&
+'   (U+1F00-U+1FFF; additional characters with diacritics). is used for          ',&
+'   polytonic Greek. So to see the basic Greek alphabet enter                    ',&
 '                                                                                ',&
-'       uni --start 880 --finish 1023                                            ',&
+'       uni --start U+0370 --finish U+03FF                                       ',&
+'       # or                                                                     ',&
+'       uni --start 880    --finish 1023                                         ',&
 '                                                                                ',&
 '   Key details about the Unicode codespace:                                     ',&
 '                                                                                ',&
@@ -19038,32 +21675,37 @@ help_text=[ CHARACTER(LEN=128) :: &
 'OPTIONS                                                                         ',&
 '   BASIC CONVERSION                                                             ',&
 '                                                                                ',&
-'   --escape,E    convert non-ASCII7 characters to C-style escape sequences      ',&
+'   --toescape,E  convert non-ASCII-7 characters to C-style escape sequences     ',&
 '   --noescape,N  convert C-style escape sequences to UTF8 encoded data          ',&
 '                                                                                ',&
-'   --html,H      expand HTML character entities of the form &NAME; and          ',&
-'                 &#NNNNN;.                                                      ',&
-'                                                                                ',&
-'   --reverse,R   reverse the glyphs on a line                                   ',&
+'   --tohtml,h    convert non-printable and non-ASCII-7 characters to the        ',&
+'                 HTML format &#NNNNN;.                                          ',&
+'   --nohtml,H    expand text containing HTML character entities of the          ',&
+'                 form &NAME; and &#NNNNN; to UTF-8                              ',&
+'   --nokeys,K    expand text containing text between "<" and ">" using the      ',&
+'                 keyword dictionary                                             ',&
 '                                                                                ',&
 '   --lcase,L     convert uppercase to lowercase                                 ',&
 '   --ucase,U     convert lowercase to uppercase                                 ',&
 '                                                                                ',&
+'   --reverse,R   reverse the glyphs on a line                                   ',&
+'                                                                                ',&
 '   IDENTIFY AND QUANTIFY INPUT                                                  ',&
+'   --findwide,W  identify and write lines not composed entirely of ASCII-7.     ',&
+'                 Only lines containing non-ASCII-7 characters are printed;      ',&
+'                 once as-is and once with non-ASCII-7 characters expanded       ',&
+'                 to C-like escape sequences with a line number.                 ',&
+'                                                                                ',&
+'                 If no parameters are specified this is the default.            ',&
+'                                                                                ',&
+'   --nowide,w    make reasonable conversions from UTF-8 to ASCII-7 in an        ',&
+'                 attempt to make the file ASCII-7. Characters not               ',&
+'                 substituted are converted to HTML decimal syntax               ',&
+'                                                                                ',&
 '   --length,L    prefix lines with line number, glyph and byte count            ',&
 '                 of input line.                                                 ',&
-'                                                                                ',&
-'   --wide,W      identify and write lines not composed entirely of ASCII-7.     ',&
-'                 If no parameters are specified this is the default.            ',&
 '   FORMATTING                                                                   ',&
-'   --code,C      write as Fortran code using KIND=ISO_10646                     ',&
-'                                                                                ',&
-'   --styles,s STYLES  Display style name(s) for "--code" option. Default        ',&
-'                      is all styles. The "test" style just streams the          ',&
-'                      UTF-8 values of the specified values. For other           ',&
-'                      allowed names ("decimal", "utf8", "c", "standard",        ',&
-'                      "htmlx", "htmld", "ucs4", "codex", "hex") see the         ',&
-'                      following section "STYLES".                               ',&
+'   --code,C STYLE    write as Fortran code using KIND=ISO_10646                 ',&
 '                                                                                ',&
 '   --box,B STYLE box style choice from set {"light","bold","double"}.           ',&
 '                 Causes pound character to be used to construct boxes           ',&
@@ -19071,37 +21713,49 @@ help_text=[ CHARACTER(LEN=128) :: &
 '                                                                                ',&
 '                 Input characters are assumed to be monospaced.                 ',&
 '                                                                                ',&
-'                 If specified other non-conversion options are ignored          ',&
-'                 except --border.                                               ',&
-'                                                                                ',&
 '   --border,b STYLE  place box around text, choosing box style from set         ',&
 '                     {"light","bold","double"}.  Input characters are           ',&
 '                     assumed to be monospaced.                                  ',&
 '                                                                                ',&
-'                     If specified other non-conversion options are ignored.     ',&
-'                     except --box.                                              ',&
-'   MODES                                                                        ',&
-'   --verbose,V   echo the input as well as the computed values                  ',&
+'   Note when --box and/or --border are present only basic and input             ',&
+'   source options are applied. Other options are ignored.                       ',&
+'                                                                                ',&
+'   INPUT                                                                        ',&
+'                                                                                ',&
+'   FILENAMES     name(s) of files to read input from. Defaults to stdin         ',&
 '   --text,t      strings on the command that would be treated as filenames      ',&
 '                 are treated as text instead.                                   ',&
 '                                                                                ',&
 '   INFORMATION                                                                  ',&
 '   --start,S     starting codepoint to generate a list of glyphs from.          ',&
 '                                                                                ',&
-'                 If specified other options are ignored except --finish.        ',&
+'                 If specified other options are ignored except --finish         ',&
+'                 and --styles.                                                  ',&
 '                                                                                ',&
 '   --finish,F    ending codepoint to generate a list of glyphs from.            ',&
 '                 1 114 111, is the highest value that can be represented        ',&
 '                 using a single or a pair of 16-bit code units in the           ',&
 '                 UTF-16 encoding.                                               ',&
 '                                                                                ',&
-'                 If specified other options are ignored except --start.         ',&
+'                 If specified other options are ignored except --start          ',&
+'                 and --styles.                                                  ',&
+'                                                                                ',&
+'   --styles,s    Styles to print range specified by --start and --finish        ',&
+'                 with. Default is all styles. The "test" style just             ',&
+'                 streams the UTF-8 values of the specified values. For          ',&
+'                 other allowed names ("decimal", "utf8", "c", "standard",       ',&
+'                 "htmlx", "htmld", "ucs4", "codex", "hex") see the              ',&
+'                 following section "STYLES". Multiple names separated           ',&
+'                 by commas are allowed.                                         ',&
 '                                                                                ',&
 '   --entities,e  display table of HTML character entities and stop.             ',&
 '                 Other parameters are ignored.                                  ',&
-'   --example,x   display sample input file and stop.                            ',&
+'   --show_keys   Dump the current dictionary of keys for the --nokeys           ',&
+'                 mode.                                                          ',&
+'   --sample,x    display sample input file and stop.                            ',&
 '                 Other parameters are ignored.                                  ',&
 '   STANDARD                                                                     ',&
+'   --verbose,V   display additional output                                      ',&
 '   --help,h      display this help and exit                                     ',&
 '   --usage,u     display state of command options and exit                      ',&
 '   --version,v   output version information and exit                            ',&
@@ -19148,37 +21802,56 @@ help_text=[ CHARACTER(LEN=128) :: &
 'EXAMPLE                                                                         ',&
 '  Sample runs:                                                                  ',&
 '                                                                                ',&
-'   # basic Greek alphabet                                                       ',&
-'   uni --start 880 --finish 1023                                                ',&
-'                                                                                ',&
-'   # test current font                                                          ',&
-'   uni --start 32 --finish 1114111 --test                                       ',&
-'                                                                                ',&
-'   # box characters                                                             ',&
-'   # The majority of Unicode box-drawing characters are in the Box              ',&
-'   # Drawing block, which runs from decimal code points 9472 to 9599,           ',&
-'   # corresponding to hexadecimal U+2500 to U+257F.                             ',&
-'                                                                                ',&
-'   uni -S 9472 -F 9599                                                          ',&
-'                                                                                ',&
-'   # find any lines with non-ASCII7 characters                                  ',&
+'   # find any lines with non-ASCII-7 characters                                 ',&
 '   uni -W The_Crow_and_the_Fox.utf8                                             ',&
 '                                                                                ',&
+'       1 [“The Crow and the Fox” by Jean de la Fontaine]                    ',&
+'         [\u201CThe Crow and the Fox\u201D by Jean de la Fontaine]              ',&
+'       5 [   Maître Corbeau, sur un arbre perché,]                            ',&
+'         [   Ma\xEEtre Corbeau, sur un arbre perch\xE9,]                        ',&
+'       7 [   Maître Renard, par l’odeur alléché,]                          ',&
+'         [   Ma\xEEtre Renard, par l\u2019odeur all\xE9ch\xE9,]                 ',&
+'       8 [   Lui tint à peu près ce langage :]                                ',&
+'         [   Lui tint \xE0 peu pr\xE8s ce langage :]                            ',&
+'       9 [   «Hé ! bonjour, Monsieur du Corbeau.]                             ',&
+'         [   \xABH\xE9 ! bonjour, Monsieur du Corbeau.]                         ',&
+'      10 [   Que vous êtes joli ! que vous me semblez beau !]                  ',&
+'         [   Que vous \xEAtes joli ! que vous me semblez beau !]                ',&
+'      12 [   Se rapporte à votre plumage,]                                     ',&
+'         [   Se rapporte \xE0 votre plumage,]                                   ',&
+'      13 [   Vous êtes le Phénix des hôtes de ces bois.»]                   ',&
+'         [   Vous \xEAtes le Ph\xE9nix des h\xF4tes de ces bois.\xBB]           ',&
+'      17 [   Le Renard s’en saisit, et dit : «Mon bon Monsieur,]             ',&
+'         [   Le Renard s\u2019en saisit, et dit : \xABMon bon Monsieur,]        ',&
+'      19 [   Vit aux dépens de celui qui l’écoute :]                        ',&
+'         [   Vit aux d\xE9pens de celui qui l\u2019\xE9coute :]                 ',&
+'      20 [   Cette leçon vaut bien un fromage, sans doute.»]                  ',&
+'         [   Cette le\xE7on vaut bien un fromage, sans doute.\xBB]              ',&
+'      22 [   Jura, mais un peu tard, qu’on ne l’y prendrait plus.]          ',&
+'         [   Jura, mais un peu tard, qu\u2019on ne l\u2019y prendrait plus.]    ',&
+'                                                                                ',&
+'   # convert text containing HTML entities                                      ',&
+'   uni -t ''c=&pi;&times;d'' --nohtml                                           ',&
+'   c=π×d                                                                      ',&
+'                                                                                ',&
+'   # list all alphanumeric HTML entities                                        ',&
+'   uni --entitites                                                              ',&
+'                                                                                ',&
 '   # convert a file with wide characters to C-style escape codes                ',&
-'   # (that can be used with M_unicode module).                                  ',&
-'   uni --escape <<\end_of_data                                                  ',&
-'   七転び八起き。                                                        ',&
-'   転んでもまた立ち上がる。                                         ',&
-'   くじけずに前を向いて歩いていこう。                          ',&
-'   end_of_data                                                                  ',&
-'                                                                                ',&
-'  Sample output(wrapped):                                                       ',&
-'                                                                                ',&
+'   # (that can be used with M_unicode module and Fortran or C code).            ',&
+'   uni --toescape proverb.txt >proverb.esc                                      ',&
+'   cat proverb.esc                                                              ',&
 '   >\u4E03\u8EE2\u3073\u516B\u8D77\u304D\u3002                                  ',&
 '   >\u8EE2\u3093\u3067\u3082\u307E\u305F\u7ACB\u3061\u4E0A\u304C                ',&
 '   \u308B\u3002                                                                 ',&
 '   >\u304F\u3058\u3051\u305A\u306B\u524D\u3092\u5411\u3044\u3066                ',&
 '   \u6B69\u3044\u3066\u3044\u3053\u3046\u3002                                   ',&
+'                                                                                ',&
+'   and back again:                                                              ',&
+'   uni --noescape proverb.esc                                                   ',&
+'   七転び八起き。                                                        ',&
+'   転んでもまた立ち上がる。                                         ',&
+'   くじけずに前を向いて歩いていこう。                          ',&
 '                                                                                ',&
 '   uni --box bold <<\end_of_data                                                ',&
 '   #################################                                            ',&
@@ -19196,8 +21869,23 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓',&
 '   ┃Warning. Warning Will Robinson!┃                                                              ',&
 '   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛',&
+'                                                                                                      ',&
+'   # listing a section of Unicode : box characters                                                    ',&
+'   # The majority of Unicode box-drawing characters are in the Box                                    ',&
+'   # Drawing block, which runs from decimal code points 9472 to 9599,                                 ',&
+'   # corresponding to hexadecimal U+2500 to U+257F.                                                   ',&
+'                                                                                                      ',&
+'   uni -S 9472 -F 9599                                                                                ',&
+'                                                                                                      ',&
 '   uni -t ''&#128512; &#128516; &#128525; &#128151;'' -H                                              ',&
 '   😀 😄 😍 💗                                                                                ',&
+'                                                                                                      ',&
+'   # basic Greek alphabet                                                                             ',&
+'   uni --start 880 --finish 1023                                                                      ',&
+'                                                                                                      ',&
+'   # test current font                                                                                ',&
+'   uni --start 32 --finish 1114111 --test                                                             ',&
+'                                                                                                      ',&
 'SEE ALSO                                                                                              ',&
 '   dos2unix(1)/unix2dos(1), iconv(1)                                                                  ',&
 '                                                                                                      ',&
@@ -19218,10 +21906,13 @@ version_text=[ CHARACTER(LEN=128) :: &
     & --box:B " " &
     & --code:C F &
     & --entities:e F &
-    & --escape:E F &
+    & --show_keys:d F &
+    & --toescape:E F &
     & --noescape:N F &
-    & --example:x F &
-    & --html:H F &
+    & --sample:x F &
+    & --nohtml:H F &
+    & --tohtml:h F &
+    & --nokeys:k F &
     & --kind:K 1 &
     & --lcase:L F &
     & --ucase:U F &
@@ -19231,7 +21922,8 @@ version_text=[ CHARACTER(LEN=128) :: &
     & --start:S 0 &
     & --finish:F 1114111 &
     & --styles:s "decimal,utf8,c,standard,htmlx,htmld,ucs4,codex,hex" &
-    & --wide:W F &
+    & --findwide:W F &
+    & --nowide:w F &
     & --debug:D F', &
     & help_text, version_text)
 
@@ -19241,16 +21933,20 @@ version_text=[ CHARACTER(LEN=128) :: &
    call get_args('code',     code )
    call get_args('debug',    debug )
    call get_args('entities', entities )
-   call get_args('escape',   escape,     'noescape', noescape )
-   call get_args('example',  example )
-   call get_args('html',     html )
+   call get_args('show_keys', show_keys )
+   call get_args('toescape', toescape,     'noescape', noescape )
+   call get_args('sample',   sample )
+   call get_args('nohtml',   nohtml )
+   call get_args('tohtml',   tohtml )
+   call get_args('nokeys',   nokeys )
    call get_args('kind',     knd )
    call get_args('lcase',    lcase,      'ucase',    ucase    )
    call get_args('length',   length )
    call get_args('reverse',  reverse )
    call get_args('start',    startrange, 'finish',   endrange )
    call get_args('verbose',  verbose )
-   call get_args('wide',     wide )
+   call get_args('findwide', findwide )
+   call get_args('nowide',   nowide )
    call get_args('text',     nofile )
    styles=sgets('styles')
    if( specified('border') ) border=.TRUE.
@@ -19260,13 +21956,17 @@ version_text=[ CHARACTER(LEN=128) :: &
       line=expand_html()
       stop
    endif
+   if(show_keys)then
+      call keyword_mode('dump')
+      stop
+   endif
    if(size(files).eq.0)then
       filenames=[" "]
    else
       filenames=files
    endif
-   if(example)then
-      call example_file()
+   if(sample)then
+      call sample_file()
    endif
    ! process --start and --finish
    if( specified('start')  .and. (.not.specified('finish')) ) endrange=startrange
@@ -19299,11 +21999,11 @@ version_text=[ CHARACTER(LEN=128) :: &
       endif
       stop
    endif
-   ! if no actions specified default to --wide
-   if( .not.any(specified([ character(len=20) :: 'border', 'box', 'code', 'entities', &
-   & 'escape', 'noescape', 'example', 'html', 'kind', 'lcase', 'ucase', 'length', &
-   & 'reverse', 'start', 'finish', 'styles', 'wide'])))then
-      wide=.true.
+   ! if no actions specified default to --findwide
+   if( .not.any(specified([ character(len=20) :: 'border', 'box', 'code', 'entities', 'nokeys', &
+   & 'toescape', 'noescape', 'sample', 'tohtml', 'nohtml', 'kind', 'lcase', 'ucase', 'length', &
+   & 'reverse', 'start', 'finish', 'styles', 'findwide', 'nowide' ])))then
+      findwide=.true.
    endif
    if(debug)then
       write(stderr,'(*(g0))')'nofile=',nofile
@@ -19314,43 +22014,56 @@ version_text=[ CHARACTER(LEN=128) :: &
    endif
 end subroutine setup
 
-subroutine example_file()
+subroutine sample_file()
 integer                                                              :: i
-character(len=128),parameter :: example_data(*)=[ CHARACTER(LEN=128) :: &
-'The Greek alphabet consists of 24 letters, from Alpha to Omega, widely',&
-'used in mathematics, science, and engineering. The letters are        ',&
-'                                                                      ',&
-'   Alpha (Αα), Beta (Ββ), Gamma (Γγ), Delta (Δδ), Epsilon (Εε), Zeta',&
-'   (Ζζ), Eta (Ηη), Theta (Θθ), Iota (Ιι), Kappa (Κκ), Lambda        ',&
-'   (Λλ), Mu (Μμ), Nu (Νν), Xi (Ξξ), Omicron (Οο), Pi (Ππ), Rho    ',&
-'   (Ρρ), Sigma (Σσ/ς), Tau (Ττ), Upsilon (Υυ), Phi (Φφ), Chi       ',&
-'   (Χχ), Psi (Ψψ), and Omega (Ωω).                                      ',&
-'                                                                              ',&
-'Sigma (Σ, σ/ς) (Note: ς is used only at the end of words)                 ',&
-'                                                                              ',&
-'## As C++ escape sequences                                                                                                ',&
+character(len=128),parameter :: sample_data(*)=[ CHARACTER(LEN=128) :: &
+'                                                                                                                          ',&
+'test for "uni --toescape" and "uni --tohtml" and "uni --nowide" has the Greek alphabet in UTF-8                           ',&
+'                                                                                                                          ',&
+' The Greek alphabet consists of 24 letters, from Alpha to Omega, widely                                                   ',&
+' used in mathematics, science, and engineering. The letters are                                                           ',&
+'                                                                                                                          ',&
+'   Alpha (Αα), Beta (Ββ), Gamma (Γγ), Delta (Δδ), Epsilon (Εε), Zeta      ',&
+'   (Ζζ), Eta (Ηη), Theta (Θθ), Iota (Ιι), Kappa (Κκ), Lambda              ',&
+'   (Λλ), Mu (Μμ), Nu (Νν), Xi (Ξξ), Omicron (Οο), Pi (Ππ), Rho            ',&
+'   (Ρρ), Sigma (Σσ/ς), Tau (Ττ), Upsilon (Υυ), Phi (Φφ), Chi              ',&
+'   (Χχ), Psi (Ψψ), and Omega (Ωω).                                        ',&
+'                                                                                                                          ',&
+' Sigma (Σ, σ/ς) (Note: ς is used only at the end of words)                                                                ',&
+'                                                                                                                          ',&
+'test for "uni --noescape" has C++ escape sequences                                                                        ',&
+'                                                                                                                          ',&
 '   Alpha (\u0391\u03B1), Beta (\u0392\u03B2), Gamma (\u0393\u03B3), Delta (\u0394\u03B4), Epsilon (\u0395\u03B5), Zeta    ',&
 '   (\u0396\u03B6), Eta (\u0397\u03B7), Theta (\u0398\u03B8), Iota (\u0399\u03B9), Kappa (\u039A\u03BA), Lambda            ',&
 '   (\u039B\u03BB), Mu (\u039C\u03BC), Nu (\u039D\u03BD), Xi (\u039E\u03BE), Omicron (\u039F\u03BF), Pi (\u03A0\u03C0), Rho',&
 '   (\u03A1\u03C1), Sigma (\u03A3\u03C3/\u03C2), Tau (\u03A4\u03C4), Upsilon (\u03A5\u03C5), Phi (\u03A6\u03C6), Chi       ',&
 '   (\u03A7\u03C7), Psi (\u03A8\u03C8), and Omega (\u03A9\u03C9).                                                          ',&
 '                                                                                                                          ',&
-'Sigma (\u03A3, \u03C3/\u03C2) (Note: \u03C2 is used only at the end of words)                                             ',&
+'   Sigma (\u03A3, \u03C3/\u03C2) (Note: \u03C2 is used only at the end of words)                                          ',&
 '                                                                                                                          ',&
-'## As HTML character entities                                                                                             ',&
-'&Alpha;,&alpha;, &Beta;,&beta;, &Gamma;,&gamma;,                                                                          ',&
-'&Delta;,&delta;, &Epsilon;,&epsilon;, &Zeta;,&zeta;,                                                                      ',&
-'&Eta;,&eta;, &Theta;,&theta;, &Iota;,&iota;,                                                                              ',&
-'&Kappa;,&kappa;, &Lambda;,&lambda;, &Mu;,&mu;,                                                                            ',&
-'&Nu;,&nu;, &Xi;,&xi;, &Omicron;,&omicron;,                                                                                ',&
-'&Pi;,&pi;, &Rho;,&rho;, &Sigma;,&sigma;,                                                                                  ',&
-'&Tau;,&tau;, &Upsilon;,&upsilon;, &Phi;,&phi;,                                                                            ',&
-'&Chi;,&chi;, &Psi;,&psi;, &Omega;,&omega;                                                                                  ',&
+'test for "uni --nohtml" will convert this to actual Greek characters                                                      ',&
 '                                                                                                                          ',&
+'    ## Greek alphabet in HTML character entities                                                                          ',&
+'    &Alpha;,&alpha;, &Beta;,&beta;, &Gamma;,&gamma;,                                                                      ',&
+'    &Delta;,&delta;, &Epsilon;,&epsilon;, &Zeta;,&zeta;,                                                                  ',&
+'    &Eta;,&eta;, &Theta;,&theta;, &Iota;,&iota;,                                                                          ',&
+'    &Kappa;,&kappa;, &Lambda;,&lambda;, &Mu;,&mu;,                                                                        ',&
+'    &Nu;,&nu;, &Xi;,&xi;, &Omicron;,&omicron;,                                                                            ',&
+'    &Pi;,&pi;, &Rho;,&rho;, &Sigma;,&sigma;,                                                                              ',&
+'    &Tau;,&tau;, &Upsilon;,&upsilon;, &Phi;,&phi;,                                                                        ',&
+'    &Chi;,&chi;, &Psi;,&psi;, &Omega;,&omega;                                                                             ',&
+'                                                                                                                          ',&
+'test for "uni --box" will convert the # characters to box characters                                                      ',&
+'  #################################                                                                                       ',&
+'  # Warning: proceed with caution #                                                                                       ',&
+'  #################################                                                                                       ',&
+'                                                                                                                          ',&
+'try "uni --sample|uni --box --noescape --nohtml" to convert the sample to plain UTF-8                                     ',&
+'try "uni --sample|uni"                           to locate lines with non-ASCII-7 characters                              ',&
 '']
-   write(stdout,'(a)')(trim(example_data(i)),i=1,size(example_data))
+   write(stdout,'(a)')(trim(sample_data(i)),i=1,size(sample_data))
    stop
-end subroutine example_file
+end subroutine sample_file
 
 function get_text(fname) result(text_out)
 character(len=*),intent(in)  :: fname
@@ -19373,12 +22086,14 @@ integer                      :: i
    if(.not.allocated(text_out))text_out=['']
    do i=1,size(text_out)
       line=text_out(i)
-      if(html)     line=expand_html(line)
+      if(nokeys)   line=keyword(line)
+      if(nohtml)   line=expand_html(line)
       if(lcase)    line=lower(line)
       if(ucase)    line=upper(line)
       if(noescape) line=remove_backslash(line)
       if(reverse)  line=reverse_line(line)
-      if(escape)   line=add_backslash(line)
+      if(toescape) line=add_backslash(line)
+      if(tohtml)   line=add_html(line)
       text_out(i)=line
    enddo
 
@@ -19409,3 +22124,25 @@ integer,parameter           :: diff = iachar('A')-iachar('a')
 end function to_lower
 
 end program uni
+!
+! Maybe make an equivalent of the banner program that uses box characters
+!    #####         ##                      #######                 ### ###         ##
+!      #            #                      #     #                  #   #           #
+!      #            #                      #                        #   #           #
+!      #   #######  #####  ######          #                        #   #  #######  ######  #####  ######
+!      #   #     #  #   #   #   #          #######                  #   #    #   #  #    #      #   #   #
+!      #   #     #  #   #   #   #                #                  #   #    #      #    # ######   #   #
+!  #   #   #     #  #   #   #   #                #                  #   #    #      #    # #    #   #   #
+!  #   #   #     #  #   #   #   #          #     #    ##            #   #    #      #    # #    #   #   #
+!  #####   ####### ### ### ### ###         #######    ##            #####  #####   ####### ####### ### ###
+!
+!    ━━┳━━         ━┓                      ┏━━━━━┓                 ━┳━ ━┳━         ━┓
+!      ┃            ┃                      ┃     ┃                  ┃   ┃           ┃
+!      ┃            ┃                      ┃                        ┃   ┃           ┃
+!      ┃   ┏━━━━━┓  ┣━━━┓  ━┳━━━┓          ┃                        ┃   ┃  ━━┳━━━┓  ┣━━━━┓  ━━━━┓  ━┳━━━┓
+!      ┃   ┃     ┃  ┃   ┃   ┃   ┃          ┗━━━━━┓                  ┃   ┃    ┃   ┃  ┃    ┃      ┃   ┃   ┃
+!      ┃   ┃     ┃  ┃   ┃   ┃   ┃                ┃                  ┃   ┃    ┃      ┃    ┃ ┏━━━━┫   ┃   ┃
+!  ┃   ┃   ┃     ┃  ┃   ┃   ┃   ┃                ┃                  ┃   ┃    ┃      ┃    ┃ ┃    ┃   ┃   ┃
+!  ┃   ┃   ┃     ┃  ┃   ┃   ┃   ┃          ┃     ┃    ┏┓            ┃   ┃    ┃      ┃    ┃ ┃    ┃   ┃   ┃
+!  ┗━━━┛   ┗━━━━━┛ ━┻━ ━┻━ ━┻━ ━┻━         ┗━━━━━┛    ┗┛            ┗━━━┛  ━━┻━━   ━┻━━━━┛ ┗━━━━┻━ ━┻━ ━┻━
+!

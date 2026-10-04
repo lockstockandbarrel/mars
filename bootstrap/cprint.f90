@@ -1,3 +1,4 @@
+ 
 !>>>>> build/dependencies/M_strings/src/M_strings.F90
 !-----------------------------------------------------------------------------------------------------------------------------------
 !>
@@ -11977,7 +11978,6 @@ integer                      :: i
          type is (integer(kind=int64));    write(line(ibegin:),'(*(i0:,","))') generic
          type is (real(kind=real32));      write(line(ibegin:),'(*(1pg0:,","))') generic
          type is (real(kind=real64));      write(line(ibegin:),'(*(1pg0:,","))') generic
-         !x!type is (real(kind=real256));     write(line(ibegin:),'(*(1pg0:,","))') generic
          type is (logical);                write(line(ibegin:),'(*(l1:,","))') generic
          type is (character(len=*));       write(line(ibegin:),'(:*(a:,","))') (quote(trim(generic(i))),i=1,size(generic))
          type is (complex);                write(line(ibegin:),'(*(1pg0,",",1pg0:))') generic
@@ -11992,7 +11992,6 @@ integer                      :: i
          type is (integer(kind=int64));    write(line(ibegin:),'("[",*(i0:,","))') generic
          type is (real(kind=real32));      write(line(ibegin:),'("[",*(1pg0:,","))') generic
          type is (real(kind=real64));      write(line(ibegin:),'("[",*(1pg0:,","))') generic
-         !x!type is (real(kind=real256));     write(line(ibegin:),'("[",*(1pg0:,","))') generic
          type is (logical);                write(line(ibegin:),'("[",*(l1:,","))') generic
          type is (character(len=*));       write(line(ibegin:),'("[",:*(:"""",a,"""":,","))') (trim(generic(i)),i=1,size(generic))
          type is (complex);                write(line(ibegin:),'("[",*(:"(",1pg0,",",1pg0,")":,","))') generic
@@ -21875,6 +21874,7 @@ public str
 public stderr
 public fmt
 public set
+!!public :: a,i,f,g
 
 interface str
    module procedure msg_scalar, msg_one
