@@ -22704,6 +22704,10 @@ help_text=[ CHARACTER(LEN=128) :: &
 '   # test current font                                                                                ',&
 '   uni --start 32 --finish 1114111 --style utf8                                                       ',&
 '                                                                                                      ',&
+'   # German mneumonics                                                                                ',&
+'   uni -t '<raquo><ae oe ue ss Ae Oe Ue Ss><laquo>' --nokeys                                          ',&
+'   uni -t '<raquo><ae oe ue ss Ae Oe Ue Ss><laquo>' --nokeys --style plain                            ',&
+'                                                                                                      ',&
 '   # Show information about a codepoint                                                               ',&
 '   uni -S U+A5                                                                                        ',&
 '                                                                                                      ',&
