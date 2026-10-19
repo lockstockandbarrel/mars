@@ -2,6 +2,50 @@
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
+! next: Pondering or Planning
+!
+! regular expressions
+!
+! strings to numbers
+!
+! utf-8 to keyword
+!
+! conversion to HTML should look to substitute HTML entity words instead of just numbers
+
+! Incomplete UDDTIO support: The User-Defined Derived-Type Input/Output
+!    (UDDTIO) procedures meant for use with the DT edit descriptor are
+!    still undergoing development because of compiler incompatibilities
+!
+!    It needs a DT for printing. Keep hitting what looks like different compiler
+!    bugs. Maybe just map it to NAMELIST group output
+!
+! Unicode Collation Algorithm (UCA) for sorting
+!
+! sort with customized collation is available, but generally inefficient and requires custom coding
+!
+! Dictionary sorting: While M_unicode(3f) includes a sorting method, it
+!    uses Unicode codepoint order, meaning it does not natively support
+!    dictionary or alphabetical sorting order for localized languages.
+!    Perhaps add calls to C to use existing Locale-specific sorting.
+!
+! Complex Unicode handling limits: The library has limited
+!    capability when it comes to complex Unicode features, specifically surrogate pairs,
+!    text directionality, and advanced text normalization.
+!
+! NOTE: List-directed output constraints: Because the underlying Fortran
+!    compiler treats UTF-8 strings as raw 8-bit byte streams, list-directed
+!    output (*) is not safely supported for UTF-8 data, as it can split
+!    multi-byte characters across lines inappropriately if not using
+!    ENCODE='UTF-8' mode on the OPEN statement, which is not supported
+!    by all compilers.
+!
+!  Text positioning and TUI capabilities such as with ncurses, terminfo, tput, ...
+!    although rudimentary terminal attributes are available via keyword substitution
+!    "<B y>yellow text on blue background <reset>".
+!-----------------------------------------------------------------------------------------------------------------------------------
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
 !>
 !!##NAME
 !!     M_unicode(3f) - [M_unicode::INTRO] Unicode string module
@@ -372,7 +416,7 @@ public :: isblank
 public :: isspace
 public :: glob
 
-!PUBLIC :: write(formatted)
+PUBLIC :: write(formatted)
 
 ! just for use in the parent module for operator(//) and operator(.cat. )
 private :: concat_g_g
@@ -749,7 +793,7 @@ type(html_entities),save :: entities(2125)
 ! for example, in tai tou.
 integer,parameter :: G_SPACE = 32
 
-integer,private,parameter :: spacescodes(*)= [32,160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8239,8287,12288]
+integer,private,parameter :: spacescodes(*)= [32,160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8239,8287,8288,12288]
 
 ! Unicode lowercase to uppercase conversion mapping table
 ! The standard English lowercase "i" (U+0069) has a dot, which is called a "tittle".
@@ -5487,6 +5531,13 @@ end function strs_to_chars_range_step
 !!        write(*,'(DT)') repeat(ut("         |"), 7)  !
 !!     end program demo_repeat
 !!
+!!   Results:
+!!
+!!    >‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*‥*
+!!    >______________________________________________________________________
+!!    >1234567890123456789012345678901234567890123456789012345678901234567890
+!!    >         |         |         |         |         |         |         |
+!!
 !!##STANDARD
 !!   Fortran 95
 !!
@@ -5581,7 +5632,7 @@ end function repeat_str
 !!       !
 !!    end program demo_len_trim
 !!
-!!   results:
+!!   Results:
 !!
 !!    >  how long is this string?
 !!    >  untrimmed length=          30
@@ -5740,7 +5791,7 @@ end function len_trim_str
 !!       write(*,'("OOPS:     ",*(z0,1x))')lets%ichar()
 !!    end program demo_ichar
 !!
-!!   results:
+!!   Results:
 !!
 !!    > εὕρηκα! (AKA. eureka!)
 !!    > 3B5 1F55 3C1 3B7 3BA 3B1 21
@@ -5856,7 +5907,7 @@ end function ichar_str
 !!       !
 !!    end program demo_trim
 !!
-!!   results:
+!!   Results:
 !!
 !!    > [   trailing    ] [   trailing]
 !!    > [   leading] [   leading]
@@ -6284,6 +6335,15 @@ end function adjustl_str
 !!
 !!  Results:
 !!
+!!   > CHARACTER:   all of ascii8 F
+!!   > CHARACTER:   all of ascii7 T
+!!   > UNICODE TYPE:all of ascii8 F
+!!   > UNICODE TYPE:all of ascii7 T
+!!   > CHARACTER:    T Portez ce vieux whisky au juge blond qui fume.
+!!   > UNICODE_TYPE: T Portez ce vieux whisky au juge blond qui fume.
+!!   > CHARACTER     F Portez ce vieux whisky au juge blond qui a fumé.
+!!   > UNICODE_TYPE: F Portez ce vieux whisky au juge blond qui a fumé.
+!!
 !!##AUTHOR
 !!     John S. Urban
 !!
@@ -6360,7 +6420,15 @@ end function isascii_a
 !!
 !!   Results:
 !!
-!!    ISBLANK:  9 32
+!!    > ISBLANK PASSED TYPE(CHARACTER) :  F F F F F F F F F T F F F F F F
+!!    > F F F F F F F F F F F F F F F F T F F F F F F F F F F F F F F F F F
+!!    > F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F
+!!    > F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F F
+!!    > F F F F F F F F F F
+!!    > ISBLANK PASSED TYPE(UNICODE_TYPE):  T
+!!    > BLANKS:                　
+!!    > BLANKS:  32 160 8192 8193 8194 8195 8196 8197 8198 8199 8200 8201
+!!    > 8202 8239 8287 8288 12288
 !!
 !!##AUTHOR
 !!     John S. Urban
@@ -6380,7 +6448,7 @@ integer                       :: i
       STEPTHROUGH: do i=1,size(string%codes)
          select case(string%codes(i))
          case(9)
-         case(32,160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8239,8287,12288)
+         case(32,160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8239,8287,8288,12288)
          case default
            res=.false.
            exit STEPTHROUGH
@@ -6441,7 +6509,7 @@ end function isblank_a
 !!
 !!   Results:
 !!
-!!    ISSPACE:  0 9 10 11 12 13 32
+!!    > ISSPACE:  0 9 10 11 12 13 32
 !!
 !!##AUTHOR
 !!     John S. Urban
@@ -6460,7 +6528,7 @@ integer                       :: i
       select case(string%codes(i))
       case(0)       ! null(0)
       case(9:13)    ! tab(9), new line(10), vertical tab(11), formfeed(12), carriage return(13),
-      case(32,160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8239,8287,12288) ! Unicode spaces
+      case(32,160,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8239,8287,8288,12288) ! Unicode spaces
       case default
         res=.false.
         exit STEPTHRU
@@ -7192,7 +7260,7 @@ end function index_char_str
 !!          ut("Zebra")      ]
 !!       print g, ( trim(answer(i)%ch()),i=1,size(answer) )
 !!       print g, 'CHECK TEST WORDS:',rr(ii) == answer
-!!       print g, merge('PAssED','FAILED', all(rr(ii) == answer))
+!!       print g, merge('PASSED','FAILED', all(rr(ii) == answer))
 !!
 !!    contains
 !!
@@ -7356,7 +7424,7 @@ end function index_char_str
 !!     > Apfel Äpfel Band Bär Bus Bussard Buße Fähnlein Fähnlein Mond
 !!     > Möve Mutter Mütter Oase Öl Ufer Übung Zebra
 !!     > CHECK TEST WORDS: T T T T T T T T T T T T T T T T T T
-!!     > PAssED
+!!     > PASSED
 !!
 !!##AUTHOR
 !!     John S. Urban
@@ -10823,14 +10891,15 @@ end function expand_html_au
 !!     '      single quote for compatibility with C strings
 !!     ?      used to avoid trigraphs
 !!
-!!     oNNN   byte with octal value NNN (1 to 3 digits)
-!!     [0-7][0-7]*    digits will be assumed an octal value till a
-!!                    non-octal value character is encountered
+!!     oNNN   byte with octal value NNN (1 to 3 digits). If not
+!!            three digits the next character must not be a valid
+!!            octal character [0-7].
 !!     dNNN   byte with decimal value NNN (3 digits)
-!!
-!!     xHHHHH...  byte with hexadecimal value that proceeds to the
-!!                first non-hexidecimal character or end of line.
-!!     hHHHHH...  "h" is an alias for "x"
+!!     xHH    byte with hexadecimal value that proceeds to the
+!!            first non-hexidecimal character up to two characters.
+!!     HZZZ   "H" is an alias for "x" except digits will be assumed
+!!            part of the value until a non-hexidecimal character is
+!!            encountered, so it must be used with caution.
 !!     uZZZZ      translate Unicode codepoint value to bytes
 !!     UZZZZZZZZ  translate Unicode codepoint value to bytes
 !!
@@ -11021,13 +11090,18 @@ integer,parameter  :: x=ichar('x'),XX=ichar('X'),h=ichar('h'),HH=ichar('H')
             case(r,RR);out%codes=[out%codes,carriage_return]
             case(t,TT);out%codes=[out%codes,horizontal_tab]
             case(v,VV);out%codes=[out%codes,vertical_tab]
-            case(x,XX,h,HH) ! %x xHH  byte with hexadecimal value HHHH...
+            case(x,XX,h,HH,u,UU) ! %xZZ XZZ, hZZZ..., HZZZ..., uZZZZ, UZZZZZZZZ  hexadecimal value ...
                ! set default character buffer to remaining bytes
                call assign_char_str(buffer, line%sub(min(i+1,lgth),step=1) )
                ! trim to just next value
                icount=verify(buffer,'0123456789abcdefABCDEF')
                if(icount == 0)icount=len(buffer)+1
                icount=icount-1
+               select case(line%codes(i))
+                case(x,XX,h); icount=min(2,icount) ! assuming always at most two characters
+                case(u);      icount=min(4,icount) ! assuming always at most four characters
+                case(UU);     icount=min(8,icount) ! assuming always at most eigth characters
+               end select
                buffer=buffer(:icount)
                ! build custom format to read the value
                format='(z'//fmt(icount)//')'
@@ -11039,16 +11113,16 @@ integer,parameter  :: x=ichar('x'),XX=ichar('X'),h=ichar('h'),HH=ichar('H')
                   write(stderr,*)'<ERROR>reading hexadecimal value from ',buffer
                endif
                i=i+icount           ! OK because all consumed characters are one byte
-            case(u) ! %uZZZZ  translate Unicode codepoint to bytes
-               four=character(line%sub(i+1,i+4))
-               read(four,'(z4)',iostat=iostat)nnn
-               out%codes=[out%codes,nnn]
-               i=i+4
-            case(UU) ! %UZZZZZZZZ  translate Unicode codepoint to bytes
-               eight=character(line%sub(i+1,i+8))
-               read(eight,'(z8)',iostat=iostat)nnn
-               out%codes=[out%codes,nnn]
-               i=i+8
+            !case(u) ! %uZZZZ  translate Unicode codepoint to bytes
+            !   four=character(line%sub(i+1,i+4))
+            !   read(four,'(z4)',iostat=iostat)nnn
+            !   out%codes=[out%codes,nnn]
+            !   i=i+4
+            !case(UU) ! %UZZZZZZZZ  translate Unicode codepoint to bytes
+            !   eight=character(line%sub(i+1,i+8))
+            !   read(eight,'(z8)',iostat=iostat)nnn
+            !   out%codes=[out%codes,nnn]
+            !   i=i+8
             case(ichar('0'):ichar('7'));
                call assign_char_str(buffer, line%sub(i,step=1) )
                icount=verify(buffer,'01234567')
@@ -11217,6 +11291,51 @@ end function expand_backslash_ua
 !!         enddo
 !!
 !!      end program demo_add_backslash
+!!
+!!   Results:
+!!
+!!    > Le Corbeau et le Renard
+!!    >
+!!    > Ma\xEEtre Corbeau, sur un arbre perch\xE9,
+!!    > Tenait en son bec un fromage.
+!!    > Ma\xEEtre Renard, par l\u2019odeur all\xE9ch\xE9,
+!!    > Lui tint \xE0 peu pr\xE8s ce langage :
+!!    > \xABH\xE9 ! bonjour, Monsieur du Corbeau.
+!!    > Que vous \xEAtes joli ! que vous me semblez beau !
+!!    > Sans mentir, si votre ramage
+!!    > Se rapporte \xE0 votre plumage,
+!!    > Vous \xEAtes le Ph\xE9nix des h\xF4tes de ces bois.\xBB
+!!    > A ces mots le Corbeau ne se sent pas de joie ;
+!!    > Et pour montrer sa belle voix,
+!!    > Il ouvre un large bec, laisse tomber sa proie.
+!!    > Le Renard s\u2019en saisit, et dit : \xABMon bon Monsieur,
+!!    > Apprenez que tout flatteur
+!!    > Vit aux d\xE9pens de celui qui l\u2019\xE9coute :
+!!    > Cette le\xE7on vaut bien un fromage, sans doute.\xBB
+!!    > Le Corbeau, honteux et confus,
+!!    > Jura, mais un peu tard, qu\u2019on ne l\u2019y prendrait plus.
+!!    >  -- Jean de la Fontaine
+!!    > Le Corbeau et le Renard
+!!    >
+!!    > Ma\xEEtre Corbeau, sur un arbre perch\xE9,
+!!    > Tenait en son bec un fromage.
+!!    > Ma\xEEtre Renard, par l\u2019odeur all\xE9ch\xE9,
+!!    > Lui tint \xE0 peu pr\xE8s ce langage :
+!!    > \xABH\xE9 ! bonjour, Monsieur du Corbeau.
+!!    > Que vous \xEAtes joli ! que vous me semblez beau !
+!!    > Sans mentir, si votre ramage
+!!    > Se rapporte \xE0 votre plumage,
+!!    > Vous \xEAtes le Ph\xE9nix des h\xF4tes de ces bois.\xBB
+!!    > A ces mots le Corbeau ne se sent pas de joie ;
+!!    > Et pour montrer sa belle voix,
+!!    > Il ouvre un large bec, laisse tomber sa proie.
+!!    > Le Renard s\u2019en saisit, et dit : \xABMon bon Monsieur,
+!!    > Apprenez que tout flatteur
+!!    > Vit aux d\xE9pens de celui qui l\u2019\xE9coute :
+!!    > Cette le\xE7on vaut bien un fromage, sans doute.\xBB
+!!    > Le Corbeau, honteux et confus,
+!!    > Jura, mais un peu tard, qu\u2019on ne l\u2019y prendrait plus.
+!!    >  -- Jean de la Fontaine
 !!
 !!##AUTHOR
 !!     John S. Urban
@@ -11414,6 +11533,51 @@ end function add_backslash_ascii_ascii_arr
 !!
 !!      end program demo_add_html
 !!
+!!   Results:
+!!
+!!    > Le Corbeau et le Renard
+!!    >
+!!    > Ma&#238;tre Corbeau, sur un arbre perch&#233;,
+!!    > Tenait en son bec un fromage.
+!!    > Ma&#238;tre Renard, par l&#8217;odeur all&#233;ch&#233;,
+!!    > Lui tint &#224; peu pr&#232;s ce langage :
+!!    > &#171;H&#233; ! bonjour, Monsieur du Corbeau.
+!!    > Que vous &#234;tes joli ! que vous me semblez beau !
+!!    > Sans mentir, si votre ramage
+!!    > Se rapporte &#224; votre plumage,
+!!    > Vous &#234;tes le Ph&#233;nix des h&#244;tes de ces bois.&#187;
+!!    > A ces mots le Corbeau ne se sent pas de joie ;
+!!    > Et pour montrer sa belle voix,
+!!    > Il ouvre un large bec, laisse tomber sa proie.
+!!    > Le Renard s&#8217;en saisit, et dit : &#171;Mon bon Monsieur,
+!!    > Apprenez que tout flatteur
+!!    > Vit aux d&#233;pens de celui qui l&#8217;&#233;coute :
+!!    > Cette le&#231;on vaut bien un fromage, sans doute.&#187;
+!!    > Le Corbeau, honteux et confus,
+!!    > Jura, mais un peu tard, qu&#8217;on ne l&#8217;y prendrait plus.
+!!    >  -- Jean de la Fontaine
+!!    > Le Corbeau et le Renard
+!!    >
+!!    > Ma&#238;tre Corbeau, sur un arbre perch&#233;,
+!!    > Tenait en son bec un fromage.
+!!    > Ma&#238;tre Renard, par l&#8217;odeur all&#233;ch&#233;,
+!!    > Lui tint &#224; peu pr&#232;s ce langage :
+!!    > &#171;H&#233; ! bonjour, Monsieur du Corbeau.
+!!    > Que vous &#234;tes joli ! que vous me semblez beau !
+!!    > Sans mentir, si votre ramage
+!!    > Se rapporte &#224; votre plumage,
+!!    > Vous &#234;tes le Ph&#233;nix des h&#244;tes de ces bois.&#187;
+!!    > A ces mots le Corbeau ne se sent pas de joie ;
+!!    > Et pour montrer sa belle voix,
+!!    > Il ouvre un large bec, laisse tomber sa proie.
+!!    > Le Renard s&#8217;en saisit, et dit : &#171;Mon bon Monsieur,
+!!    > Apprenez que tout flatteur
+!!    > Vit aux d&#233;pens de celui qui l&#8217;&#233;coute :
+!!    > Cette le&#231;on vaut bien un fromage, sans doute.&#187;
+!!    > Le Corbeau, honteux et confus,
+!!    > Jura, mais un peu tard, qu&#8217;on ne l&#8217;y prendrait plus.
+!!    >  -- Jean de la Fontaine
+!!
 !!##AUTHOR
 !!     John S. Urban
 !!
@@ -11550,6 +11714,7 @@ end function add_html_u_ascii
 !!      end program demo_sub
 !!
 !!   Results:
+!!
 !!     > selected range:[cde]
 !!     >
 !!     > from character to end:[fghij]
@@ -12693,6 +12858,74 @@ end function oop_eq
 !!       write(*,*)
 !!    end subroutine checkit
 !!    end program demo_readline
+!!
+!!   Results:
+!!
+!!    32   32 [The famous Confucian expression:]
+!!     0    0 []
+!!    12   30 [ "己所不欲，勿施於人"]
+!!    30   38 [ (jǐ suǒ bù yù, wù shī yú rén)]
+!!     2    2 [or]
+!!    40   40 [ "What you do not want done to yourself,]
+!!    22   22 [ do not do to others":]
+!!
+!!    32   32 [The famous Confucian expression:]
+!!     0    0 []
+!!    12   30 [ "己所不欲，勿施於人"]
+!!    30   38 [ (jǐ suǒ bù yù, wù shī yú rén)]
+!!     2    2 [or]
+!!    40   40 [ "What you do not want done to yourself,]
+!!    22   22 [ do not do to others":]
+!!
+!! 84  104 101 32 102 97 109 111 117 115  ...
+!! 32  67 111 110 102 117 99 105 97 110  ...
+!! 32  101 120 112 114 101 115 115 105 111  ...
+!! 110  58
+!!
+!! 0  0
+!!
+!! 32  34 24049 25152 19981 27442 65292 21247 26045 26044  ...
+!! 20154  34
+!!
+!! 32  40 106 464 32 115 117 466 32 98  ...
+!! 249  32 121 249 44 32 119 249 32 115  ...
+!! 104  299 32 121 250 32 114 233 110 41  ...
+!!
+!! 111  114
+!!
+!! 32  34 87 104 97 116 32 121 111 117  ...
+!! 32  100 111 32 110 111 116 32 119 97  ...
+!! 110  116 32 100 111 110 101 32 116 111  ...
+!! 32  121 111 117 114 115 101 108 102 44  ...
+!!
+!! 32  100 111 32 110 111 116 32 100 111  ...
+!! 32  116 111 32 111 116 104 101 114 115  ...
+!! 34  58
+!!
+!! 84  104 101 32 102 97 109 111 117 115  ...
+!! 32  67 111 110 102 117 99 105 97 110  ...
+!! 32  101 120 112 114 101 115 115 105 111  ...
+!! 110  58
+!!
+!! 0  0
+!!
+!! 32  34 24049 25152 19981 27442 65292 21247 26045 26044  ...
+!! 20154  34
+!!
+!! 32  40 106 464 32 115 117 466 32 98  ...
+!! 249  32 121 249 44 32 119 249 32 115  ...
+!! 104  299 32 121 250 32 114 233 110 41  ...
+!!
+!! 111  114
+!!
+!! 32  34 87 104 97 116 32 121 111 117  ...
+!! 32  100 111 32 110 111 116 32 119 97  ...
+!! 110  116 32 100 111 110 101 32 116 111  ...
+!! 32  121 111 117 114 115 101 108 102 44  ...
+!!
+!! 32  100 111 32 110 111 116 32 100 111  ...
+!! 32  116 111 32 111 116 104 101 114 115  ...
+!! 34  58
 !!
 !!##AUTHOR
 !!     John S. Urban
@@ -14799,7 +15032,7 @@ end subroutine keyword_insert
 !===================================================================================================================================
 end module M_unicode
 
-!>>>>> ./GLINKS/M_CLI2/src/M_CLI2.F90
+!>>>>> build/dependencies/M_CLI2/src/M_CLI2.F90
 !VERSION 1.0 2020-01-15
 !VERSION 2.0 2020-08-02
 !VERSION 3.0 2020-10-21  LONG:SHORT syntax
@@ -20729,8 +20962,6 @@ end module M_CLI2
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-!===================================================================================================================================
-
 !>>>>> app/uni.f90
 program uni
 ! @(#) convert UTF-8 to backslash escape sequences, vice-versa, convert case, ...
@@ -23053,3 +23284,25 @@ integer,parameter           :: diff = iachar('A')-iachar('a')
 end function to_lower
 
 end program uni
+!
+! Maybe make an equivalent of the banner program that uses box characters
+!    #####         ##                      #######                 ### ###         ##
+!      #            #                      #     #                  #   #           #
+!      #            #                      #                        #   #           #
+!      #   #######  #####  ######          #                        #   #  #######  ######  #####  ######
+!      #   #     #  #   #   #   #          #######                  #   #    #   #  #    #      #   #   #
+!      #   #     #  #   #   #   #                #                  #   #    #      #    # ######   #   #
+!  #   #   #     #  #   #   #   #                #                  #   #    #      #    # #    #   #   #
+!  #   #   #     #  #   #   #   #          #     #    ##            #   #    #      #    # #    #   #   #
+!  #####   ####### ### ### ### ###         #######    ##            #####  #####   ####### ####### ### ###
+!
+!    ━━┳━━         ━┓                      ┏━━━━━┓                 ━┳━ ━┳━         ━┓
+!      ┃            ┃                      ┃     ┃                  ┃   ┃           ┃
+!      ┃            ┃                      ┃                        ┃   ┃           ┃
+!      ┃   ┏━━━━━┓  ┣━━━┓  ━┳━━━┓          ┃                        ┃   ┃  ━━┳━━━┓  ┣━━━━┓  ━━━━┓  ━┳━━━┓
+!      ┃   ┃     ┃  ┃   ┃   ┃   ┃          ┗━━━━━┓                  ┃   ┃    ┃   ┃  ┃    ┃      ┃   ┃   ┃
+!      ┃   ┃     ┃  ┃   ┃   ┃   ┃                ┃                  ┃   ┃    ┃      ┃    ┃ ┏━━━━┫   ┃   ┃
+!  ┃   ┃   ┃     ┃  ┃   ┃   ┃   ┃                ┃                  ┃   ┃    ┃      ┃    ┃ ┃    ┃   ┃   ┃
+!  ┃   ┃   ┃     ┃  ┃   ┃   ┃   ┃          ┃     ┃    ┏┓            ┃   ┃    ┃      ┃    ┃ ┃    ┃   ┃   ┃
+!  ┗━━━┛   ┗━━━━━┛ ━┻━ ━┻━ ━┻━ ━┻━         ┗━━━━━┛    ┗┛            ┗━━━┛  ━━┻━━   ━┻━━━━┛ ┗━━━━┻━ ━┻━ ━┻━
+!
