@@ -39845,7 +39845,7 @@ contains
         end do
 
         ! Check that all profile features reference valid features
-        write(*,*)'GOT HERE B:',size(self%profiles),lbound(self%profiles),ubound(self%profiles)
+        !write(*,*)'GOT HERE B:',size(self%profiles),lbound(self%profiles),ubound(self%profiles)
         do i = 1, size(self%profiles)
             !write(*,*)'GOT HERE C:',i,size(self%profiles)
             !write(*,*)'GOT HERE D:',i,allocated(self%profiles)
