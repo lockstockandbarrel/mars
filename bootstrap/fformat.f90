@@ -22739,6 +22739,8 @@ integer function run(cli) result(status)
     end if
     if (cli%version) then
         write (output_unit, '(a)') 'fformat '//VERSION
+        write (output_unit, '(a)') 'git clone https://github.com/jacobwilliams/fformat'
+        write (output_unit, '(a)') '2026-10-30'
         status = EXIT_OK
         return
     end if
