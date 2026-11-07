@@ -27,14 +27,14 @@
 !!      ! working with non-allocatable strings and arrays
 !!      use M_CLI2, only : get_args_fixed_length, get_args_fixed_size
 !!      ! special function for creating subcommands
-!!      use M_CLI2, only : get_subcommand(3f)
+!!      use M_CLI2, only : get_subcommand(3)
 !!
 !!##DESCRIPTION
 !!    The M_CLI2 module cracks a Unix-style command line.
 !!
-!!    Typically one call to SET_ARGS(3f) is made to define the command
+!!    Typically one call to SET_ARGS(3) is made to define the command
 !!    arguments, set default values and parse the command line. Then a call
-!!    is made to the convenience procedures or GET_ARGS(3f) proper for each
+!!    is made to the convenience procedures or GET_ARGS(3) proper for each
 !!    command keyword to obtain the argument values.
 !!
 !!    Detailed descriptions of each procedure and example programs are
@@ -70,7 +70,7 @@
 !!        else
 !!           write(*,*)atan2(x=x,y=y)
 !!        endif
-!!        filenames=sgets() ! sgets(3f) with no name gets "unnamed" values
+!!        filenames=sgets() ! sgets(3) with no name gets "unnamed" values
 !!        if(size(filenames) > 0)then
 !!           write(*,'(g0)')'filenames:'
 !!           write(*,'(i6.6,3a)')(i,'[',filenames(i),']',i=1,size(filenames))
@@ -133,18 +133,18 @@
 !!             & --label " " &
 !!             ! note space between quotes is required
 !!             & ')
-!!      ! Assign values to elements using G_ARGS(3f).
+!!      ! Assign values to elements using G_ARGS(3).
 !!      ! non-allocatable scalars can be done up to twenty per call
 !!     call get_args('x',x, 'y',y, 'z',z, 'l',l, 'L',lbig)
 !!      ! As a convenience multiple pairs of keywords and variables may be
 !!      ! specified if and only if all the values are scalars and the CHARACTER
 !!      ! variables are fixed-length or pre-allocated.
 !!      !
-!!      ! After SET_ARGS(3f) has parsed the command line
-!!      ! GET_ARGS(3f) retrieves the value of keywords accept for
+!!      ! After SET_ARGS(3) has parsed the command line
+!!      ! GET_ARGS(3) retrieves the value of keywords except for
 !!      ! two special cases. For fixed-length CHARACTER variables
-!!      ! see GET_ARGS_FIXED_LENGTH(3f). For fixed-size arrays see
-!!      ! GET_ARGS_FIXED_SIZE(3f).
+!!      ! see GET_ARGS_FIXED_LENGTH(3). For fixed-size arrays see
+!!      ! GET_ARGS_FIXED_SIZE(3).
 !!      !
 !!      ! allocatables should be done one at a time
 !!     call get_args('title',title) ! allocatable string
@@ -196,16 +196,16 @@
 !!##LICENSE
 !!     Public Domain
 !!##SEE ALSO
-!!     + get_args(3f)
-!!     + get_args_fixed_size(3f)
-!!     + get_args_fixed_length(3f)
-!!     + get_subcommand(3f)
-!!     + set_mode(3f)
-!!     + specified(3f)
+!!     + get_args(3)
+!!     + get_args_fixed_size(3)
+!!     + get_args_fixed_length(3)
+!!     + get_subcommand(3)
+!!     + set_mode(3)
+!!     + specified(3)
 !!
-!! Note that the convenience routines are described under get_args(3f):
-!! dget(3f), iget(3f), lget(3f), rget(3f), sget(3f), cget(3f) dgets(3f),
-!! igets(3f), lgets(3f), rgets(3f), sgets(3f), cgets(3f)
+!! Note that the convenience routines are described under get_args(3):
+!! dget(3), iget(3), lget(3), rget(3), sget(3), cget(3) dgets(3),
+!! igets(3), lgets(3), rgets(3), sgets(3), cgets(3)
 !===================================================================================================================================
 module M_CLI2
 use, intrinsic :: iso_fortran_env, only : stderr=>ERROR_UNIT, stdin=>INPUT_UNIT, stdout=>OUTPUT_UNIT, warn=>OUTPUT_UNIT
@@ -216,8 +216,8 @@ integer,parameter,private :: dp=kind(0.0d0)
 integer,parameter,private :: sp=kind(0.0)
 
 character(len=*),parameter          :: gen='(*(g0))'
-character(len=1),parameter          :: slash=achar(47)
-character(len=1),parameter          :: bslash=achar(92)
+character(len=1),parameter          :: slash=achar(47)  ! ichar("/")
+character(len=1),parameter          :: bslash=achar(92) ! ichar("\") ! some compilers default to \ being like C escape character
 
 character(len=:),allocatable,public :: unnamed(:)
 character(len=:),allocatable,public :: args(:)
@@ -332,13 +332,179 @@ interface lgets;module procedure lgs, lg;end interface
 interface rgets;module procedure rgs, rg;end interface
 interface sgets;module procedure sgs, sg;end interface
 
+private :: menu_placeholder
+
+abstract interface
+   subroutine menu_interface(labels,values,help)
+      character(len=*),intent(in)                :: labels(*)
+      character(len=:),intent(inout),allocatable :: values(:)
+      character(len=*),intent(in),optional       :: help(:)
+   end subroutine menu_interface
+end interface
+
+procedure(menu_interface),pointer :: my_menu => menu_placeholder
+
 contains
+!-----------------------------------------------------------------------------------------------------------------------------------
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!-----------------------------------------------------------------------------------------------------------------------------------
+subroutine set_menu(proc)
+! provide a subroutine that edits the options table when -? is provided
+procedure(menu_interface) :: proc
+   my_menu => proc
+end subroutine set_menu
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
+!===================================================================================================================================
+subroutine menu_placeholder(labels,values,help)
+! a placeholder for editing the options table when -? is provided
+character(len=*),intent(in)                :: labels(*)
+character(len=:),intent(inout),allocatable :: values(:)
+character(len=*),intent(in),optional       :: help(:)
+character(len=255)                         :: reply
+integer                                    :: i
+character(len=1)                           :: first
+character(len=*),parameter                 :: hlp(*)=[character(len=80) :: &
+'--------------------------------------------------------------------------------',&
+'| You may respecify your command-line arguments using the same syntax as used  |',&
+'| for the prototype command in set_args():                                     |',&
+'|                                                                              |',&
+'|    --NAME "string" or --NAME F|T or --NAME NUMBER,NUMBER, ...                |',&
+'|                                                                              |',&
+'| this procedure is a placeholder intended for replacement by a TUI or GUI that|',&
+'| is typically too platform-specific to include in M_CLI2 itself, but it can   |',&
+'| still be useful when no other higher-level interface is provided. Little     |',&
+'| syntax checking is performed.                                                |',&
+'|                                                                              |',&
+'|  o  string values                                                            |',&
+'|     o must be delimited with double quotes.                                  |',&
+'|     o adjacent double quotes put one double quote into value                 |',&
+'|     o must not be null. A blank is specified as " ", not "".                 |',&
+'|                                                                              |',&
+'|  o  logical values                                                           |',&
+'|      o logical values must have a value. Use F or T.                         |',&
+'|                                                                              |',&
+'|  o  leading and trailing blanks are removed from unquoted values             |',&
+'|                                                                              |',&
+'|  o  special commands                                                         |',&
+'|      o  !command -- executes system command                                  |',&
+'|      o  x        -- stop program                                             |',&
+'|                                                                              |',&
+'| To display command help text if any, enter "help".                           |',&
+'--------------------------------------------------------------------------------']
+   call print_dictionary_usage()
+   do
+      write(*,'(a)',advance='no')'"." to exit, "?" for help:'
+      read(*,'(a)')reply
+      reply=adjustl(reply)
+      first=reply(1:1)
+      select case(first)
+      case('.','q')
+         exit
+      case('h','?')
+         if(reply.eq.'help')then
+            call pager(help)
+         else
+            call pager(hlp)
+         endif
+      case('x')
+         stop
+      case('!')        ! execute system command
+         COMMAND: block
+            integer            :: exitstat
+            integer            :: cmdstat
+            character(len=255) :: cmdmsg
+            call execute_command_line(trim(reply(2:)), exitstat=exitstat,cmdstat=cmdstat,cmdmsg=cmdmsg)
+         end block COMMAND
+         cycle
+      case default
+         call prototype_to_dictionary(reply,3)
+      end select
+      call print_dictionary_usage()
+   enddo
+end subroutine menu_placeholder
+!===================================================================================================================================
+subroutine pager(text)
+character(len=*),intent(in) :: text(:)
+integer                     :: i
+integer                     :: where_on_page
+integer                     :: iostat
+integer                     :: where_in_text
+character(len=1)            :: paws
+integer,parameter           :: page_size=24
+   where_in_text = 0
+   where_on_page = 0
+   INFINITE: do
+      if(where_in_text < size(text) )then
+         where_in_text=where_in_text+1
+      endif
+      write(stdout,'(a)')trim(text(where_in_text))
+      where_on_page = where_on_page+1
+      if ( where_on_page >= page_size-1 .or. where_in_text >= size(text) ) then
+         write(stdout,'(a)',advance='no')'"." or "q" to exit help text:'
+         read(stdin,'(a)',iostat=iostat)paws
+
+         select case (paws)
+          case ('.','q')
+             exit INFINITE
+          case ('t')
+             where_in_text=0
+             where_on_page=0
+             cycle INFINITE
+          case ('x')
+             stop
+          case (' ')
+            if(where_on_page >= page_size-1)where_on_page=0
+          case default
+             if(where_on_page >= page_size-1)where_on_page=0
+             write(stdout,'(a)')'q or .  --- quit displaying help'
+             write(stdout,'(a)')'t       --- return to top of help text'
+             write(stdout,'(a)')'x       --- stop program'
+             where_on_page=where_on_page+3
+         end select
+
+         cycle INFINITE
+      endif
+   enddo INFINITE
+end subroutine pager
+!===================================================================================================================================
+subroutine edit_dictionary(my_labels,my_values,my_help)
+character(len=*),intent(in)          :: my_labels(*)
+character(len=:),allocatable         :: my_values(:)
+character(len=*),intent(in),optional :: my_help(:)
+integer                              :: i
+logical                              :: hold
+
+hold=G_APPEND
+G_APPEND=.false.           ! whether to append or replace when duplicate keywords found
+
+   call my_menu(my_labels,my_values,my_help)
+
+G_APPEND=hold
+
+!   if(allocated(unnamed))then
+!      if(size(unnamed) > 0)then
+!         write(warn,'(a)')'UNNAMED'
+!         write(warn,'(i6.6,3a)')(i,'[',unnamed(i),']',i=1,size(unnamed))
+!      endif
+!   endif
+!   if(allocated(args))then
+!      if(size(args) > 0)then
+!         write(warn,'(a)')'ARGS'
+!         write(warn,'(i6.6,3a)')(i,'[',args(i),']',i=1,size(args))
+!      endif
+!   endif
+!   if(G_remaining /= '')then
+!      write(warn,'(a)')'REMAINING'
+!      write(warn,'(a)')G_remaining
+!   endif
+end subroutine edit_dictionary
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 !>
 !!##NAME
-!!    check_commandline(3f) - [ARGUMENTS:M_CLI2]check command and process
+!!    check_commandline(3) - [ARGUMENTS:M_CLI2]check command and process
 !!    pre-defined options
 !!
 !!##SYNOPSIS
@@ -349,8 +515,8 @@ contains
 !!       character(len=*),intent(in),optional :: version_text(:)
 !!
 !!##DESCRIPTION
-!!     Checks the commandline  and processes the implicit --help, --version,
-!!     --verbose, and --usage parameters.
+!!     Checks the commandline  and processes the implicit --help|-h,
+!!     --version|-v, --verbose|-V, --edit|-? and --usage|-u parameters.
 !!
 !!     If the optional text values are supplied they will be displayed by
 !!     --help and --version command-line options, respectively.
@@ -408,15 +574,10 @@ character(len=:),allocatable         :: line
 integer                              :: i
 integer                              :: istart
 integer                              :: iback
-!character(len=255)                   :: string
+   if(get('edit') == 'T')then
+      call edit_dictionary(keywords,values,help_text)
+   endif
    if(get('usage') == 'T')then
-      ! kludge to test interactive mode concept
-      !   do
-      !      call print_dictionary_usage()
-      !      read(*,'(a)')string
-      !      if(string.eq.'.')exit
-      !      call prototype_to_dictionary(string)
-      !   enddo
       call print_dictionary_usage()
       call mystop(32)
       return
@@ -483,7 +644,7 @@ end subroutine check_commandline
 !===================================================================================================================================
 !>
 !!##NAME
-!!    set_args(3f) - [ARGUMENTS:M_CLI2] command line argument parsing
+!!    set_args(3) - [ARGUMENTS:M_CLI2] command line argument parsing
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
@@ -497,11 +658,11 @@ end subroutine check_commandline
 !!      character(len=:),intent(out),allocatable,optional :: errmsg
 !!##DESCRIPTION
 !!
-!!    SET_ARGS(3f) requires a unix-like command prototype which defines
+!!    SET_ARGS(3) requires a unix-like command prototype which defines
 !!    the command-line options and their default values. When the program
 !!    is executed this and the command-line options are applied and the
 !!    resulting values are placed in an internal table for retrieval via
-!!    GET_ARGS(3f).
+!!    GET_ARGS(3).
 !!
 !!    The built-in --help and --version options require optional help_text
 !!    and version_text values to be provided to be particularly useful.
@@ -516,7 +677,7 @@ end subroutine check_commandline
 !!                Note that the following options are predefined for all
 !!                commands:
 !!
-!!                    --verbose F --usage F --help F --version F
+!!                    --verbose F --usage F --help F --version F --edit F
 !!
 !!                see "DEFINING THE PROTOTYPE" in the next section for
 !!                further details.
@@ -707,7 +868,7 @@ end subroutine check_commandline
 !!##RESPONSE FILES
 !!
 !!  If you have no interest in using external files as abbreviations
-!!  you can ignore this section. Otherwise, before calling set_args(3f)
+!!  you can ignore this section. Otherwise, before calling set_args(3)
 !!  add:
 !!
 !!     use M_CLI2, only : set_mode
@@ -832,15 +993,15 @@ end subroutine check_commandline
 !!
 !!  The first word of a line is special and has the following meanings:
 !!
-!!    options|-  Command options following the rules of the SET_ARGS(3f)
+!!    options|-  Command options following the rules of the SET_ARGS(3)
 !!               prototype. So
 !!                o It is preferred to specify a value for all options.
 !!                o double-quote strings.
 !!                o give a blank string value as " ".
 !!                o use F|T for lists of logicals,
 !!                o lists of numbers should be comma-delimited.
-!!                o --usage, --help, --version, --verbose, and unknown
-!!                  options are ignored.
+!!                o --usage, --help, --version, --edit, --verbose, and
+!!                  "unknown" options are ignored.
 !!
 !!    comment|#  Line is a comment line
 !!    system|!   System command.
@@ -986,7 +1147,7 @@ end subroutine check_commandline
 !===================================================================================================================================
 subroutine set_args(prototype,help_text,version_text,string,prefix,ierr,errmsg)
 
-! ident_1="@(#) M_CLI2 set_args(3f) parse prototype string"
+! ident_1="@(#) M_CLI2 set_args(3) parse prototype string"
 
 character(len=*),intent(in)                       :: prototype
 character(len=*),intent(in),optional              :: help_text(:)
@@ -1032,7 +1193,7 @@ character(len=:),allocatable                      :: debug_mode
    allocate(character(len=ibig) :: args(0))
 
    call wipe_dictionary()
-   hold='--version F --usage F --help F --version F '//adjustl(prototype)
+   hold='--version F --usage F --edit F --help F --version F '//adjustl(prototype)
    call prototype_and_cmd_args_to_nlist(hold,string)
    if(allocated(G_RESPONSE_IGNORED))then
       if(G_DEBUG)write(*,gen)'<DEBUG>SET_ARGS:G_RESPONSE_IGNORED:',G_RESPONSE_IGNORED
@@ -1046,7 +1207,7 @@ character(len=:),allocatable                      :: debug_mode
    if(.not.allocated(args))then
        allocate(character(len=0) :: args(0))
    endif
-   call check_commandline(help_text,version_text) ! process --help, --version, --usage
+   call check_commandline(help_text,version_text) ! process --help, --version, --usage, --edit
    if(present(ierr))then
       ierr=G_STOP
    endif
@@ -1059,7 +1220,7 @@ end subroutine set_args
 !===================================================================================================================================
 !>
 !!##NAME
-!!    get_subcommand(3f) - [ARGUMENTS:M_CLI2] special-case routine for
+!!    get_subcommand(3) - [ARGUMENTS:M_CLI2] special-case routine for
 !!    handling subcommands on a command line
 !!    (LICENSE:PD)
 !!
@@ -1188,7 +1349,7 @@ end subroutine set_args
 !===================================================================================================================================
 function get_subcommand() result(sub)
 
-! ident_2="@(#) M_CLI2 get_subcommand(3f) parse prototype string to get subcommand allowing for response files"
+! ident_2="@(#) M_CLI2 get_subcommand(3) parse prototype string to get subcommand allowing for response files"
 
 character(len=:),allocatable  :: sub
 character(len=:),allocatable  :: cmdarg
@@ -1264,9 +1425,9 @@ function change_leading_underscore_to_prefix(string) result(newstring)
 character(len=*) :: string
 character(len=:),allocatable :: newstring
 ! @ is treated as a special character in powershell so allow the underscore to be a prefix
-!x!   if(string.eq.'')then
+!x!   if(string == '')then
 !x!      newstring=string
-!x!   elseif(string(1:1).eq.'_')then
+!x!   elseif(string(1:1) == '_')then
 !x!      newstring=G_RESPONSE_PREFIX//string(2:)
 !x!   else
       newstring=string
@@ -1277,7 +1438,7 @@ end function change_leading_underscore_to_prefix
 !===================================================================================================================================
 !>
 !!##NAME
-!!    set_usage(3f) - [ARGUMENTS:M_CLI2] allow setting a short description
+!!    set_usage(3) - [ARGUMENTS:M_CLI2] allow setting a short description
 !!    of keywords for the --usage switch
 !!    (LICENSE:PD)
 !!
@@ -1328,7 +1489,7 @@ character(len=*),intent(in) :: value
 write(*,*)keyword
 write(*,*)description
 write(*,*)value
-! store the descriptions in an array and then apply them when set_args(3f) is called.
+! store the descriptions in an array and then apply them when set_args(3) is called.
 ! alternatively, could allow for a value as well in lieu of the prototype
 end subroutine set_usage
 !===================================================================================================================================
@@ -1336,15 +1497,16 @@ end subroutine set_usage
 !===================================================================================================================================
 !>
 !!##NAME
-!!    prototype_to_dictionary(3f) - [ARGUMENTS:M_CLI2] parse user command
+!!    prototype_to_dictionary(3) - [ARGUMENTS:M_CLI2] parse user command
 !!    and store tokens into dictionary
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
 !!
-!!     recursive subroutine prototype_to_dictionary(string)
+!!     recursive subroutine prototype_to_dictionary(string,pass)
 !!
 !!      character(len=*),intent(in)     ::  string
+!!      integer,intent(in)              ::  pass
 !!
 !!##DESCRIPTION
 !!      given a string of form
@@ -1370,6 +1532,7 @@ end subroutine set_usage
 !!
 !!##OPTIONS
 !!      STRING   string is character input string to define command
+!!      PASS     1=create dictionary, 2=update dictionary, 3=change values
 !!
 !!##RETURNS
 !!
@@ -1389,7 +1552,7 @@ end subroutine set_usage
 !===================================================================================================================================
 recursive subroutine prototype_to_dictionary(string,pass)
 
-! ident_3="@(#) M_CLI2 prototype_to_dictionary(3f) parse user command and store tokens into dictionary"
+! ident_3="@(#) M_CLI2 prototype_to_dictionary(3) parse user command and store tokens into dictionary"
 
 character(len=*),intent(in)   :: string  ! string is character input string of options and values
 integer,intent(in),optional   :: pass
@@ -1491,7 +1654,14 @@ integer                       :: longest
          else
             call locate_key(keyword,place)
             if(keyword /= ' '.and.place < 0)then
-               call update(keyword,'F')           ! store name and null value (first pass)
+               if(pass.lt.3)then
+                  call update(keyword,'F')           ! store name and null value (first pass)
+               else
+                  write(warn,'(*(g0))')'*prototype_to_dictionary* warning: unknown keyword. ignoring string [', &
+                  & trim(value),  &
+                  & '] for ',     &
+                  & trim(keyword)
+               endif
             elseif(keyword /= ' ')then
                call update(keyword,' ')           ! store name and null value (second pass)
             elseif(.not.G_keyword_single_letter.and.ipoint-2 == islen) then ! -- at end of line
@@ -1558,7 +1728,7 @@ end subroutine prototype_to_dictionary
 !===================================================================================================================================
 !>
 !!##NAME
-!!    specified(3f) - [ARGUMENTS:M_CLI2] return true if keyword was present
+!!    specified(3) - [ARGUMENTS:M_CLI2] return true if keyword was present
 !!    on command line
 !!    (LICENSE:PD)
 !!
@@ -1571,16 +1741,16 @@ end subroutine prototype_to_dictionary
 !!
 !!##DESCRIPTION
 !!
-!!    specified(3f) returns .true. if the specified keyword was present on
+!!    specified(3) returns .true. if the specified keyword was present on
 !!    the command line.
 !!
-!!    M_CLI2 intentionally does not have validators except for SPECIFIED(3f)
+!!    M_CLI2 intentionally does not have validators except for SPECIFIED(3)
 !!    and of course a check whether the input conforms to the type when
-!!    requesting a value (with get_args(3f) or the convenience functions
-!!    like inum(3f)).
+!!    requesting a value (with get_args(3) or the convenience functions
+!!    like inum(3)).
 !!
 !!    Fortran already has powerful validation capabilities. Logical
-!!    expressions ANY(3f) and ALL(3f) are standard Fortran features which
+!!    expressions ANY(3) and ALL(3) are standard Fortran features which
 !!    easily allow performing the common validations for command line
 !!    arguments without having to learn any additional syntax or methods.
 !!
@@ -1633,7 +1803,7 @@ end subroutine prototype_to_dictionary
 !!     write(*,*)specified(['floats','ints  '])
 !!
 !!     ! If you want to know if groups of parameters were specified use
-!!     ! ANY(3f) and ALL(3f)
+!!     ! ANY(3) and ALL(3)
 !!     write(*,*)'ANY:',any(specified(['floats','ints  ']))
 !!     write(*,*)'ALL:',all(specified(['floats','ints  ']))
 !!
@@ -1667,7 +1837,7 @@ end subroutine prototype_to_dictionary
 !!       write(*,*)color,'not in the list'
 !!    endif
 !!
-!!    if(size(ints).eq.3)then
+!!    if(size(ints) == 3)then
 !!       write(*,*)'ints(:) has expected number of values'
 !!    else
 !!       write(*,*)'ints(:) does not have expected number of values'
@@ -1716,7 +1886,7 @@ end function specified
 !===================================================================================================================================
 !>
 !!##NAME
-!!    update(3f) - [ARGUMENTS:M_CLI2] update internal dictionary given
+!!    update(3) - [ARGUMENTS:M_CLI2] update internal dictionary given
 !!    keyword and value
 !!    (LICENSE:PD)
 !!##SYNOPSIS
@@ -1750,9 +1920,9 @@ character(len=:),allocatable          :: val_local
 character(len=:),allocatable          :: short
 character(len=:),allocatable          :: long
 character(len=:),allocatable          :: long_short(:)
-character(len=:),allocatable          :: kludge(:)
 integer                               :: isize
 logical                               :: set_mandatory
+character(len=:),allocatable          :: kludge(:)
    set_mandatory=.false.
    if(G_IGNOREALLCASE) then
       call split(lower(trim(key)),long_short,':',nulls='return') ! split long:short keyword or long:short:: or long:: or short::
@@ -1765,8 +1935,11 @@ logical                               :: set_mandatory
    if(isize > 0)then                     ! very special-purpose syntax where if ends in :: next field is a value even
       if(long_short(isize) == '')then    ! if it starts with a dash, for --flags option on fpm(1).
          set_mandatory=.true.
+         !================================
+         !long_short=long_short(:isize-1)
          kludge=long_short(:isize-1)     ! use kludge to avoid nvfortran bug
          long_short=kludge
+         !================================
       endif
    endif
 
@@ -1805,12 +1978,12 @@ logical                               :: set_mandatory
       iilen=len_trim(val_local)
       call locate_key(long,place)                  ! find where string is or should be
       if(place < 1)then                                ! if string was not found insert it
-         call insert_(keywords,long,iabs(place))
-         call insert_(values,val_local,iabs(place))
-         call insert_(counts,iilen,iabs(place))
-         call insert_(shorts,short,iabs(place))
-         call insert_(present_in,.true.,iabs(place))
-         call insert_(mandatory,set_mandatory,iabs(place))
+         call insert_(keywords,long,abs(place))
+         call insert_(values,val_local,abs(place))
+         call insert_(counts,iilen,abs(place))
+         call insert_(shorts,short,abs(place))
+         call insert_(present_in,.true.,abs(place))
+         call insert_(mandatory,set_mandatory,abs(place))
       else
          if(present_in(place))then                      ! if multiple keywords append values with space between them
             if(G_append)then
@@ -1884,7 +2057,7 @@ end subroutine wipe_dictionary
 !===================================================================================================================================
 !>
 !!##NAME
-!!    get(3f) - [ARGUMENTS:M_CLI2] get dictionary value associated with
+!!    get(3) - [ARGUMENTS:M_CLI2] get dictionary value associated with
 !!    key name in private M_CLI2(3fm) dictionary
 !!##SYNOPSIS
 !!
@@ -1914,7 +2087,7 @@ end function get
 !===================================================================================================================================
 !>
 !!##NAME
-!!    prototype_and_cmd_args_to_nlist(3f) - [ARGUMENTS:M_CLI2] convert
+!!    prototype_and_cmd_args_to_nlist(3) - [ARGUMENTS:M_CLI2] convert
 !!    Unix-like command arguments to table
 !!    (LICENSE:PD)
 !!##SYNOPSIS
@@ -2012,6 +2185,12 @@ integer                               :: iused
       if(iused <= 0)then
          call update('version')
          call update('version:v','F')
+      endif
+
+      call locate_key('?',iused)
+      if(iused <= 0)then
+         call update('edit')
+         call update('edit:?','F')
       endif
 
       call locate_key('V',iused)
@@ -2134,7 +2313,7 @@ integer                      :: ios
    prototype=''
    ! look for NAME.rsp
    ! assume if have / or \ a full filename was supplied to support ifort(1)
-   if((index(rname,'/') /= 0.or.index(rname,bslash) /= 0) .and. len(rname) > 1 )then
+   if((index(rname,slash) /= 0.or.index(rname,bslash) /= 0) .and. len(rname) > 1 )then
       filename=rname
       lun=fileopen(filename,message)
       if(lun /= -1)then
@@ -2424,7 +2603,7 @@ integer :: iend
    endif
    if(.not.return_with_suffix)then
       iend=index(base,'.',back=.true.)
-      if(iend.gt.1)then
+      if(iend > 1)then
          base=base(:iend-1)
       endif
    endif
@@ -2435,7 +2614,7 @@ end function basename
 !>
 !! !>
 !!##NAME
-!!     separator(3f) - [M_io:ENVIRONMENT] try to determine pathname directory
+!!     separator(3) - [M_io:ENVIRONMENT] try to determine pathname directory
 !!     separator character
 !!     (LICENSE:PD)
 !!
@@ -2471,7 +2650,7 @@ function separator() result(sep)
 ! use the pathname returned as arg0 to determine pathname separator
 integer                      :: ios
 integer                      :: i
-logical                      :: existing=.false.
+logical,save                 :: existing=.false.
 character(len=1)             :: sep
 !x!IFORT BUG:character(len=1),save        :: sep_cache=' '
 integer,save                 :: isep=-1
@@ -2490,10 +2669,10 @@ character(len=:),allocatable :: envnames(:)
     FOUND: block
     ! simple, but does not work with ifort
     ! most MSWindows environments see to work with backslash even when
-    ! using POSIX filenames to do not rely on '\.'.
+    ! using POSIX filenames so do not rely on '\.'.
     inquire(file='/.',exist=existing,iostat=ios,name=name)
     if(existing.and.ios == 0)then
-        sep='/'
+        sep=slash
         exit FOUND
     endif
     ! check variables names common to many platforms that usually have a
@@ -2506,8 +2685,8 @@ character(len=:),allocatable :: envnames(:)
        if(index(get_env(envnames(i)),bslash) /= 0)then
           sep=bslash
           exit FOUND
-       elseif(index(get_env(envnames(i)),'/') /= 0)then
-          sep='/'
+       elseif(index(get_env(envnames(i)),slash) /= 0)then
+          sep=slash
           exit FOUND
        endif
     enddo
@@ -2599,7 +2778,7 @@ logical                      :: next_mandatory
          endif
          call locate_key(current_argument_padded(2:),pointer)
          jj=len(current_argument)
-         if( (pointer <= 0.or.jj.ge.3).and.(G_STRICT) )then  ! name not found
+         if( (pointer <= 0.or.jj >= 3).and.(G_STRICT) )then  ! name not found
             if(G_DEBUG)write(*,gen)'<DEBUG>CMD_ARGS_TO_DICTIONARY:SHORT NOT FOUND:',current_argument_padded(2:)
             ! in strict mode this might be multiple single-character values
             do kk=2,jj
@@ -2803,8 +2982,8 @@ end subroutine cmd_args_to_dictionary
 !===================================================================================================================================
 !>
 !!##NAME
-!!    print_dictionary(3f) - [ARGUMENTS:M_CLI2] print internal dictionary
-!!    created by calls to set_args(3f)
+!!    print_dictionary(3) - [ARGUMENTS:M_CLI2] print internal dictionary
+!!    created by calls to set_args(3)
 !!    (LICENSE:PD)
 !!##SYNOPSIS
 !!
@@ -2813,9 +2992,9 @@ end subroutine cmd_args_to_dictionary
 !!      character(len=*),intent(in),optional :: header
 !!      logical,intent(in),optional          :: stop
 !!##DESCRIPTION
-!!    Print the internal dictionary created by calls to set_args(3f).
+!!    Print the internal dictionary created by calls to set_args(3).
 !!    This routine is intended to print the state of the argument list
-!!    if an error occurs in using the set_args(3f) procedure.
+!!    if an error occurs in using the set_args(3) procedure.
 !!##OPTIONS
 !!     HEADER  label to print before printing the state of the command
 !!             argument list.
@@ -2899,13 +3078,13 @@ end subroutine print_dictionary
 !===================================================================================================================================
 !>
 !!##NAME
-!!    get_args(3f) - [ARGUMENTS:M_CLI2] return keyword values when parsing
+!!    get_args(3) - [ARGUMENTS:M_CLI2] return keyword values when parsing
 !!    command line arguments
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
 !!
-!!   get_args(3f) and its convenience functions:
+!!   get_args(3) and its convenience functions:
 !!
 !!     use M_CLI2, only : get_args
 !!     ! convenience functions
@@ -2926,10 +3105,10 @@ end subroutine print_dictionary
 !!              {real,doubleprecision,integer,logical,complex,character(len=:)}
 !!##DESCRIPTION
 !!
-!!    GET_ARGS(3f) returns the value of keywords after SET_ARGS(3f) has
+!!    GET_ARGS(3) returns the value of keywords after SET_ARGS(3) has
 !!    been called to parse the command line. For fixed-length CHARACTER
-!!    variables see GET_ARGS_FIXED_LENGTH(3f). For fixed-size arrays see
-!!    GET_ARGS_FIXED_SIZE(3f).
+!!    variables see GET_ARGS_FIXED_LENGTH(3). For fixed-size arrays see
+!!    GET_ARGS_FIXED_SIZE(3).
 !!
 !!    As a convenience multiple pairs of keywords and variables may be
 !!    specified if and only if all the values are scalars and the CHARACTER
@@ -2948,18 +3127,20 @@ end subroutine print_dictionary
 !!
 !!##CONVENIENCE FUNCTIONS
 !!    There are convenience functions that are replacements for calls to
-!!    get_args(3f) for each supported default intrinsic type
+!!    get_args(3) for each supported default intrinsic type
 !!
-!!      o scalars -- dget(3f), iget(3f), lget(3f), rget(3f), sget(3f),
-!!                   cget(3f)
-!!      o vectors -- dgets(3f), igets(3f), lgets(3f), rgets(3f),
-!!                   sgets(3f), cgets(3f)
+!!      o scalars -- dget(3), iget(3), lget(3), rget(3), sget(3),
+!!                   cget(3)
+!!      o vectors -- dgets(3), igets(3), lgets(3), rgets(3),
+!!                   sgets(3), cgets(3)
 !!
 !!    D is for DOUBLEPRECISION, I for INTEGER, L for LOGICAL, R for REAL,
 !!    S for string (CHARACTER), and C for COMPLEX.
 !!
 !!    If the functions are called with no argument they will return the
-!!    UNNAMED array converted to the specified type.
+!!    UNNAMED array converted to the specified type; which is all the
+!!    values on the command line not associated with a keyword that
+!!    should come at the end of the command line.
 !!
 !!##EXAMPLES
 !!
@@ -2968,6 +3149,8 @@ end subroutine print_dictionary
 !!
 !!     program demo_get_args
 !!     use M_CLI2,  only : filenames=>unnamed, set_args, get_args
+!!     use M_CLI2,  only : dget, iget, lget, rget, sget, cget
+!!     use M_CLI2,  only : dgets, igets, lgets, rgets, sgets, cgets
 !!     implicit none
 !!     integer                      :: i
 !!      ! Define ARGS
@@ -3001,7 +3184,14 @@ end subroutine print_dictionary
 !!     if(size(filenames) > 0)then
 !!        write(*,'(i6.6,3a)')(i,'[',filenames(i),']',i=1,size(filenames))
 !!     endif
+!!     ! or the equivalent using functions instead of get_args(3)
+!!     write(*,'(1x,g0,"=",g0)')'x',rget('x'), 'y',rget('y'), 'z',rget('z')
+!!     write(*,*)'p=',rgets('p')
+!!     write(*,*)'title=',sget('title')
+!!     write(*,*)'l=',lget('l')
+!!     write(*,*)'L=',lget('L')
 !!     end program demo_get_args
+!!
 !!##AUTHOR
 !!      John S. Urban, 2019
 !!##LICENSE
@@ -3009,7 +3199,7 @@ end subroutine print_dictionary
 !===================================================================================================================================
 !>
 !!##NAME
-!!    get_args_fixed_length(3f) - [ARGUMENTS:M_CLI2] return keyword values
+!!    get_args_fixed_length(3) - [ARGUMENTS:M_CLI2] return keyword values
 !!    for fixed-length string when parsing command line
 !!    (LICENSE:PD)
 !!
@@ -3023,7 +3213,7 @@ end subroutine print_dictionary
 !!
 !!##DESCRIPTION
 !!
-!!    get_args_fixed_length(3f) returns the value of a string
+!!    get_args_fixed_length(3) returns the value of a string
 !!    keyword when the string value is a fixed-length CHARACTER
 !!    variable.
 !!
@@ -3064,7 +3254,7 @@ end subroutine print_dictionary
 !===================================================================================================================================
 !>
 !!##NAME
-!!    get_args_fixed_size(3f) - [ARGUMENTS:M_CLI2] return keyword values
+!!    get_args_fixed_size(3) - [ARGUMENTS:M_CLI2] return keyword values
 !!    for fixed-size array when parsing command line arguments
 !!    (LICENSE:PD)
 !!
@@ -3081,8 +3271,8 @@ end subroutine print_dictionary
 !!
 !!##DESCRIPTION
 !!
-!!    get_args_fixed_size(3f) returns the value of keywords for fixed-size
-!!    arrays after set_args(3f) has been called. On input on the command
+!!    get_args_fixed_size(3) returns the value of keywords for fixed-size
+!!    arrays after set_args(3) has been called. On input on the command
 !!    line all values of the array must be specified.
 !!
 !!##OPTIONS
@@ -3166,7 +3356,7 @@ end subroutine get_fixedarray_class
 !===================================================================================================================================
 subroutine get_anyarray_l(keyword,larray,delimiters)
 
-! ident_5="@(#) M_CLI2 get_anyarray_l(3f) given keyword fetch logical array from string in dictionary(F on err)"
+! ident_5="@(#) M_CLI2 get_anyarray_l(3) given keyword fetch logical array from string in dictionary(F on err)"
 
 character(len=*),intent(in)  :: keyword                    ! the dictionary keyword (in form VERB_KEYWORD) to retrieve
 logical,allocatable          :: larray(:)                  ! convert value to an array
@@ -3213,13 +3403,13 @@ end subroutine get_anyarray_l
 !===================================================================================================================================
 subroutine get_anyarray_d(keyword,darray,delimiters)
 
-! ident_6="@(#) M_CLI2 get_anyarray_d(3f) given keyword fetch dble value array from Language Dictionary (0 on err)"
+! ident_6="@(#) M_CLI2 get_anyarray_d(3) given keyword fetch dble value array from Language Dictionary (0 on err)"
 
 character(len=*),intent(in)           :: keyword      ! keyword to retrieve value from dictionary
 real(kind=dp),allocatable,intent(out) :: darray(:)    ! function type
 character(len=*),intent(in),optional  :: delimiters
 
-character(len=:),allocatable          :: carray(:)    ! convert value to an array using split(3f)
+character(len=:),allocatable          :: carray(:)    ! convert value to an array using split(3)
 integer                               :: i
 integer                               :: place
 integer                               :: ierr
@@ -3295,7 +3485,7 @@ end subroutine get_anyarray_x
 !===================================================================================================================================
 subroutine get_anyarray_c(keyword,strings,delimiters)
 
-! ident_7="@(#) M_CLI2 get_anyarray_c(3f) Fetch strings value for specified KEYWORD from the lang. dictionary"
+! ident_7="@(#) M_CLI2 get_anyarray_c(3) Fetch strings value for specified KEYWORD from the lang. dictionary"
 
 ! This routine trusts that the desired keyword exists. A blank is returned if the keyword is not in the dictionary
 character(len=*),intent(in)          :: keyword       ! name to look up in dictionary
@@ -3317,7 +3507,7 @@ end subroutine get_anyarray_c
 !===================================================================================================================================
 subroutine get_args_fixed_length_a_array(keyword,strings,delimiters)
 
-! ident_8="@(#) M_CLI2 get_args_fixed_length_a_array(3f) Fetch strings value for specified KEYWORD from the lang. dictionary"
+! ident_8="@(#) M_CLI2 get_args_fixed_length_a_array(3) Fetch strings value for specified KEYWORD from the lang. dictionary"
 
 ! This routine trusts that the desired keyword exists. A blank is returned if the keyword is not in the dictionary
 character(len=*),intent(in)          :: keyword       ! name to look up in dictionary
@@ -3461,7 +3651,7 @@ end subroutine get_fixedarray_l
 !===================================================================================================================================
 subroutine get_fixedarray_fixed_length_c(keyword,strings,delimiters)
 
-! ident_9="@(#) M_CLI2 get_fixedarray_fixed_length_c(3f) Fetch strings value for specified KEYWORD from the lang. dictionary"
+! ident_9="@(#) M_CLI2 get_fixedarray_fixed_length_c(3) Fetch strings value for specified KEYWORD from the lang. dictionary"
 
 ! This routine trusts that the desired keyword exists. A blank is returned if the keyword is not in the dictionary
 character(len=*)                     :: strings(:)
@@ -3530,7 +3720,7 @@ end subroutine get_scalar_i
 !===================================================================================================================================
 subroutine get_scalar_anylength_c(keyword,string)
 
-! ident_10="@(#) M_CLI2 get_scalar_anylength_c(3f) Fetch string value for specified KEYWORD from the lang. dictionary"
+! ident_10="@(#) M_CLI2 get_scalar_anylength_c(3) Fetch string value for specified KEYWORD from the lang. dictionary"
 
 ! This routine trusts that the desired keyword exists. A blank is returned if the keyword is not in the dictionary
 character(len=*),intent(in)   :: keyword              ! name to look up in dictionary
@@ -3548,7 +3738,7 @@ end subroutine get_scalar_anylength_c
 !===================================================================================================================================
 elemental impure subroutine get_args_fixed_length_scalar_c(keyword,string)
 
-! ident_11="@(#) M_CLI2 get_args_fixed_length_scalar_c(3f) Fetch string value for specified KEYWORD from the lang. dictionary"
+! ident_11="@(#) M_CLI2 get_args_fixed_length_scalar_c(3) Fetch string value for specified KEYWORD from the lang. dictionary"
 
 ! This routine trusts that the desired keyword exists. A blank is returned if the keyword is not in the dictionary
 character(len=*),intent(in)   :: keyword              ! name to look up in dictionary
@@ -3625,7 +3815,7 @@ end subroutine get_scalar_logical
 !===================================================================================================================================
 !>
 !!##NAME
-!!    longest_command_argument(3f) - [ARGUMENTS:M_args] length of longest
+!!    longest_command_argument(3) - [ARGUMENTS:M_args] length of longest
 !!    argument on command line
 !!    (LICENSE:PD)
 !!##SYNOPSIS
@@ -3680,7 +3870,7 @@ end function longest_command_argument
 !===================================================================================================================================
 !>
 !!##NAME
-!!    journal(3f) - [M_CLI2] converts a list of standard scalar types to a string and writes message
+!!    journal(3) - [M_CLI2] converts a list of standard scalar types to a string and writes message
 !!    (LICENSE:PD)
 !!##SYNOPSIS
 !!
@@ -3692,7 +3882,7 @@ end function longest_command_argument
 !!     character(len=:),intent(out),allocatable,optional :: line
 !!
 !!##DESCRIPTION
-!!    journal(3f) builds and prints a space-separated string from up to twenty scalar values.
+!!    journal(3) builds and prints a space-separated string from up to twenty scalar values.
 !!
 !!##OPTIONS
 !!    g[0-9a-j]   optional value to print the value of after the message. May
@@ -3714,7 +3904,7 @@ end function longest_command_argument
 !!     character(len=:),allocatable :: frmt
 !!     integer                      :: biggest
 !!
-!!     call journal('HUGE(3f) integers',huge(0),'and real',&
+!!     call journal('HUGE(3) integers',huge(0),'and real',&
 !!               & huge(0.0),'and double',huge(0.0d0))
 !!     call journal('real            :',huge(0.0),0.0,12345.6789,tiny(0.0) )
 !!     call journal('doubleprecision :',huge(0.0d0),0.0d0,12345.6789d0,tiny(0.0d0) )
@@ -3724,7 +3914,7 @@ end function longest_command_argument
 !!
 !!  Output
 !!
-!!     HUGE(3f) integers 2147483647 and real 3.40282347E+38 and
+!!     HUGE(3) integers 2147483647 and real 3.40282347E+38 and
 !!     double 1.7976931348623157E+308
 !!     real            : 3.40282347E+38 0.00000000 12345.6787 1.17549435E-38
 !!     doubleprecision : 1.7976931348623157E+308 0.0000000000000000
@@ -3827,7 +4017,7 @@ end function str
 !===================================================================================================================================
 function upper(str) result (string)
 
-! ident_14="@(#) M_CLI2 upper(3f) Changes a string to uppercase"
+! ident_14="@(#) M_CLI2 upper(3) Changes a string to uppercase"
 
 character(*), intent(in)      :: str
 character(:),allocatable      :: string
@@ -3845,7 +4035,7 @@ end function upper
 !===================================================================================================================================
 function lower(str) result (string)
 
-! ident_15="@(#) M_CLI2 lower(3f) Changes a string to lowercase over specified range"
+! ident_15="@(#) M_CLI2 lower(3) Changes a string to lowercase over specified range"
 
 character(*), intent(In)     :: str
 character(:),allocatable     :: string
@@ -3930,7 +4120,7 @@ character(len=3),save        :: nan_string='NaN'
       endif
    else
       select case(local_chars(1:1))
-      case('z','Z','h','H')                                     ! assume hexadecimal
+      case('z','Z','h','H','u','U')                             ! assume hexadecimal
          write(frmt,"('(Z',i0,')')")len(local_chars)
          read(local_chars(2:),frmt,iostat=ierr,iomsg=msg)intg
          valu=dble(intg)
@@ -3973,7 +4163,7 @@ end subroutine a2d
 !===================================================================================================================================
 !>
 !!##NAME
-!!    split(3f) - [M_CLI2:TOKENS] parse string into an array using specified
+!!    split(3) - [M_CLI2:TOKENS] parse string into an array using specified
 !!    delimiters
 !!    (LICENSE:PD)
 !!
@@ -3987,7 +4177,7 @@ end subroutine a2d
 !!     character(len=*),optional,intent(in)     :: order
 !!     character(len=*),optional,intent(in)     :: nulls
 !!##DESCRIPTION
-!!    SPLIT(3f) parses a string using specified delimiter characters and
+!!    SPLIT(3) parses a string using specified delimiter characters and
 !!    store tokens into an allocatable array
 !!
 !!##OPTIONS
@@ -4114,7 +4304,7 @@ end subroutine a2d
 !===================================================================================================================================
 subroutine split(input_line,array,delimiters,order,nulls)
 
-! ident_18="@(#) M_CLI2 split(3f) parse string on delimiter characters and store tokens into an allocatable array"
+! ident_18="@(#) M_CLI2 split(3) parse string on delimiter characters and store tokens into an allocatable array"
 
 !  John S. Urban
 intrinsic index, min, present, len
@@ -4232,7 +4422,7 @@ end subroutine split
 !===================================================================================================================================
 !>
 !!##NAME
-!!    replace_str(3f) - [M_CLI2:EDITING] function globally replaces one
+!!    replace_str(3) - [M_CLI2:EDITING] function globally replaces one
 !!    substring for another in string
 !!    (LICENSE:PD)
 !!
@@ -4345,7 +4535,7 @@ end subroutine split
 !===================================================================================================================================
 function replace_str(targetline,old,new,ierr,range) result (newline)
 
-! ident_19="@(#) M_CLI2 replace_str(3f) Globally replace one substring for another in string"
+! ident_19="@(#) M_CLI2 replace_str(3) Globally replace one substring for another in string"
 
 !-----------------------------------------------------------------------------------------------------------------------------------
 ! parameters
@@ -4440,7 +4630,7 @@ end function replace_str
 !===================================================================================================================================
 !>
 !!##NAME
-!!    quote(3f) - [M_CLI2:QUOTES] add quotes to string as if written with
+!!    quote(3) - [M_CLI2:QUOTES] add quotes to string as if written with
 !!    list-directed input
 !!    (LICENSE:PD)
 !!##SYNOPSIS
@@ -4494,7 +4684,7 @@ end function replace_str
 !!           ! the original string
 !!           write(*,'(a)')'ORIGINAL     ['//trim(inline)//']'
 !!
-!!           ! the string processed by quote(3f)
+!!           ! the string processed by quote(3)
 !!           str=quote(inline)
 !!           write(*,'(a)')'QUOTED     ['//str//']'
 !!
@@ -4555,7 +4745,7 @@ end function quote
 !===================================================================================================================================
 !>
 !!##NAME
-!!    unquote(3f) - [M_CLI2:QUOTES] remove quotes from string as if read
+!!    unquote(3) - [M_CLI2:QUOTES] remove quotes from string as if read
 !!    with list-directed input
 !!    (LICENSE:PD)
 !!##SYNOPSIS
@@ -4572,7 +4762,7 @@ end function quote
 !!
 !!    Fortran can now read using list-directed input from an internal file,
 !!    which should handle quoted strings, but list-directed input does not
-!!    support escape characters, which UNQUOTE(3f) does.
+!!    support escape characters, which UNQUOTE(3) does.
 !!##OPTIONS
 !!    quoted_str  input string to remove quotes from, using the rules of
 !!                list-directed input (two adjacent quotes inside a quoted
@@ -4609,7 +4799,7 @@ end function quote
 !!          ! the original string
 !!          write(*,'(a)')'QUOTED       ['//trim(quoted_str)//']'
 !!
-!!          ! the string processed by unquote(3f)
+!!          ! the string processed by unquote(3)
 !!          unquoted_str=unquote(trim(quoted_str),esc)
 !!          write(*,'(a)')'UNQUOTED     ['//unquoted_str//']'
 !!
@@ -4700,7 +4890,7 @@ end function unquote
 !>
 !!##NAME
 !!
-!!    decodebase(3f) - [M_CLI2:BASE] convert whole number string in base
+!!    decodebase(3) - [M_CLI2:BASE] convert whole number string in base
 !!                     [2-36] to base 10 number
 !!    (LICENSE:PD)
 !!
@@ -4773,7 +4963,7 @@ end function unquote
 !!    Public Domain
 logical function decodebase(string,basein,out_baseten)
 
-! ident_20="@(#) M_CLI2 decodebase(3f) convert whole number string in base [2-36] to base 10 number"
+! ident_20="@(#) M_CLI2 decodebase(3) convert whole number string in base [2-36] to base 10 number"
 
 character(len=*),intent(in)  :: string
 integer,intent(in)           :: basein
@@ -4794,8 +4984,8 @@ integer           :: ierr
   decodebase=.false.
 
   ipound=index(string_local,'#')                                       ! determine if in form [-]base#whole
-  if(basein == 0.and.ipound > 1)then                                  ! split string into two values
-     call a2i(string_local(:ipound-1),basein_local,ierr)   ! get the decimal value of the base
+  if(basein == 0.and.ipound > 1)then                                   ! split string into two values
+     call a2i(string_local(:ipound-1),basein_local,ierr)               ! get the decimal value of the base
      string_local=string_local(ipound+1:)                              ! now that base is known make string just the value
      if(basein_local >= 0)then                                         ! allow for a negative sign prefix
         out_sign=1
@@ -4849,7 +5039,7 @@ end function decodebase
 !===================================================================================================================================
 !>
 !!##NAME
-!!    locate_(3f) - [M_CLI2] finds the index where a string is found or
+!!    locate_(3) - [M_CLI2] finds the index where a string is found or
 !!                  should be in a sorted array
 !!    (LICENSE:PD)
 !!
@@ -4866,13 +5056,13 @@ end function decodebase
 !!
 !!##DESCRIPTION
 !!
-!!    LOCATE_(3f) finds the index where the VALUE is found or should
-!!    be found in an array. The array must be sorted in descending
-!!    order (highest at top). If VALUE is not found it returns the index
-!!    where the name should be placed at with a negative sign.
+!!    LOCATE_(3) finds the index where the VALUE is found or should be
+!!    found in an array. The array must be sorted in descending order
+!!    (highest at top). If VALUE is not found it returns the index where
+!!    the name should be placed at with a negative sign.
 !!
-!!    The array and list must be of the same type (CHARACTER, DOUBLEPRECISION,
-!!    REAL,INTEGER)
+!!    The array and list must be of the same type (CHARACTER,
+!!    DOUBLEPRECISION, REAL,INTEGER)
 !!
 !!##OPTIONS
 !!
@@ -4970,7 +5160,7 @@ end function decodebase
 !!    Public Domain
 subroutine locate_c(list,value,place,ier,errmsg)
 
-! ident_21="@(#) M_CLI2 locate_c(3f) find PLACE in sorted character array LIST where VALUE can be found or should be placed"
+! ident_21="@(#) M_CLI2 locate_c(3) find PLACE in sorted character array LIST where VALUE can be found or should be placed"
 
 character(len=*),intent(in)             :: value
 integer,intent(out)                     :: place
@@ -4993,7 +5183,7 @@ integer                                 :: error
       maxtry=0
       place=-1
    else
-      maxtry=nint(log(float(arraysize))/log(2.0)+1.0)
+      maxtry=nint(log(real(arraysize))/log(2.0)+1.0)
       place=(arraysize+1)/2
    endif
    imin=1
@@ -5013,7 +5203,7 @@ integer                                 :: error
 
       if(imin > imax)then
          place=-imin
-         if(iabs(place) > arraysize)then ! ran off end of list. Where new value should go or an unsorted input array'
+         if(abs(place) > arraysize)then ! ran off end of list. Where new value should go or an unsorted input array'
             exit LOOP
          endif
          exit LOOP
@@ -5045,7 +5235,7 @@ end subroutine locate_c
 !===================================================================================================================================
 !>
 !!##NAME
-!!    remove_(3f) - [M_CLI2] remove entry from an allocatable array at specified position
+!!    remove_(3) - [M_CLI2] remove entry from an allocatable array at specified position
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
@@ -5169,7 +5359,7 @@ end subroutine remove_i
 !===================================================================================================================================
 !>
 !!##NAME
-!!    replace_(3f) - [M_CLI2] replace entry in a string array at specified position
+!!    replace_(3) - [M_CLI2] replace entry in a string array at specified position
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
@@ -5332,7 +5522,7 @@ end subroutine replace_i
 !===================================================================================================================================
 !>
 !!##NAME
-!!    insert_(3f) - [M_CLI2] insert entry into a string array at specified position
+!!    insert_(3) - [M_CLI2] insert entry into a string array at specified position
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
@@ -5504,7 +5694,7 @@ end subroutine insert_i
 subroutine many_args(n0,g0, n1,g1, n2,g2, n3,g3, n4,g4, n5,g5, n6,g6, n7,g7, n8,g8, n9,g9, &
                    & na,ga, nb,gb, nc,gc, nd,gd, ne,ge, nf,gf, ng,gg, nh,gh, ni,gi, nj,gj )
 
-! ident_31="@(#) M_CLI2 many_args(3fp) allow for multiple calls to get_args(3f)"
+! ident_31="@(#) M_CLI2 many_args(3fp) allow for multiple calls to get_args(3)"
 
 character(len=*),intent(in)          :: n0, n1
 character(len=*),intent(in),optional :: n2, n3, n4, n5, n6, n7, n8, n9, na, nb, nc, nd, ne, nf, ng, nh, ni, nj
@@ -5692,7 +5882,7 @@ end subroutine mystop
 !===================================================================================================================================
 function atleast(line,length,pattern) result(strout)
 
-! ident_32="@(#) M_strings atleast(3f) return string padded to at least specified length"
+! ident_32="@(#) M_strings atleast(3) return string padded to at least specified length"
 
 character(len=*),intent(in)                :: line
 integer,intent(in)                         :: length
@@ -5724,7 +5914,7 @@ end function clipends
 !===================================================================================================================================
 subroutine locate_key(keyname,place)
 
-! ident_33="@(#) M_CLI2 locate_key(3f) find PLACE in sorted character array where KEYNAME can be found or should be placed"
+! ident_33="@(#) M_CLI2 locate_key(3) find PLACE in sorted character array where KEYNAME can be found or should be placed"
 
 character(len=*),intent(in)             :: keyname
 integer,intent(out)                     :: place
@@ -5765,7 +5955,7 @@ end subroutine locate_key
 !===================================================================================================================================
 !>
 !!##NAME
-!!    set_mode(3f) - [ARGUMENTS:M_CLI2] turn on optional modes+
+!!    set_mode(3) - [ARGUMENTS:M_CLI2] turn on optional modes+
 !!    (LICENSE:PD)
 !!
 !!##SYNOPSIS
@@ -5914,40 +6104,10 @@ end module M_CLI2
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-!===================================================================================================================================
-
-
 !>>>>> build/dependencies/M_io/src/M_io.F90
-!===================================================================================================================================
-!-----------------------------------------------------------------------------------------------------------------------------------
-#define  __INTEL_COMP        1
-#define  __GFORTRAN_COMP     2
-#define  __NVIDIA_COMP       3
-#define  __NAG_COMP          4
-#define  __flang__           5
-#define  __UNKNOWN_COMP   9999
-
-#define FLOAT128
-
-#ifdef __INTEL_COMPILER
-#   define __COMPILER__ __INTEL_COMP
-#elif __GFORTRAN__ == 1
-#   define __COMPILER__ __GFORTRAN_COMP
-#elif __flang__
-#   undef FLOAT128
-#   define __COMPILER__ __LLVM_FLANG_COMP
-#elif __NVCOMPILER
-#   undef FLOAT128
-#   define __COMPILER__ __NVIDIA_COMP
-#else
-#   define __COMPILER__ __UNKNOWN_COMP
-#   warning  NOTE: UNKNOWN COMPILER
-#endif
-!-----------------------------------------------------------------------------------------------------------------------------------
-!===================================================================================================================================
 MODULE M_io
 use, intrinsic :: iso_fortran_env, only : stdin=>input_unit, stdout=>output_unit, stderr=>error_unit
-
+use,intrinsic  :: iso_c_binding,   only : c_int, c_char
 implicit none
 private
 integer,parameter,private:: sp=kind(1.0), dp=kind(1.0d0)
@@ -5976,8 +6136,13 @@ public separator
 public lookfor
 public which
 public get_env
-public is_hidden_file
+public expand_env
+public get_arg
 public getname
+public is_hidden_file
+
+public putchar
+public getchar
 
 ! ident_1="@(#) M_io rd(3f) ask for string or number from standard input with user-definable prompt"
 interface rd
@@ -6032,6 +6197,14 @@ interface get_env
    module procedure get_env_logical
 end interface get_env
 
+interface get_arg
+   module procedure get_arg_integer
+   module procedure get_arg_real
+   module procedure get_arg_double
+   module procedure get_arg_character
+   module procedure get_arg_logical
+end interface get_arg
+
 type :: force_keywd_hack  ! force keywords, using @awvwgk method
 end type force_keywd_hack
 ! so then any argument that comes afer "force_keywd" is a compile time error
@@ -6052,7 +6225,19 @@ interface readenv
 end interface readenv
 public readenv
 !-----------------------------------
+interface
+   integer(kind=c_int) function system_putchar(ichar) bind (C,name="putchar")
+      import c_int
+      integer(kind=c_int),intent(in),value :: ichar
+   end function system_putchar
+end interface
 
+interface
+   integer(kind=c_int) function system_getchar() bind (C,name="getchar")
+      import c_int
+   end function system_getchar
+end interface
+!-----------------------------------
 CONTAINS
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -6094,7 +6279,7 @@ CONTAINS
 !!             except with a number appended at the end if needed. If could
 !!             not find a unique name a blank is returned.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!    Sample program
 !!
@@ -6257,7 +6442,7 @@ end function uniq
 !!           filename even if present
 !!    name   if lun = -1  or is not present then query by this filename
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -6348,7 +6533,11 @@ character(len=20)             :: sign           ; namelist/inquire/sign
 integer                       :: size           ; namelist/inquire/size
 character(len=20)             :: stream         ; namelist/inquire/stream
 !==============================================================================================
-   namein=merge_str(namein_in,'',present(namein_in))
+   if(present(namein_in))then
+      namein=namein_in
+   else
+      namein=''
+   endif
    if(present(lun_in))then
       lun=lun_in
    else
@@ -6391,7 +6580,7 @@ character(len=20)             :: stream         ; namelist/inquire/stream
        call journal('sc','*print_inquire* must specify either filename or unit number')
     endif
 !-----------------------------------------------------------------------------------------------------------------------------------
-   write(*,nml=inquire,delim='none')
+   write(*,nml=inquire,delim='quote') ! APOSTROPHE, QUOTE, or NONE
    return
 !-----------------------------------------------------------------------------------------------------------------------------------
 999   continue
@@ -6433,7 +6622,7 @@ end subroutine print_inquire
 !!
 !!    The value is cached as a return value for subsequent calls.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   sample usage
 !!
@@ -6451,13 +6640,14 @@ function separator() result(sep)
 implicit none
 integer                      :: ios
 integer                      :: i
-logical                      :: existing=.false.
+logical                      :: existing
 character(len=1)             :: sep
 !*!IFORT BUG:character(len=1),save        :: sep_cache=' '
 integer,save                 :: isep=-1
 character(len=4096)          :: name
 character(len=:),allocatable :: envnames(:)
 
+    existing=.false. ! some compilers complain value not initialized
     ! NOTE:  A parallel code might theoretically use multiple OS
     !*!FORT BUG:if(sep_cache /= ' ')then  ! use cached value.
     !*!FORT BUG:    sep=sep_cache
@@ -6675,7 +6865,7 @@ contains
     doubleprecision :: value
     ikeep=0
     do i=1,size(page,dim=1)
-       ! do this more rigourously
+       ! do this more rigorously
        ! [+-]NNNNNN[.NNNN][ED][+-]NN
        line=''
        ! get rid of all characters not in a number and
@@ -6772,7 +6962,7 @@ end subroutine read_table_r
 !!                 & status='old',iostat=ios)
 !!
 !!               An exception is that although stdin cannot currently
-!!               generally be treated as a stream file file the data
+!!               generally be treated as a stream file the data
 !!               will be read from stdin if the filename is '-'.
 !!
 !!    pageout    array of characters to hold file
@@ -6941,7 +7131,7 @@ end subroutine fileread
 !!                    & status='old',iostat=ios)
 !!
 !!                  An exception is that although stdin cannot currently
-!!                  generally be treated as a stream file file the data
+!!                  generally be treated as a stream file the data
 !!                  will be read from stdin if the filename is '-'.
 !!
 !!       text       array of characters to hold file
@@ -6957,6 +7147,7 @@ end subroutine fileread
 !!     implicit none
 !!     character(len=1),allocatable :: text(:) ! array to hold file in memory
 !!     character(len=*),parameter :: FILENAME='inputfile' ! file to read
+!!     integer :: length,lines
 !!
 !!     ! create test file
 !!     open(file=FILENAME,unit=10,action='write')
@@ -6965,13 +7156,19 @@ end subroutine fileread
 !!     write(10,'(a)') 'elif elpmas a si sihT'
 !!     close(unit=10)
 !!
-!!     call filebyte(FILENAME,text) ! allocate character array and copy file into it
+!!     call filebyte(FILENAME,text,length,lines) ! allocate character array and copy file into it
 !!
 !!     if(.not.allocated(text))then
 !!        write(*,*)'*rever* failed to load file '//FILENAME
 !!     else
+!!        write(*,'(*(g0))')'lines=',lines,' length=',length
+!!        write(*,'(a)')repeat('=',80)
+!!        ! write file
+!!        write(*,'(*(a:))',advance='no')text
+!!        write(*,'(a)')repeat('=',80)
 !!        ! write file reversed to stdout
 !!        write(*,'(*(a:))',advance='no')text(size(text):1:-1)
+!!        write(*,'(a)')repeat('=',80)
 !!        deallocate(text)  ! release memory
 !!     endif
 !!
@@ -6995,9 +7192,9 @@ class(*),intent(in)                      :: filename    ! filename to shlep
 character(len=1),allocatable,intent(out) :: text(:)     ! array to hold file
 integer,intent(out),optional             :: length      ! length of longest line
 integer,intent(out),optional             :: lines       ! number of lines
-integer :: nchars=0             ! holds size of file
+integer :: nchars               ! holds size of file
 integer :: igetunit             ! use newunit=igetunit in f08
-integer :: ios=0                ! used for I/O error status
+integer :: iostat               ! used for I/O error status
 integer :: length_local
 integer :: lines_local
 integer :: i
@@ -7005,28 +7202,31 @@ integer :: icount
 character(len=256)  :: message
 character(len=4096) :: label
 character(len=:),allocatable :: line
+   nchars=0
+   iostat=0
    length_local=0
    lines_local=0
+   label=''
    message=''
    select type(FILENAME)
     type is (character(len=*))
-       if(filename /= '-') then
+       if(filename /= '-'.and.filename /= '' ) then
           open(newunit=igetunit, file=trim(filename), action="read", iomsg=message,&
-           &form="unformatted", access="stream",status='old',iostat=ios)
+           &form="unformatted", access="stream",status='old',iostat=iostat)
           label=filename
        else ! copy stdin to a scratch file
-          call copystdin()
+          call copystdin_C()
        endif
     type is (integer)
        if(filename /= stdin) then
-          rewind(unit=filename,iostat=ios,iomsg=message)
+          rewind(unit=filename,iostat=iostat,iomsg=message)
           igetunit=filename
        else ! copy stdin to a scratch file
-          call copystdin()
+          call copystdin_C()
        endif
        write(label,'("unit ",i0)')filename
    end select
-   if(ios == 0)then  ! if file was successfully opened
+   if(iostat == 0)then  ! if file was successfully opened
       inquire(unit=igetunit, size=nchars)
       if(nchars <= 0)then
          call stderr_local( '*filebyte* empty file '//trim(label) )
@@ -7035,8 +7235,8 @@ character(len=:),allocatable :: line
       ! read file into text array
       if(allocated(text))deallocate(text) ! make sure text array not allocated
       allocate ( text(nchars) )           ! make enough storage to hold file
-      read(igetunit,iostat=ios,iomsg=message) text      ! load input file -> text array
-      if(ios /= 0)then
+      read(igetunit,iostat=iostat,iomsg=message) text      ! load input file -> text array
+      if(iostat /= 0)then
          call stderr_local( '*filebyte* bad read of '//trim(label)//':'//trim(message) )
       endif
    else
@@ -7044,7 +7244,7 @@ character(len=:),allocatable :: line
       allocate ( text(0) )           ! make enough storage to hold file
    endif
 
-   close(iostat=ios,unit=igetunit)            ! close if opened successfully or not
+   close(iostat=iostat,unit=igetunit)            ! close if opened successfully or not
 
    if(present(lines).or.present(length))then  ! get length of longest line and number of lines
       icount=0
@@ -7067,17 +7267,68 @@ character(len=:),allocatable :: line
    endif
 !-----------------------------------------------------------------------------------------------------------------------------------
 contains
+subroutine copystdin_C()
+integer            :: iostat
+character(len=1)   :: byte
+character(len=255) :: iomsg
+   open(newunit=igetunit, iomsg=iomsg,&
+      &form="unformatted", access="stream",status='scratch',iostat=iostat)
+   open(unit=stdin,pad='yes')
+   if(iostat.eq.0)then
+      do while (getchar(byte).ge.0)
+         write(igetunit,iostat=iostat,iomsg=iomsg)byte
+         if(iostat.ne.0)exit
+      enddo
+   endif
+   if(iostat.ne.0)then
+      call stderr_local('<ERROR>*copystdin* '//trim(iomsg))
+   endif
+   rewind(igetunit,iostat=iostat,iomsg=iomsg)
+end subroutine copystdin_C
 !-----------------------------------------------------------------------------------------------------------------------------------
 subroutine copystdin()
+integer            :: iostat
+character(len=256) :: iomsg
+character(len=1)   :: byte
+   open(newunit=igetunit, iomsg=iomsg,&
+      &form="unformatted", access="stream",status='scratch',iostat=iostat)
+   open(unit=stdin,pad='yes')
+      if(iostat.eq.0)then
+      INFINITE: do
+         read(stdin,'(a1)',iostat=iostat,advance='no')byte
+         if(is_iostat_eor(iostat)) then
+            byte=new_line('a')
+         elseif(is_iostat_end(iostat)) then
+            iostat=0
+            exit
+         elseif(iostat.ne.0)then
+            exit
+         endif
+         write(igetunit,iostat=iostat,iomsg=iomsg)byte
+         if(iostat.ne.0)exit
+      enddo INFINITE
+   endif
+   if(iostat.ne.0)then
+      call stderr_local('<ERROR>*copystdin* '//trim(iomsg))
+   endif
+   rewind(igetunit,iostat=iostat,iomsg=iomsg)
+end subroutine copystdin
+!-----------------------------------------------------------------------------------------------------------------------------------
+subroutine copystdin_ascii()
 integer :: iostat
    open(newunit=igetunit, iomsg=message,&
    &form="unformatted", access="stream",status='scratch',iostat=iostat)
    open(unit=stdin,pad='yes')
    INFINITE: do while (getline(line,iostat=iostat)==0)
-      write(igetunit)line//new_line('a')
+      if(is_iostat_eor(iostat))then
+         ! EOR does not imply NEW_LINE so could add NEW_LINE to end of file
+         write(igetunit)line,new_line('a')
+      else
+         write(igetunit)line
+      endif
    enddo INFINITE
    rewind(igetunit,iostat=iostat,iomsg=message)
-end subroutine copystdin
+end subroutine copystdin_ascii
 !-----------------------------------------------------------------------------------------------------------------------------------
 subroutine stderr_local(message)
 character(len=*) :: message
@@ -7217,7 +7468,7 @@ end function number_of_lines
 !!    Beginning with f2008, you can probably use OPEN(NEWUNIT=...) instead
 !!    of an open unit locator.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!
 !!    Sample program:
@@ -7671,7 +7922,7 @@ end function basename
 !!        value that cannot be returned as a NEWUNIT value on an OPEN(3f))
 !!        and IOS will be non-zero.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!  Common usage
 !!
@@ -7716,7 +7967,11 @@ character(len=:),allocatable          :: local_mode
 character(len=256)                    :: message
 character(len=:),allocatable          :: action, position, access, form, status, file
 logical                               :: verbose
-   local_mode=lower(merge_str(mode,'',present(mode)))
+   if(present(mode))then
+      local_mode=mode
+   else
+      local_mode=''
+   endif
    file=trim(adjustl(filename))//'   '
    ifound=index(file,'>>')
    if(ifound /= 0)then
@@ -7829,7 +8084,7 @@ end function fileopen
 !!   LUN unit number to close
 !!##RETURNS
 !!   IOS status value from CLOSE
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!  Sample program:
 !!
@@ -7891,7 +8146,7 @@ end function fileclose
 !!              Allowed values are  ASIS|REWIND|APPEND
 !!##RETURNS
 !!   IERR       status value. Zero indicates no error occurred
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!  Sample program:
 !!
@@ -8004,7 +8259,7 @@ end function filewrite
 !!   LUN  unit number of open file to delete or filename.
 !!##RETURNS
 !!   IOS  status returned by CLOSE().
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!  Sample program:
 !!
@@ -8071,7 +8326,7 @@ end function filedelete_filename
 !!     the ends of sections and a separator (as returned by separator(3f)
 !!     ) placed between them, and duplicate adjacent separators removed
 !!     accept for one beginning the joined pathname.
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program
 !!
@@ -8164,7 +8419,7 @@ end function joinpath
 !!    routine is only intended for simple parsing of names of the form
 !!    "[dir/]name[.extension].
 !!
-!!##RESULTS
+!!##RETURNS
 !!    dir       Path of directories, including the trailing slash.
 !!    name      Name of file leaf or, if no file is specified in path,
 !!              name of the lowest directory.
@@ -8176,7 +8431,7 @@ end function joinpath
 !!    special name ".." is assumed to mean one directory above the current
 !!    directory.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   program demo_splitpath
 !!
@@ -8395,7 +8650,7 @@ end subroutine splitpath
 !!    IER     zero unless an error occurred. If not zero, LINE returns the
 !!            I/O error message.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -8429,6 +8684,7 @@ character(len=:),allocatable,intent(out) :: line
 integer,intent(in),optional              :: lun
 integer,intent(out),optional             :: iostat
 integer                                  :: ier
+integer                                  :: iostat_local
 character(len=4096)                      :: message
 
 integer,parameter                        :: buflen=1024
@@ -8436,30 +8692,30 @@ character(len=:),allocatable             :: line_local
 character(len=buflen)                    :: buffer
 integer                                  :: isize
 integer                                  :: lun_local
-
    line_local=''
    ier=0
+   iostat_local=huge(0)
    if(present(lun))then
       lun_local=lun
    else
       lun_local=stdin
    endif
-
    INFINITE: do                                                   ! read characters from line and append to result
-      read(lun_local,pad='yes',iostat=ier,fmt='(a)',advance='no', &
+      read(lun_local,pad='yes',iostat=iostat_local,fmt='(a)',advance='no', &
       & size=isize,iomsg=message) buffer                          ! read next buffer (might use stream I/O for files
+      ier=iostat_local
                                                                   ! other than stdin so system line limit is not limiting
       if(isize > 0)line_local=line_local//buffer(:isize)          ! append what was read to result
-      if(is_iostat_eor(ier))then                                  ! if hit EOR reading is complete unless backslash ends the line
+      if(is_iostat_eor(iostat_local))then                         ! if hit EOR reading is complete
          ier=0                                                    ! hitting end of record is not an error for this routine
          exit INFINITE                                            ! end of reading line
-     elseif(ier /= 0)then                                         ! end of file or error
+     elseif(iostat_local /= 0)then                                ! end of file or error
         line=trim(message)
         exit INFINITE
      endif
    enddo INFINITE
    line=line_local                                                ! trim line
-   if(present(iostat))iostat=ier
+   if(present(iostat))iostat=iostat_local
 end function getline
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -8511,7 +8767,7 @@ end function getline
 !!    IER    status returned by READ(IOSTAT=IER). If not zero, an error
 !!           occurred or an end-of-file or end-of-record was encountered.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -8619,7 +8875,7 @@ end function read_line
 !!    nothing is set "/tmp/" is returned. The returned value always ends in
 !!    "/". No test is made that the directory exists or is writable.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!
 !!   Sample:
@@ -8724,7 +8980,7 @@ end function get_tmp
 !!    out       returned string or value. If an end-of-file or system error
 !!              is encountered the string "EOF" is returned, or a "Nan"
 !!              REAL numeric value, or huge(0), or .false. .
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -8954,7 +9210,7 @@ end function rd_integer
 !!    getname(3f) returns the name of the current executable using
 !!    get_command_argument(3f) and inquire(3f).
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!    Sample getting a pathname of current executable:
 !!
@@ -9026,7 +9282,7 @@ end function getname
 !!    PATHNAME  the first pathname found in the current user path. Returns blank
 !!              if the command is not found.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -9117,7 +9373,7 @@ end function which
 !!    PATHNAME  the first pathname found in the current user path. Returns blank
 !!              if the file is not found.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -9214,7 +9470,7 @@ end function lookfor
 !!    IERR     return error code. Must be specified with a keyword.
 !!             It is zero if no error occurred.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -9291,6 +9547,7 @@ character(len=*),intent(in),optional       :: DEFAULT
 type(force_keywd_hack),optional,intent(in) :: force_keywd
 integer,intent(out),optional               :: ierr
 character(len=:),allocatable               :: VALUE
+
 character(len=255)                         :: errmsg
 integer                                    :: howbig
 integer                                    :: stat
@@ -9485,7 +9742,7 @@ end function get_env_logical
 !!    YESNO    true if pathname points to a hidden file, otherwise it
 !!             is false.
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -9566,7 +9823,7 @@ end function is_hidden_file
 !!    IOS   The error status returned by the last read. It is zero (0) if
 !!          no error occurred
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!   Sample program:
 !!
@@ -9693,7 +9950,7 @@ end subroutine get_next_char
 !!              representing NUM.
 !!
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!
 !!    Sample program:
@@ -9748,6 +10005,507 @@ integer                      :: local_lenlimit
    write(filename(:),fmt) trim(adjustl(head)), num, trim(adjustl(tail))
    filename=trim(filename)
 end function filename_generator
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!    putchar(3f) - [M_io:QUERY] write a single-byte character to stdout via C interface
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!    function putchar() result(ch)
+!!
+!!     character(len=1),intent(in) :: ch
+!!     integer :: putchar
+!!##DESCRIPTION
+!!    Write a single character to stdout using the C interface
+!!##OPTIONS
+!!    ch  A single character to place on stdout
+!!##RETURNS
+!!    A integer value for the ADE (ASCII Decimal Equivalent) of the
+!!    character, or a negative value if an error occurs.
+!!
+!!##EXAMPLES
+!!
+!!   sample usage
+!!
+!!    program demo_putchar
+!!    use M_io, only : getchar, putchar
+!!    implicit none
+!!    character(len=1) :: byte
+!!    integer :: istat
+!!       ! copy stdin to stdout as a stream one byte at a time
+!!       do while (getchar(byte).ge.0)
+!!          istat=putchar(byte)
+!!       enddo
+!!    end program demo_putchar
+!!##AUTHOR
+!!    John S. Urban
+!!##LICENSE
+!!    Public Domain
+function putchar(ch)
+character(len=1),intent(in) :: ch
+integer :: putchar
+   putchar=system_putchar(ichar(ch,kind=c_int))
+end function putchar
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!    getchar(3f) - [M_io:QUERY] read a single-byte character from stdin via C interface
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!    function getchar() result(ch)
+!!
+!!     character(len=1),intent(in) :: ch
+!!     integer :: getchar
+!!##DESCRIPTION
+!!    Read a single character from stdin using the C interface
+!!##OPTIONS
+!!    ch  A single character to read from stdin
+!!##RETURNS
+!!    A integer value for the ADE (ASCII Decimal Equivalent) of the
+!!    character, or a negative value if an error occurs.
+!!
+!!##EXAMPLES
+!!
+!!   sample usage
+!!
+!!    program demo_getchar
+!!    use M_io, only : getchar, putchar
+!!    implicit none
+!!    character(len=1) :: byte
+!!    integer :: istat
+!!       ! copy stdin to stdout as a stream one byte at a time
+!!       do while (getchar(byte).ge.0)
+!!          istat=putchar(byte)
+!!       enddo
+!!    end program demo_getchar
+!!
+!!##AUTHOR
+!!    John S. Urban
+!!##LICENSE
+!!    Public Domain
+function getchar(ch)
+character(len=1),intent(out) :: ch
+integer :: getchar
+integer(kind=c_int) :: ich
+   ich=system_getchar()
+   if(ich.ge.0)then
+      ch=char(ich)
+   else
+      ch=char(0)
+   endif
+   getchar=ich
+end function getchar
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!    expand_env(3f) - [M_io:QUERY] implements basic shell-style variable expansion
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!    function expand_env(in) result(out)
+!!
+!!     character(len=1),intent(in)  :: in
+!!     character(len=:),allocatable :: out
+!!
+!!##DESCRIPTION
+!!
+!! expand_env(3f) implements basic shell-style variable expansion for
+!! environment variables and some pre-defined names.  That is, it scans for
+!! '$' and replaces '$VAR' or '${VAR}' with values from environment variables
+!! or pre-defined substitutions.
+!!
+!! Given a string containing "$VAR" and "${VAR}" strings it replaces it
+!! with the value of the environment variable "VAR".  If the environment
+!! variable name returns a null string or the variable is not defined,
+!! the following predefined names will be expanded:
+!!
+!!  o FILE:  same as value returned by GET_COMMAND_ARGUMENT(0,string)
+!!  o 0,1,2,....: same as value returned by GET_COMMAND_ARGUMENT(N,string)
+!!  o *: all command line arguments from 1 to N joined with a space separator
+!!
+!!  o COMPILER: same as value returned by COMPILER_VERSION() intrinsic
+!!  o COMPILER_OPTIONS: same as value returned by COMPILER__OPTIONS() intrinsic
+!!
+!!  o DATE: returns a string of the form CCYY-MM-DD
+!!  o TIME: returns a string of the form HH:MM:SS
+!!  o ZONE: returns a string of the form (+-)HHMM, representing the
+!!          difference with respect to Coordinated Universal Time (UTC)
+!!  o TIMEZONE:  CCYY-MM-DDTHH:MM:SS
+!!
+!!##OPTIONS
+!!    A string containing names of the syntax $VAR or ${VAR} in addition to
+!!    plain text not to be expanded.
+!!
+!!##RETURNS
+!!    A string where $VAR and ${VAR} are replaced with the value of the
+!!    environment variable. If the returned value is null several predefined
+!!    variable names will be expanded per the table above.
+!!
+!!##EXAMPLES
+!!
+!!    Sample program
+!!
+!!     program demo_expand_env
+!!     use M_io, only : expand_env
+!!     implicit none
+!!     integer                       :: i
+!!     character(len=:), allocatable :: expanded
+!!     character(len=*), parameter   :: tests(*) = [ character(len=80) :: &
+!!      "-------------- Testing Pure Fortran Word Expansion --------------",&
+!!      " scratch space is $TMP for $USER with home directory  ${HOME}",    &
+!!      " DATE is $DATE TIME is 22:31:03 ZONE is $ZONE TIMESTAMP $TIMESTAMP",&
+!!      " FILE is $FILE ARGS: 0: $0 1: $1 2: $2 3: $3",                     &
+!!      " COMPILER is $COMPILER COMPILER_OPTIONS are ${COMPILER_OPTIONS}",  &
+!!      " ${0} versus M_io.FF  $0 versus $FILE",                            &
+!!      " All arguments is ${0} ${*}",                                      &
+!!      " unknown $UNKNOWN incorrect ${ A B C} but syntax OK",              &
+!!      " Bad $  ${  and stuff $UNKNOWN ${ A B C}",                         &
+!!      ""]
+!!
+!!        do i = 1,size(tests)
+!!           expanded=expand_env(tests(i))
+!!           print '(A)', "Input:  "//trim(tests(i))
+!!           print '(A)', "Result: "//expanded
+!!           print '(A)', ""
+!!        enddo
+!!
+!!     end program demo_expand_env
+!!
+!!##SEE ALSO
+!!    wordexp(3c) and POSIX shell string expansion
+!!##AUTHOR
+!!    John S. Urban
+!!##LICENSE
+!!    Public Domain
+function expand_env(input_str) result(output_str)
+!
+! implements basic shell-style variable expansion ($VAR) for environment variables and some pre-defined names
+! That is, it scans for '$' and replaces '$VAR' or '${VAR}' with values from environment variables or pre-defined substitutions
+!
+use,intrinsic :: iso_fortran_env, only : compiler_version, compiler_options
+character(len=*), intent(in)  :: input_str
+character(len=:), allocatable :: in
+character(len=:), allocatable :: output_str
+integer                       :: i, j, k
+integer                       :: iarg
+integer                       :: input_len
+integer                       :: var_start, var_end
+character(len=:), allocatable :: var_name, var_val, temp
+character,parameter           :: &
+& int*(*)  = '1234567890',                 &
+& low*(*)  = 'abcdefghijklmnopqrstuvwxyz', &
+& upp*(*)  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', &
+& punc*(*) = "!""#$%&’()*+,‐./:;<=>?@[\]ˆ_‘{|}˜"
+
+output_str = ""
+input_len = len(input_str)
+in = input_str//'  '
+i = 1
+var_name = ''
+var_val = ''
+temp = ''
+
+do while (i <= input_len)
+   if ( in(i:i) == '$' ) then
+      if ( i >= input_len )exit ! syntax error with line ending in $
+      var_start = i + 1
+         ! Handle bracketed syntax ${VAR}
+      if (in(var_start:var_start) == '{') then
+         var_start = var_start + 1
+         var_end = var_start + 1
+         do while (var_end <= input_len )
+            if (in(var_end:var_end) == '}') exit
+            var_end = var_end + 1
+         enddo
+         var_name = in(var_start:var_end-1)
+         i = var_end + 1
+      else
+            ! Handle unbracketed syntax $VAR (stops if not [A-Za-z0-9_]
+         var_end = var_start
+         do while (var_end <= input_len)
+            if (index(int//low//upp//'_',in(var_end:var_end)).eq.0)exit
+            var_end = var_end + 1
+         enddo
+         var_name = in(var_start:var_end-1)
+         i = var_end
+      endif
+         ! Fetch the environment variable value natively in Fortran
+      if(var_name.ne.'')then
+         var_val = get_env(var_name)
+      else
+         var_val = ''
+      endif
+      if (var_val=='') then
+         select case (var_name)
+         case ('DATE')
+            var_val = repeat(' ',8)
+            call date_and_time(date=var_val)
+            var_val = var_val(1:4)//'-'//var_val(5:6)//'-'//var_val(7:8)
+         case ('TIME')
+            var_val = repeat(' ',10)
+            call date_and_time(time=var_val)
+            var_val = var_val(1:2)//':'//var_val(3:4)//':'//var_val(5:6)
+         case ('ZONE')
+            var_val = repeat(' ',5)
+            call date_and_time(zone=var_val)
+         case ('TIMESTAMP')
+            var_val = repeat(' ',8)
+            call date_and_time(date=var_val)
+            temp = var_val(1:4)//'-'//var_val(5:6)//'-'//var_val(7:8)
+            var_val = repeat(' ',10)
+            call date_and_time(time=var_val)
+            temp = temp//'T'//var_val(1:2)//':'//var_val(3:4)//':'//var_val(5:6)
+            var_val = repeat(' ',5)
+            call date_and_time(zone=var_val)
+            var_val = temp//var_val
+         case ('FILE')
+            var_val = get_arg(0)
+         case ('COMPILER')
+            var_val = compiler_version()
+         case ('COMPILER_OPTIONS')
+            var_val = compiler_options()
+         case ('*')
+            var_val = ''
+            do j = 1,command_argument_count()
+               var_val = var_val//get_arg(j)//' '
+            enddo
+            var_val = trim(var_val)
+         case default  ! $NNN is command argument
+            if(var_name.eq.'')then ! syntax error
+               var_val=''
+            elseif (verify(trim(var_name), '0123456789') == 0 ) then ! determine if string is a valid integer
+               var_name = var_name//repeat(' ',9)
+               read(var_name,'(i9)')iarg
+               var_val = get_arg(iarg)
+            else  ! variable with blank value, unknown variable, or syntax error
+               var_val = ''
+            endif
+         end select
+      endif
+      output_str = output_str//var_val
+      var_val = ''
+   else
+      ! regular character, not part of variable name
+      output_str = output_str//in(i:i)
+      i = i + 1
+   endif
+enddo
+end function expand_env
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!    get_arg(3f) - [M_io:QUERY] implements basic shell-style variable expansion
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!    function get_arg(n,default,ierr) result(arg)
+!!
+!!      integer,intent(in)           :: n
+!!      integer|real|doubleprecision|character|logical :: default
+!!      integer,intent(out),optional :: ierr
+!!      character(len=:),allocatable :: arg
+!!
+!!##DESCRIPTION
+!!
+!! get_arg(3f) returns the Nth command line argument.
+!!
+!!##OPTIONS
+!!    n        The number of the argument, from 0 to the count of the
+!!             total number of arguments.
+!!    default  The value to return if the argument is not present. The
+!!             type of the value determines the type of the returned
+!!             value. It may be REAL, DOUBLE_PRECISION, INTEGER, CHARACTER,
+!!             or LOGICAL.  The default type returned is CHARACTER.
+!!
+!!##RETURNS
+!!    arg      The value of the Nth command line argument after attempting
+!!             to convert it to the same type as DEFAULT.
+!!
+!!    ierr     zero if no error occurred. Keyword syntax is required.
+!!
+!!##EXAMPLES
+!!
+!!
+!!    Sample program
+!!
+!!     program demo_get_arg
+!!     use M_io, only : get_arg
+!!     implicit none
+!!     integer                       :: i
+!!     character(len=:), allocatable :: expanded
+!!
+!!        print '(A)', 'The program name is '//get_arg(0)
+!!
+!!        do i = 1,command_argument_count()
+!!           expanded=get_arg(i)
+!!           print '(A)', expanded
+!!        enddo
+!!
+!!     end program demo_get_arg
+!!
+!!##SEE ALSO
+!!     get_command_argument(3f), command_argument_count(3f)
+!!
+!!##AUTHOR
+!!    John S. Urban
+!!
+!!##LICENSE
+!!    Public Domain
+function get_arg_character(n,default,force_keywd,ierr) result(arg)
+integer,intent(in)                           :: n
+character(len=*),intent(in),optional         :: default
+type(force_keywd_hack), optional, intent(in) :: force_keywd
+integer,intent(out),optional                 :: ierr
+integer                                      :: argument_length, istat
+character(len=:),allocatable                 :: arg
+   !
+   ! allocate string big enough to hold command line argument
+   !
+   call get_command_argument( number=n, length=argument_length )
+   if (allocated(arg))deallocate( arg )
+   allocate(character(len=argument_length) :: arg )
+   call get_command_argument(n, arg, status=istat )
+   if(arg.eq.'')arg=default
+   if (present(ierr)) ierr = istat
+end function get_arg_character
+
+function get_arg_real(n,DEFAULT,force_keywd,ierr) result(VALUE)
+integer,intent(in)                           :: n
+real,intent(in)                              :: DEFAULT
+type(force_keywd_hack), optional, intent(in) :: force_keywd
+integer,intent(out),optional                 :: ierr
+real                                         :: VALUE
+integer                                      :: iostat
+character(len=255)                           :: iomsg, fmt
+character(len=:),allocatable                 :: string
+   STRING=get_arg_character(n,'')
+   iostat=0
+   iomsg=''
+   if(STRING.eq.'')then
+      VALUE=DEFAULT
+   else
+      write(fmt,'(*(g0))')'(g',max(1,len(string)),'.0)'
+      string=string//' '
+      read(STRING,fmt,iostat=iostat,iomsg=iomsg)value
+      if(iostat.ne.0)then
+         value=-huge(0.0)
+      endif
+   endif
+   if(present(ierr))then
+      ierr=iostat
+   elseif(iostat.ne.0)then
+      write(stderr,'(a)')'<ERROR>*get_env* n=',n,' STRING='//STRING//':'//trim(iomsg)
+   endif
+end function get_arg_real
+
+function get_arg_double(n,DEFAULT,force_keywd,ierr) result(VALUE)
+integer,intent(in)                           :: n
+doubleprecision,intent(in)                   :: DEFAULT
+type(force_keywd_hack), optional, intent(in) :: force_keywd
+integer,intent(out),optional                 :: ierr
+doubleprecision                              :: VALUE
+character(len=:),allocatable                 :: STRING
+integer                                      :: iostat
+character(len=255)                           :: iomsg, fmt
+   STRING=get_arg_character(n,'')
+   iostat=0
+   iomsg=''
+   if(STRING.eq.'')then
+      VALUE=DEFAULT
+   else
+      write(fmt,'(*(g0))')'(g',max(1,len(string)),'.0)'
+      string=string//' '
+      read(STRING,fmt,iostat=iostat,iomsg=iomsg)value
+      if(iostat.ne.0)then
+         value=-huge(0.0d0)
+      endif
+   endif
+   if(present(ierr))then
+      ierr=iostat
+   elseif(iostat.ne.0)then
+      write(stderr,'(a)')'<ERROR>*get_env* n=',n,' STRING='//STRING//':'//trim(iomsg)
+   endif
+end function get_arg_double
+
+function get_arg_integer(n,DEFAULT,force_keywd,ierr) result(VALUE)
+integer,intent(in)                           :: n
+integer,intent(in)                           :: DEFAULT
+type(force_keywd_hack), optional, intent(in) :: force_keywd
+integer,intent(out),optional                 :: ierr
+integer                                      :: VALUE
+character(len=:),allocatable                 :: STRING
+integer                                      :: iostat
+character(len=255)                           :: iomsg, fmt
+   STRING=get_arg_character(n,'')
+   iostat=0
+   iomsg=''
+   if(STRING.eq.'')then
+      VALUE=DEFAULT
+      iostat=0
+   else
+      write(fmt,'(*(g0))')'(i',max(1,len(string)),')'
+      string=string//' '
+      read(STRING,fmt,iostat=iostat,iomsg=iomsg)value
+      if(iostat.ne.0)then
+         value=-huge(0)
+      endif
+   endif
+   if(present(ierr))then
+      ierr=iostat
+   elseif(iostat.ne.0)then
+      write(stderr,'(a)')'<ERROR>*get_env* n=',n,' STRING='//STRING//':'//trim(iomsg)
+   endif
+end function get_arg_integer
+
+function get_arg_logical(n,DEFAULT,force_keywd,ierr) result(VALUE)
+integer,intent(in)                           :: n
+logical,intent(in)                           :: DEFAULT
+type(force_keywd_hack), optional, intent(in) :: force_keywd
+integer,intent(out),optional                 :: ierr
+logical                                      :: VALUE
+character(len=:),allocatable                 :: STRING
+integer                                      :: iostat
+character(len=255)                           :: iomsg, fmt
+character(len=1)                             :: ch
+   STRING=get_arg_character(n,'',ierr=iostat)
+   if(iostat.ne.0)then
+      VALUE=.false.
+   elseif(STRING.eq.'')then
+      VALUE=DEFAULT
+      iostat=0
+   else
+      string=string//'  '
+      ch=string(1:1)
+      if(ch.eq.'.')ch=string(2:2)
+      select case(ch)
+      case('t','T','y','Y')
+         value=.true.
+      case('f','F','n','N')
+         value=.false.
+       case default
+         value=.false.
+      end select
+   endif
+   if(present(ierr))then
+      ierr=iostat
+   elseif(iostat.ne.0)then
+      write(stderr,'(a)')'<ERROR>*get_env* n=',n,' STRING='//STRING//':'//trim(iomsg)
+   endif
+end function get_arg_logical
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -9889,7 +10647,6 @@ doubleprecision function s2v(chars,ierr,onerr)
 !  1989 John S. Urban
 
 !character(len=*),parameter::ident_43="@(#)M_strings::s2v(3f): returns doubleprecision number from string"
-
 
 character(len=*),intent(in)  :: chars
 integer,optional             :: ierr
@@ -10598,7 +11355,7 @@ end function nospace
 !!##RETURNS
 !!    isspace  returns true if character is ASCII white space
 !!
-!!##EXAMPLE
+!!##EXAMPLES
 !!
 !!  Sample program:
 !!
@@ -11178,7 +11935,7 @@ integer                       :: increment
 contains
 
 subroutine print_generic(generic)
-!use, intrinsic :: iso_fortran_env, only : int8, int16, int32, biggest=>int64, real32, real64
+!use, intrinsic :: iso_fortran_env, only : int8, int16, int32, biggest=>int64, real32, real64, dp=>real128
 use,intrinsic :: iso_fortran_env, only : int8, int16, int32, int64, real32, real64, real128
 class(*),intent(in) :: generic
    select type(generic)
@@ -11188,9 +11945,6 @@ class(*),intent(in) :: generic
       type is (integer(kind=int64));    write(line(istart:),'(i0)') generic
       type is (real(kind=real32));      write(line(istart:),'(1pg0)') generic
       type is (real(kind=real64));      write(line(istart:),'(1pg0)') generic
-#ifdef FLOAT128
-      type is (real(kind=real128));     write(line(istart:),'(1pg0)') generic
-#endif
       type is (logical);                write(line(istart:),'(l1)') generic
       type is (character(len=*));       write(line(istart:),'(a)') trim(generic)
       type is (complex);                write(line(istart:),'("(",1pg0,",",1pg0,")")') generic
@@ -11236,7 +11990,7 @@ integer                       :: increment
 contains
 
 subroutine print_generic(generic)
-!use, intrinsic :: iso_fortran_env, only : int8, int16, int32, biggest=>int64, real32, real64
+!use, intrinsic :: iso_fortran_env, only : int8, int16, int32, biggest=>int64, real32, real64, dp=>real128
 use,intrinsic :: iso_fortran_env, only : int8, int16, int32, int64, real32, real64, real128
 class(*),intent(in),optional :: generic(:)
 integer :: i
@@ -11247,9 +12001,6 @@ integer :: i
       type is (integer(kind=int64));    write(line(istart:),'("[",*(i0,1x))') generic
       type is (real(kind=real32));      write(line(istart:),'("[",*(1pg0,1x))') generic
       type is (real(kind=real64));      write(line(istart:),'("[",*(1pg0,1x))') generic
-#ifdef FLOAT128
-      type is (real(kind=real128));     write(line(istart:),'("[",*(1pg0,1x))') generic
-#endif
       !type is (real(kind=real256));     write(error_unit,'(1pg0)',advance='no') generic
       type is (logical);                write(line(istart:),'("[",*(l1,1x))') generic
       type is (character(len=*));       write(line(istart:),'("[",:*("""",a,"""",1x))') (trim(generic(i)),i=1,size(generic))
@@ -11272,37 +12023,12 @@ character(len=:),allocatable :: strout
    strout=trim(adjustl(strin))
 end function crop
 !===================================================================================================================================
-end module m_io
+end module M_io
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 
-
 !>>>>> build/dependencies/M_strings/src/M_strings.F90
-!-----------------------------------------------------------------------------------------------------------------------------------
-#define  __INTEL_COMP        1
-#define  __GFORTRAN_COMP     2
-#define  __NVIDIA_COMP       3
-#define  __NAG_COMP          4
-#define  __flang__           5
-#define  __UNKNOWN_COMP   9999
-
-#define FLOAT128
-
-#ifdef __INTEL_COMPILER
-#   define __COMPILER__ __INTEL_COMP
-#elif __GFORTRAN__ == 1
-#   define __COMPILER__ __GFORTRAN_COMP
-#elif __flang__
-#   undef FLOAT128
-#   define __COMPILER__ __LLVM_FLANG_COMP
-#elif __NVCOMPILER
-#   undef FLOAT128
-#   define __COMPILER__ __NVIDIA_COMP
-#else
-#   define __COMPILER__ __UNKNOWN_COMP
-#   warning  NOTE: UNKNOWN COMPILER
-#endif
 !-----------------------------------------------------------------------------------------------------------------------------------
 !>
 !!##NAME
@@ -11322,19 +12048,21 @@ end module m_io
 !!
 !!  public entities:
 !!
-!!      use M_strings,only : split, slice, sep, delim, chomp, strtok
-!!      use M_strings,only : split2020, find_field
+!!      use M_strings,only : split, slice, sep, delim, chomp, strtok, &
+!!                         & split2020, find_field
 !!      use M_strings,only : substitute, change, modif, transliterate, &
-!!              & reverse, squeeze
+!!                         & reverse, squeeze
 !!      use M_strings,only : replace, join
-!!      use M_strings,only : upper, lower, upper_quoted, lower_quoted
+!!      use M_strings,only : upper, lower
+!!      use M_strings,only : upper_quoted, lower_quoted, &
+!!                         & trim_quoted, quote, unquote
 !!      use M_strings,only : rotate13, percent_encode, percent_decode
 !!      use M_strings,only : encode_base64, decode_base64
 !!      use M_strings,only : adjustc, compact, nospace, indent
-!!      use M_strings,only : crop, clip, unquote, quote, matching_delimiter
+!!      use M_strings,only : crop, clip, matching_delimiter
 !!      use M_strings,only : len_white, pad, lpad, cpad, rpad, zpad, &
-!!              & stretch, lenset, merge_str
-!!      use M_strings,only : switch, s2c, c2s
+!!                         & stretch, lenset, merge_str
+!!      use M_strings,only : switch, couple, uncouple, s2c, c2s
 !!      use M_strings,only : noesc, notabs, dilate, expand, visible
 !!      use M_strings,only : longest_common_substring
 !!      use M_strings,only : string_to_value, string_to_values, s2v, s2vs
@@ -11361,8 +12089,6 @@ end module m_io
 !!       sep     function interface to split(3f)
 !!       slice   subroutine parses string using specified delimiter characters
 !!               and stores beginning and ending positions in arrays
-!!       delim   subroutine parses string using specified delimiter characters
-!!               and store tokens into an array and records beginning and end
 !!       chomp   function consumes input line as it returns next token in a
 !!               string using specified delimiters
 !!       paragraph    convert a string into a paragraph
@@ -11373,6 +12099,11 @@ end module m_io
 !!       split2020   split a string using prototype of proposed standard
 !!                   procedure
 !!       find_field  parse a string into tokens
+!!
+!!       DEPRECATED
+!!
+!!       delim   subroutine parses string using specified delimiter characters
+!!               and store tokens into an array and records beginning and end
 !!
 !!   EDITING
 !!
@@ -11437,7 +12168,10 @@ end module m_io
 !!       crop     function trims leading and trailing spaces and control
 !!                characters
 !!       clip     trim leading and trailings spaces or set of characters
-!!                from string
+!!                from string ends
+!!       trim_quoted  trim ends of string and replace remaining ranges
+!!                    of whitespace not in quoted text with a specified
+!!                    string.
 !!
 !!       See Also: squeeze
 !!
@@ -11447,14 +12181,15 @@ end module m_io
 !!       unquote  remove quotes from string as if read with list-directed input
 !!       quote    add quotes to string as if written with list-directed output
 !!
-!!
 !!   CHARACTER ARRAY VERSUS STRING
 !!
-!!       switch  switch between a string and an array of single characters
-!!       s2c     convert string to array of single characters and add null
-!!               terminator for passing to C
-!!       c2s     convert null-terminated array of single characters to
-!!               string for converting strings returned from C
+!!       switch    switch between a string and an array of single characters
+!!       couple    an array of single characters is converted to a string
+!!       uncouple  a string is converted to an array of single characters
+!!       s2c       convert string to array of single characters and add null
+!!                 terminator for passing to C
+!!       c2s       convert null-terminated array of single characters to
+!!                 string for converting strings returned from C
 !!
 !!   NONALPHA
 !!
@@ -11520,7 +12255,7 @@ end module m_io
 !!       o isascii   returns .true. if the character is in the range char(0)
 !!                   to char(127)
 !!       o isblank   returns .true. if character is a blank character
-!!                   (space or horizontal tab.
+!!                   (space or horizontal tab).
 !!       o isxdigit  returns .true. if character is a hexadecimal digit
 !!                   (0-9, a-f, or A-F).
 !!
@@ -11599,16 +12334,18 @@ end module m_io
 !!      use M_strings,only : SPLIT, slice, sep, delim, chomp, strtok
 !!      use M_strings,only : split2020, find_field
 !!      use M_strings,only : substitute, change, modif, transliterate, &
-!!              & reverse, squeeze
+!!                         & reverse, squeeze
 !!      use M_strings,only : REPLACE, join
-!!      use M_strings,only : UPPER, LOWER, upper_quoted, lower_quoted
+!!      use M_strings,only : UPPER, LOWER
+!!      use M_strings,only : upper_quoted, lower_quoted, unquote, quote, &
+!!                         & trim_quoted
 !!      use M_strings,only : rotate13, percent_encode, percent_decode
 !!      use M_strings,only : encode_base64, decode_base64
 !!      use M_strings,only : adjustc, compact, nospace, indent
-!!      use M_strings,only : crop, clip, unquote, quote, matching_delimiter
+!!      use M_strings,only : crop, clip, matching_delimiter
 !!      use M_strings,only : len_white, pad, lpad, cpad, rpad, zpad, &
-!!              & stretch, lenset, merge_str
-!!      use M_strings,only : switch, s2c, c2s
+!!                         & stretch, lenset, merge_str
+!!      use M_strings,only : switch, couple, uncouple, s2c, c2s
 !!      use M_strings,only : noesc, notabs, dilate, expand, visible
 !!      use M_strings,only : longest_common_substring
 !!      use M_strings,only : string_to_value, string_to_values, s2v, s2vs
@@ -11693,6 +12430,8 @@ public encode_base64      !  apply base64 encoding (as defined in RFC-4648) to a
 public decode_base64      !  apply base64 decoding (as defined in RFC-4648) to an array of bytes
 !-------------------------# CHARACTER ARRAY VERSUS STRING
 public switch             !  generic switch between a string and an array of single characters (a2s,s2a)
+public couple             !  convert an array of single characters to a string (a2s)
+public uncouple           !  convert a string to an array of single characters (s2a)
 private a2s               !  function to copy char array to string
 private s2a               !  function to copy string(1:Clen(string)) to char array
 public s2c                !  convert character variable to array of character(len=1) with null terminator for C compatibility
@@ -11706,6 +12445,7 @@ public lower_quoted       !  elemental function converts string to lowercase ski
 !-------------------------# WHITE SPACE
 public adjustc            !  elemental function centers string within the length of the input string
 public compact            !  left justify string and replace duplicate whitespace with single characters or nothing
+public trim_quoted        !  replace whitespace regions with a specified string protecting quoted regions
 public nospace            !  function replaces whitespace with nothing
 public indent             !  count number of leading spaces
 public crop               !  function trims leading and trailing spaces and control characters
@@ -11747,6 +12487,7 @@ public s2vs               !  function returns a doubleprecision array of numbers
 public atoi               !   function returns an INTEGER(kind=int32) value from a string
 public atol               !   function returns an INTEGER(kind=int64) value from a string
 public aton               !   function returns true or false as to whether string converts to numeric value, and numeric value
+public itri               !  convert integers into strings representing the value grouped into periods of three characters
 !------------------------------------------------------------------------------------------------------------
 public str                !  function returns a string representing up to twenty scalar intrinsic values, including CSV style
 public fmt                !  function returns a string representing an intrinsic value using optionally specified format
@@ -11765,10 +12506,10 @@ public listout            !  expand a list of numbers where  negative numbers de
 !
 public int, real, dble, nint
 
-interface int;     module procedure atoi;              end interface
-interface real;    module procedure real_s2v;          end interface
-interface dble;    module procedure dble_s2v;          end interface
-interface nint;    module procedure nint_s2v;          end interface
+interface int;   module procedure atoi;      end interface
+interface real;  module procedure real_s2v;  end interface
+interface dble;  module procedure dble_s2v;  end interface
+interface nint;  module procedure nint_s2v;  end interface
 
 interface aton
 module procedure ator_real32
@@ -11818,9 +12559,9 @@ public longest_common_substring !  function that returns the longest common subs
 
 ! ident_2="@(#) M_strings switch(3f) toggle between string and array of characters; generic{a2s s2a}"
 
-interface switch
-   module procedure a2s, s2a
-end interface switch
+interface switch;   module procedure a2s,s2a ; end interface switch
+interface uncouple; module procedure s2a     ; end interface uncouple
+interface couple;   module procedure a2s     ; end interface couple
 ! note how returned result is "created" by the function
 !-----------------------------------------------------------------------------------------------------------------------------------
 
@@ -11869,6 +12610,17 @@ public :: find_field
 interface split2020
    module procedure :: split_tokens, split_first_last, split_pos
 end interface split2020
+!-----------------------------------------------------------------------------------------------------------------------------------
+interface itri
+   module procedure itri_int8
+   module procedure itri_int16
+   module procedure itri_int32
+   module procedure itri_int64
+   module procedure itris_int8
+   module procedure itris_int16
+   module procedure itris_int32
+   module procedure itris_int64
+end interface itri
 !-----------------------------------------------------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------------------------------------------------
 !This contains a conditionally built mini-version of M_journal which allows the M_strings.f90 module
@@ -12045,9 +12797,9 @@ CONTAINS
 !!
 !!       allpassed= test('abcdefghijk' ,  '?b*',     .true.)  .and. allpassed
 !!       allpassed= test('abcdefghijk' ,  '*c*',     .true.)  .and. allpassed
-!!       allpassed= test('abcdefghijk' ,  '*c',      .false.) .and.  allpassed
+!!       allpassed= test('abcdefghijk' ,  '*c',      .false.) .and. allpassed
 !!       allpassed= test('abcdefghijk' ,  '*c*k',    .true.)  .and. allpassed
-!!       allpassed= test('LS'          ,  '?OW',     .false.) .and.  allpassed
+!!       allpassed= test('LS'          ,  '?OW',     .false.) .and. allpassed
 !!       allpassed= test('teztit'      ,  'tez*t*t', .true.)  .and. allpassed
 !!         ! Two pattern match problems that might pose difficulties
 !!       allpassed= test('e '           , '*e* ',      .true.) .and. allpassed
@@ -12057,7 +12809,7 @@ CONTAINS
 !!       allpassed= test('baaaaa'       , 'b*ax',      .false.) .and. allpassed
 !!       allpassed= test('baaaaax'      , 'b*a',       .false.) .and. allpassed
 !!       allpassed= test(''             , 'b*',        .false.) .and. allpassed
-!!       allpassed= test(''             , '*',         .true.) .and.  allpassed
+!!       allpassed= test(''             , '*',         .true.)  .and. allpassed
 !!       allpassed= test('b'            , '',          .false.) .and. allpassed
 !!       allpassed= test('3'            , '??',        .false.) .and. allpassed
 !!       ! known flaws
@@ -12159,9 +12911,9 @@ CONTAINS
 !!       ! failing scenarios.
 !!       if (bExpectedResult .eqv. bResult) then
 !!          bPassed = .true.
-!!          if(nReps == 1) write(*,*)"Passed match on ",tame," vs. ", wild
+!!          if(nReps == 1) write(*,*)"Passed match on ",tame," .vs. ", wild
 !!       else
-!!          if(nReps == 1) write(*,*)"Failed match on ",tame," vs. ", wild
+!!          if(nReps == 1) write(*,*)"Failed match on ",tame," .vs. ", wild
 !!       endif
 !!
 !!    end function test
@@ -12363,11 +13115,11 @@ end function glob
 !!##LICENSE
 !!    Public Domain
 pure function ends_with_str(string, ending,ignorecase) result(matched)
-character(*), intent(in)     :: string, ending
-logical,intent(in),optional  :: ignorecase
-integer                      :: n1, n2
-logical                      :: matched
-logical                      :: ignorecase_local
+character(*), intent(in)    :: string, ending
+logical,intent(in),optional :: ignorecase
+integer                     :: n1, n2
+logical                     :: matched
+logical                     :: ignorecase_local
    if(present(ignorecase))then
            ignorecase_local=ignorecase
    else
@@ -12513,13 +13265,13 @@ intrinsic index, min, present, len
 !  given a line of structure " par1 par2 par3 ... parn " store each par(n) into a separate variable in array.
 !    o by default adjacent delimiters in the input string do not create an empty string in the output array
 !    o no quoting of delimiters is supported
-character(len=*),intent(in)              :: input_line  ! input string to tokenize
-character(len=*),optional,intent(in)     :: delimiters  ! list of delimiter characters
-character(len=*),optional,intent(in)     :: nulls       ! return strings composed of delimiters or not ignore|return|ignoreend
-character(len=*),optional,intent(in)     :: order       ! return strings composed of delimiters or not ignore|return|ignoreend
+character(len=*),intent(in)          :: input_line  ! input string to tokenize
+character(len=*),optional,intent(in) :: delimiters  ! list of delimiter characters
+character(len=*),optional,intent(in) :: nulls       ! return strings composed of delimiters or not ignore|return|ignoreend
+character(len=*),optional,intent(in) :: order       ! return strings composed of delimiters or not ignore|return|ignoreend
 
-character(len=:),allocatable             :: sep(:)      ! output array of tokens
-integer                                  :: isize
+character(len=:),allocatable         :: sep(:)      ! output array of tokens
+integer                              :: isize
    call split(input_line,sep,delimiters,'right',nulls)
    if(present(order))then
    select case(order)
@@ -12718,7 +13470,7 @@ integer                       :: imax                   ! length of longest toke
    end select
 !-----------------------------------------------------------------------------------------------------------------------------------
    ! maxval() of a zero-size array is set to a flag value not zero or length of character string
-   if(size(ibegin).eq.0)then
+   if(size(ibegin) == 0)then
       imax=0
    else
       imax=maxval(iend-ibegin)+1
@@ -12818,7 +13570,7 @@ end subroutine split
 !!        call printme()
 !!     contains
 !!     subroutine printme()
-!!        write(*,'((*(:/,3x,"[",g0,"]")))')&
+!!        write(*,'(*(:/,3x,"[",g0,"]"))')&
 !!                & (line(ibegin(i):iend(i)),i=1,size(ibegin))
 !!        write(*,'(*(g0,1x))')'SIZE:',size(ibegin)
 !!     end subroutine printme
@@ -12895,34 +13647,34 @@ intrinsic index, min, present, len
 !  given a line of structure " par1 par2 par3 ... parn " store each par(n) into a separate variable in array.
 !    o by default adjacent delimiters in the input string do not create an empty string in the output array
 !    o no quoting of delimiters is supported
-character(len=*),intent(in)              :: input_line  ! input string to tokenize
-integer,allocatable,intent(out)          :: ibegin(:)   ! positions in input string where tokens start
-integer,allocatable,intent(out)          :: iend(:)     ! positions in input string where tokens end
-character(len=*),optional,intent(in)     :: delimiters  ! list of delimiter characters
-character(len=*),optional,intent(in)     :: nulls       ! return strings composed of delimiters or not ignore|return|ignoreend
+character(len=*),intent(in)          :: input_line  ! input string to tokenize
+integer,allocatable,intent(out)      :: ibegin(:)   ! positions in input string where tokens start
+integer,allocatable,intent(out)      :: iend(:)     ! positions in input string where tokens end
+character(len=*),optional,intent(in) :: delimiters  ! list of delimiter characters
+character(len=*),optional,intent(in) :: nulls       ! return strings composed of delimiters or not ignore|return|ignoreend
 !-----------------------------------------------------------------------------------------------------------------------------------
-integer                         :: n                      ! max number of strings INPUT_LINE could slice into if all delimiter
-character(len=:),allocatable    :: dlim                   ! string containing delimiter characters
-character(len=:),allocatable    :: nlls                   ! string containing nulls keyword
-integer                         :: icount                 ! number of tokens found
-integer                         :: ii                     ! loop parameters used to control print order
-integer                         :: lgth                   ! length of input string with trailing spaces trimmed
-integer                         :: i10,i20,i30            ! loop counters
-integer                         :: icol                   ! pointer into input string as it is being parsed
-integer                         :: idlim                  ! number of delimiter characters
-integer                         :: ifound                 ! where next delimiter character is found in remaining input string data
-integer                         :: inotnull               ! count strings not composed of delimiters
-integer                         :: ireturn                ! number of tokens returned
-integer                         :: imax                   ! length of longest token
+integer                      :: n                   ! max number of strings INPUT_LINE could slice into if all delimiter
+character(len=:),allocatable :: dlim                ! string containing delimiter characters
+character(len=:),allocatable :: nlls                ! string containing nulls keyword
+integer                      :: icount              ! number of tokens found
+integer                      :: ii                  ! loop parameters used to control print order
+integer                      :: lgth                ! length of input string with trailing spaces trimmed
+integer                      :: i10,i20,i30         ! loop counters
+integer                      :: icol                ! pointer into input string as it is being parsed
+integer                      :: idlim               ! number of delimiter characters
+integer                      :: ifound              ! where next delimiter character is found in remaining input string data
+integer                      :: inotnull            ! count strings not composed of delimiters
+integer                      :: ireturn             ! number of tokens returned
+integer                      :: imax                ! length of longest token
 !-----------------------------------------------------------------------------------------------------------------------------------
    ! decide on value for optional DELIMITERS parameter
-   if (present(delimiters)) then                                     ! optional delimiter list was present
-      if(delimiters /= '')then                                       ! if DELIMITERS was specified and not null use it
+   if (present(delimiters)) then                                            ! optional delimiter list was present
+      if(delimiters /= '')then                                              ! if DELIMITERS was specified and not null use it
          dlim=delimiters
-      else                                                           ! DELIMITERS was specified on call as empty string
+      else                                                                  ! DELIMITERS was specified on call as empty string
          dlim=' '//char(9)//char(10)//char(11)//char(12)//char(13)//char(0) ! use default delimiter when not specified
       endif
-   else                                                              ! no delimiter value was specified
+   else                                                                     ! no delimiter value was specified
       dlim=' '//char(9)//char(10)//char(11)//char(12)//char(13)//char(0)    ! use default delimiter when not specified
    endif
    idlim=len(dlim)                                                   ! dlim a lot of blanks on some machines if dlim is a big string
@@ -13157,6 +13909,9 @@ end function chomp
 !!      store each par(n) into a separate variable in ARRAY (UNLESS
 !!      ARRAY(1) == '#N#')
 !!
+!!      This routine predates Fortran90. For versions using optional parameters
+!!      and allocatable arrays see split(3f) and slice(3f).
+!!
 !!      Also set ICOUNT to number of elements of array initialized, and
 !!      return beginning and ending positions for each element in IBEGIN(N)
 !!      and ITERM(N).
@@ -13169,8 +13924,6 @@ end function chomp
 !!
 !!      No checking for more than N parameters; If any more they are ignored.
 !!
-!!      This routine originates pre-Fortran90. A version using optional parameters
-!!      and allocatable arrays is on the TODO list.
 !!
 !!##OPTIONS
 !!    LINE       input string to parse into tokens
@@ -13301,24 +14054,24 @@ subroutine delim(line,array,n,icount,ibegin,iterm,lgth,dlim)
 !     no quoting of delimiter is allowed
 !     no checking for more than n parameters, if any more they are ignored
 !
-character(len=*),intent(in)    :: line
-integer,intent(in)             :: n
-character(len=*)               :: array(n)
-integer,intent(out)            :: icount
-integer,intent(out)            :: ibegin(n)
-integer,intent(out)            :: iterm(n)
-integer,intent(out)            :: lgth
-character(len=*),intent(in)    :: dlim
+character(len=*),intent(in) :: line
+integer,intent(in)          :: n
+character(len=*)            :: array(n)
+integer,intent(out)         :: icount
+integer,intent(out)         :: ibegin(n)
+integer,intent(out)         :: iterm(n)
+integer,intent(out)         :: lgth
+character(len=*),intent(in) :: dlim
 !-----------------------------------------------------------------------------------------------------------------------------------
-character(len=len(line)):: line_local
-logical             :: lstore
-integer             :: i10
-integer             :: iarray
-integer             :: icol
-integer             :: idlim
-integer             :: iend
-integer             :: ifound
-integer             :: istart
+character(len=len(line))    :: line_local
+logical                     :: lstore
+integer                     :: i10
+integer                     :: iarray
+integer                     :: icol
+integer                     :: idlim
+integer                     :: iend
+integer                     :: ifound
+integer                     :: istart
 !-----------------------------------------------------------------------------------------------------------------------------------
       icount=0
       lgth=len_trim(line)
@@ -13341,11 +14094,7 @@ integer             :: istart
 !     find next non-delimiter
       icol=1
 
-      if(array(1) == '#N#')then                                ! special flag to not store into character array
-         lstore=.false.
-      else
-         lstore=.true.
-      endif
+      lstore= array(1) /= '#N#'                                ! special flag to not store into character array
 
       do iarray=1,n,1                                          ! store into each array element until done or too many words
          NOINCREMENT: do
@@ -13824,7 +14573,7 @@ integer                        :: ichr
       dum1(:)=' '                                      ! begin with a blank line
    else                                                ! if window is set
       il=ml                                            ! use left margin
-      ir=min0(mr,maxlengthout)                         ! use right margin or rightmost
+      ir=min(mr,maxlengthout)                          ! use right margin or rightmost
       dum1=targetline(:il-1)                           ! begin with what's below margin
    endif                                               ! end of window settings
 !-----------------------------------------------------------------------------------------------------------------------------------
@@ -13989,10 +14738,10 @@ logical                          :: ifok
 integer                          :: lmax                   ! length of target string
 integer                          :: start_token,end_token
 !-----------------------------------------------------------------------------------------------------------------------------------
-   lmax=len_trim(cmd)                                                          ! significant length of change directive
+   lmax=len_trim(cmd)                        ! significant length of change directive
    if(lmax >= 4)then                         ! strtok ignores blank tokens so look for special case where first token is really null
-      delimiters=cmd(id:id)                                                    ! find delimiter in expected location
-      itoken=0                                                                 ! initialize strtok(3f) procedure
+      delimiters=cmd(id:id)                  ! find delimiter in expected location
+      itoken=0                               ! initialize strtok(3f) procedure
 
       if(strtok(cmd(id:),itoken,start_token,end_token,delimiters)) then        ! find OLD string
          old=cmd(start_token+id-1:end_token+id-1)
@@ -14131,7 +14880,7 @@ integer,save                 :: isource_len
 !----------------------------------------------------------------------------------------------------------------------------
    isource_len=len(source_string)                ! length of input string
 !----------------------------------------------------------------------------------------------------------------------------
-   if(token_start > isource_len)then            ! user input error or at end of string
+   if(token_start > isource_len)then             ! user input error or at end of string
       token_end=isource_len                      ! assume end of token is end of string until proven otherwise so it is set
       strtok_status=.false.
       return
@@ -14154,7 +14903,7 @@ integer,save                 :: isource_len
       token_end = token_end + 1
    enddo
 !----------------------------------------------------------------------------------------------------------------------------
-   if (token_start  >  isource_len) then        ! determine if finished
+   if (token_start  >  isource_len) then         ! determine if finished
       strtok_status=.false.                      ! flag that input string has been completely processed
    else
       itoken=itoken+1                            ! increment count of tokens found
@@ -14299,10 +15048,10 @@ character(len=3),parameter  :: c='#&^'         !ASSIGN DEFAULT EDIT CHARACTERS
 integer                     :: maxscra         !LENGTH OF SCRATCH BUFFER
 character(len=len(cline))   :: dum2            !SCRATCH CHARACTER BUFFER
 logical                     :: linsrt          !FLAG FOR INSERTING DATA ON LINE
-integer :: i, j, ic, ichr, iend, lmax, lmx1
+integer                     :: i, j, ic, ichr, iend, lmax, lmx1
 maxscra=len(cline)
    cmod=trim(mod)
-   lmax=min0(len(cline),maxscra)               !DETERMINE MAXIMUM LINE LENGTH
+   lmax=min(len(cline),maxscra)                !DETERMINE MAXIMUM LINE LENGTH
    lmx1=lmax-1                                 !MAX LINE LENGTH -1
    dum2=' '                                    !INITIALIZE NEW LINE
    linsrt=.false.                              !INITIALIZE INSERT MODE
@@ -14396,7 +15145,7 @@ end subroutine modif                           !RETURN
 !!      implicit none
 !!      character(len=80) :: s
 !!      integer           :: lgth, lastnb
-!!      intrinsic len
+!!      intrinsic         :: len
 !!
 !!      s=' ABCDEFG abcdefg '
 !!      lgth = len(s)
@@ -14458,9 +15207,9 @@ elemental integer function len_white(string)
 
 ! ident_16="@(#) M_strings len_white(3f) return position of last non-blank/non-null character in string"
 
-character(len=*),intent(in):: string ! input string to determine length of
-integer                    :: i10
-intrinsic len
+character(len=*),intent(in) :: string ! input string to determine length of
+integer                     :: i10
+intrinsic                   :: len
    len_white=0
    do i10=len(string),1,-1
       select case(string(i10:i10))
@@ -15106,13 +15855,13 @@ function percent_decode_string(input, exit_code) result(output)
 ! ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 ! OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 !
-character(len=*), intent(in)   :: input  !! Encoded input string.
-character(len=:), allocatable  :: output !! Decoded output string.
-integer,intent(out),optional   :: exit_code
-character(len=2)  :: hex
-integer           :: input_col, output_col, hex_chars, input_len, output_len
-integer           :: iostat
-integer,parameter :: ERROR_BOUNDS=1, ERROR_NONE=0
+character(len=*), intent(in)  :: input  !! Encoded input string.
+character(len=:), allocatable :: output !! Decoded output string.
+integer,intent(out),optional  :: exit_code
+character(len=2)              :: hex
+integer                       :: input_col, output_col, hex_chars, input_len, output_len
+integer                       :: iostat
+integer,parameter             :: ERROR_BOUNDS=1, ERROR_NONE=0
    if(present(exit_code))then
       exit_code = ERROR_BOUNDS ! initially assume an error has occurred if return
    endif
@@ -15200,8 +15949,8 @@ end function percent_decode_string
 !!     program demo_join
 !!     use M_strings, only: join
 !!     implicit none
-!!     character(len=*),parameter :: w='(/,*(g0,/,g0))'
-!!     character(len=:),allocatable  :: s(:)
+!!     character(len=*),parameter   :: w='(/,*(g0,/,g0))'
+!!     character(len=:),allocatable :: s(:)
 !!       s=[character(len=10) :: &
 !!         & ' United', &
 !!         & 'we', &
@@ -15370,6 +16119,270 @@ end function reverse
 !===================================================================================================================================
 !>
 !!##NAME
+!!    trim_quoted(3f) - [M_strings:WHITESPACE] converts regions of whitespace
+!!    characters to a specified string (or nothing)
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!    function trim_quoted(STR,K) result (OUTSTR)
+!!
+!!     character(len=*),intent(in)          :: STR
+!!     character(len=*),intent(in),optional :: REP
+!!     character(len=len(str))              :: OUTSTR
+!!
+!!##DESCRIPTION
+!!
+!!    Whitespace is trimmed from both ends of the input string.
+!!
+!!    Text found between single and/or double quotes is not altered.
+!!    A single quote is only considered a delimiter if preceded by
+!!    a space or as the first non-blank character to allow for the use
+!!    of a single quote in contractions.
+!!
+!!    Otherwise, trim_quoted(3) changes ranges of whitespace of various
+!!    length found between words to a specified replacment string.
+!!
+!!    This would be similar to the sed(1) Basic Regular Expression
+!!
+!!        sed -i -e 's/  */REP/g'
+!!
+!!    if no quoted regions were present.
+!!
+!!##OPTIONS
+!!    STR     input string whose whitespace regions are to be replaced
+!!    REP     string used to replace each region of whitespace. Defaults
+!!            to a single blank.
+!!##RETURNS
+!!    OUTSTR  Ouput string with all internal whitespace sections replaced
+!!            by the replacement string removed
+!!
+!!##EXAMPLES
+!!
+!!   Sample Program:
+!!
+!!    program demo_trim_quoted
+!!    use M_strings, only: trim_quoted
+!!    implicit none
+!!    character(len=*),parameter   :: bracket='(*("[",g0,"]":,","))'
+!!    character(len=*),parameter   :: uno='(/,*(g0:,/))'
+!!    character(len=:),allocatable :: a,b
+!!
+!!    a = 'Esto es    una   prueba a ver como sale y determinar si  &
+!!    & realmente   funciona bien la ruutina para eliminar blancos  &
+!!    & "intermedios  de  una    hola      cadena  de  caracteres"  &
+!!    &  y ver ademas si "(respetamos     las       comillas) "     &
+!!    &   realmente respeta las cadenas encerradas entre comillas.  &
+!!    &vamos a ver como sale este negocio. que mas puedo decir.     &
+!!    &probemos y veamos que pasa'
+!!
+!!    print uno, 'Original tal y como se escribio (sin trim_quoted)',a
+!!    print uno, 'reducir espacios a uno 1', trim_quoted (a, ' ')
+!!    print uno, 'reducir espacios a dos 2', trim_quoted (a, '  ')
+!!    print uno, 'reducir espacios a cero 0', trim_quoted (a, '')
+!!
+!!    a = "This is a    test to see how it turns out and to determine if the&
+!!    & routine to eliminate 'intermediate    spaces   from a text string'  &
+!!    & really works well, and also to see if '(we respect       quotation  &
+!!    & marks)'   really respects strings enclosed   in quotes. Let's see   &
+!!    & how this business turns out. What else can I say. Let's test and see&
+!!    & what       happens."
+!!
+!!    print uno, "Original exactly as it was written (without trim_quoted)",a
+!!    print uno, 'reduce spaces to one 1', trim_quoted (a, ' ')
+!!    print uno, 'reduce spaces to two 2', trim_quoted (a, '  ')
+!!    print uno, 'reduce spaces to zero 0', trim_quoted (a, '')
+!!
+!!    b = trim_quoted(a, '')
+!!    print *, b
+!!
+!!    write(*,bracket)trim_quoted('this and    that','')
+!!
+!!    write(*,bracket)trim_quoted(' a b  c  '),'a b c'
+!!    write(*,bracket)trim_quoted('a','xxxxx'),'a'
+!!    write(*,bracket)trim_quoted('','xxxxx'),''
+!!    write(*,bracket)trim_quoted(' a b   c " don''t  touch " d   e',':'),&
+!!    & 'a:b:c:" don''t  touch ":d:e'
+!!    write(*,bracket)trim_quoted('  a ','xxxxx'),'a'
+!!    write(*,bracket)trim_quoted("  a '  quoted   text '",'--'),&
+!!    & "a--'  quoted  text '"
+!!    write(*,bracket)trim_quoted("  a '  quoted   text ' abcd efg",'--'),&
+!!    & "a--'  quoted  text '--abcd--efg"
+!!    end program demo_trim_quoted
+!!
+!!    Expected output
+!!
+!!     > Original tal y como se escribio (sin trim_quoted)
+!!     > Esto es    una   prueba a ver como sale y determinar si
+!!     > realmente   funciona bien la ruutina para eliminar blanco
+!!     > s   "intermedios  de  una    hola      cadena  de  caract
+!!     > eres"    y ver ademas si "(respetamos     las       comil
+!!     > las) "        realmente respeta las cadenas encerradas en
+!!     > tre comillas.  vamos a ver como sale este negocio. que ma
+!!     > s puedo decir.     probemos y veamos que pasa
+!!     >
+!!     > reducir espacios a uno 1
+!!     > Esto es una prueba a ver como sale y determinar si realme
+!!     > nte funciona bien la ruutina para eliminar blancos "inter
+!!     > medios  de  una    hola      cadena  de  caracteres" y ve
+!!     > r ademas si "(respetamos     las       comillas) " realme
+!!     > nte respeta las cadenas encerradas entre comillas. vamos
+!!     > a ver como sale este negocio. que mas puedo decir. probem
+!!     > os y veamos que pasa
+!!     >
+!!     > reducir espacios a dos 2
+!!     > Esto  es  una  prueba  a  ver  como  sale  y  determinar
+!!     > si  realmente  funciona  bien  la  ruutina  para  elimin
+!!     > ar  blancos  "intermedios  de  una    hola      cadena
+!!     > de  caracteres"  y  ver  ademas  si  "(respetamos     la
+!!     > s       comillas) "  realmente  respeta  las  cadenas  e
+!!     > ncerradas  entre  comillas.  vamos  a  ver  como  sale
+!!     > este  negocio.  que  mas  puedo  decir.  probemos  y  ve
+!!     > amos  que  pasa
+!!     >
+!!     > reducir espacios a cero 0
+!!     > Estoesunapruebaavercomosaleydeterminarsirealmentefunciona
+!!     > bienlaruutinaparaeliminarblancos"intermedios  de  una
+!!     > hola      cadena  de  caracteres"yverademassi"(respetamos
+!!     > las       comillas) "realmenterespetalascadenasencerradas
+!!     > entrecomillas.vamosavercomosaleestenegocio.quemaspuedodec
+!!     > ir.probemosyveamosquepasa
+!!     >
+!!     > Original tal y como se escribio (sin trim_quoted)
+!!     > This is a    test to see how it turns out and to determin
+!!     > e if the routine to eliminate 'intermediate    spaces   f
+!!     > rom a text string'   really works well, and also to see i
+!!     > f '(we respect       quotation   marks)'   really respect
+!!     > s strings enclosed   in quotes. Let's see    how this bus
+!!     > iness turns out. What else can I say. Let's test and see
+!!     > what happens.
+!!     >
+!!     > reduce spaces to one 1
+!!     > This is a test to see how it turns out and to determine i
+!!     > f the routine to eliminate 'intermediate    spaces   from
+!!     > a text string' really works well, and also to see if '(we
+!!     > respect       quotation   marks)' really respects strings
+!!     > enclosed in quotes. Let's see how this business turns out
+!!     > . What else can I say. Let's test and see what happens.
+!!     >
+!!     > reduce spaces to two 2
+!!     > This  is  a  test  to  see  how  it  turns  out  and  to
+!!     >  determine  if  the  routine  to  eliminate  'intermedia
+!!     > te    spaces   from a text string'  really  works  well,
+!!     >   and  also  to  see  if  '(we respect       quotation
+!!     >  marks)'  really  respects  strings  enclosed  in  quote
+!!     > s.  Let's  see  how  this  business  turns  out.  What
+!!     > else  can  I  say.  Let's  test  and  see  what  happens.
+!!     >
+!!     > reduce spaces to zero 0
+!!     > Thisisatesttoseehowitturnsoutandtodetermineiftheroutineto
+!!     > eliminate'intermediate    spaces   from a text string'rea
+!!     > llyworkswell,andalsotoseeif'(we respect       quotation
+!!     >  marks)'reallyrespectsstringsenclosedinquotes.Let'sseehow
+!!     > thisbusinessturnsout.WhatelsecanIsay.Let'stestandseewhath
+!!     > appens.
+!!     > Thisisatesttoseehowitturnsoutandtodetermineiftheroutineto
+!!     > eliminate'intermediate    spaces   from a text string'rea
+!!     > llyworkswell,andalsotoseeif'(we respect       quotation
+!!     >  marks)'reallyrespectsstringsenclosedinquotes.Let'sseehow
+!!     > thisbusinessturnsout.WhatelsecanIsay.Let'stestandseewhath
+!!     > appens.
+!!     > [thisandthat]
+!!     > [a b c],[a b c]
+!!     > [a],[a]
+!!     > [],[]
+!!     > [a:b:c:" don't  touch ":d:e],[a:b:c:" don't  touch ":d:e]
+!!     > [a],[a]
+!!     > [a--'  quoted   text '],[a--'  quoted  text ']
+!!     > [a--'  quoted   text '--abcd--efg],[a--'  quoted  text '--abcd--efg]
+!!
+!!##REFERENCES
+!!     Based on a contribution by Francisco Iglesias:
+!!
+!!     https://fortran-lang.discourse.group/t/
+!!           sharing-a-classic-fortran-77
+!!           -utility-a-robust-string-trimming-function
+!!           -with-quotes-protection-itrim/1097
+!!##AUTHOR
+!!    + Francisco Iglesias (October-2024)
+!!    + modified by John S. Urban for inclusion in M_strings(3) (June 2026),
+!!      changed to use a replacement string instead of a specified number
+!!      of blanks.
+!!
+!!##LICENSE
+!!    Public Domain
+function trim_quoted (in,rep) result (out)
+character(len=*),intent(in)          :: in
+character(len=*),intent(in),optional :: rep
+character(len=:),allocatable         :: new
+character(len=:),allocatable         :: out
+character(len=1)                     :: togglechar
+integer                              :: in_len
+integer                              :: out_pos, in_pos, start_pos
+integer                              :: cnt
+logical                              :: not_in_quote
+logical                              :: skipping
+   !new=present(rep):rep?' '
+   new=' ';if(present(rep))new=rep
+   ! initially output string will be long enough for longest potential result
+   ! worst case is every other letter is replaced by letter+rep so an
+   ! excessive amount should be
+   cnt=len(new)
+   in_len = len_trim (in)
+   out = repeat(' ',in_len+((in_len+1)/2)*cnt+1 )
+   ! adding one space to buffer length for simpler subsequent logic
+
+   ! start copy at first non-blank character. If all blank set position to one
+   start_pos = verify(in,' ')
+   start_pos = merge(in_len+1,start_pos,start_pos==0)
+
+   not_in_quote = .TRUE.
+   togglechar=' '
+   skipping=.false.
+
+   out_pos  = 0
+   do in_pos = start_pos, in_len
+      if(not_in_quote) then
+         if(in(in_pos:in_pos) == '"' .or. in(in_pos:in_pos) == "'") then
+            if(skipping)then
+               out (out_pos+1:out_pos+cnt) =  new
+               out_pos = out_pos + cnt
+               skipping=.false.
+               not_in_quote = .false.
+               togglechar = in(in_pos:in_pos)
+            elseif(in_pos /= start_pos .and. in(in_pos:in_pos) == "'")then
+               ! assume word contraction if single quote not preceded by space
+            else
+               not_in_quote = .false.
+               togglechar = in(in_pos:in_pos)
+            endif
+            out_pos = out_pos + 1
+            out (out_pos:out_pos) = in (in_pos:in_pos)
+         elseif(in(in_pos:in_pos) == ' ')then
+            skipping=.true.
+         else ! not a beginning of quoted text nor a space
+            if(skipping)then ! end of a region of spaces
+               skipping=.false.
+               out (out_pos+1:out_pos+cnt) =  new
+               out_pos = out_pos + cnt
+            endif
+            out_pos = out_pos + 1
+            out (out_pos:out_pos) = in (in_pos:in_pos)
+         endif
+      else ! in quoted region or at end of quoted region so just copy character
+         if(in(in_pos:in_pos) == togglechar) not_in_quote = .true.
+         out_pos = out_pos + 1
+         out (out_pos:out_pos) = in (in_pos:in_pos)
+      endif
+   enddo
+   out=out(:out_pos)
+
+end function trim_quoted
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
 !! lower_quoted(3f) - [M_strings:CASE] elemental function converts string to
 !!                lowercase skipping strings quoted per Fortran syntax rules
 !! (LICENSE:PD)
@@ -15529,14 +16542,14 @@ elemental pure function upper_quoted(str) result (string)
 
 ! ident_24="@(#) M_strings upper_quoted(3f) elemental function converts string to uppercase skipping strings quoted per Fortran syntax rules"
 
-character(len=*), intent(in)   :: str     ! The input string
-character(len=len(str))        :: string  ! The output string
-logical                        :: toggle
-character(len=1)               :: togglechar
-integer                        :: irnk
-integer                        :: i
-character(len=26), parameter   :: large="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-character(len=26), parameter   :: small="abcdefghijklmnopqrstuvwxyz"
+character(len=*), intent(in) :: str     ! The input string
+character(len=len(str))      :: string  ! The output string
+logical                      :: toggle
+character(len=1)             :: togglechar
+integer                      :: irnk
+integer                      :: i
+character(len=26), parameter :: large="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+character(len=26), parameter :: small="abcdefghijklmnopqrstuvwxyz"
 
    string=str
    toggle = .TRUE.
@@ -15657,7 +16670,7 @@ integer(kind=byte)            :: ade_char
       string(i:i) = achar(ade_char)
    enddo
 
-   if(len(str).eq.0)string = str
+   if(len(str) == 0)string = str
 
 end function upper_all
 elemental pure function upper_range(str,begin,end) result (string)
@@ -15888,6 +16901,60 @@ end function lower
 !!     > F
 !!     > T
 !!
+!!##SEE ALSO
+!!    switch(3), join(3), couple(3), uncouple(3), c2s(3), s2c(3),
+!!    verify(3), scan(3)
+!!
+!!##AUTHOR
+!!    John S. Urban
+!!
+!!##LICENSE
+!!    Public Domain
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!
+!!    couple(3f) - [M_strings:ARRAY] converts between CHARACTER scalar and
+!!    array of single characters
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!    pure function couple(array) result (string)
+!!
+!!     character(len=1),intent(in) :: array(:)
+!!     character(len=SIZE(array))  :: string
+!!
+!!##DESCRIPTION
+!!    COUPLE(3f): function that switches an array of single characters to
+!!    a CHARACTER string.
+!!
+!!##EXAMPLES
+!!
+!!  Sample program:
+!!
+!!    program demo_couple
+!!    use M_strings, only : couple
+!!    character(len=:),allocatable :: array(:)
+!!     array=['T','h','i','s',' ','i','s',' ','a',' ','s','t','r','i','n','g']
+!!
+!!     ! show the array
+!!     write(*,'(1x,*("[",a,"]":))') array
+!!     ! show the string
+!!     write(*,'(1x,*("[",a,"]":))') couple(array)
+!!
+!!    end program demo_couple
+!!
+!! Results:
+!!
+!!  >  [T][h][i][s][ ][i][s][ ][a][ ][s][t][r][i][n][g]
+!!  >  [This is a string]
+!!
+!!##SEE ALSO
+!!    switch(3), join(3), uncouple(3), c2s(3), s2c(3)
+!!
 !!##AUTHOR
 !!    John S. Urban
 !!
@@ -15900,14 +16967,59 @@ pure function a2s(array)  result (string)
 character(len=1),intent(in) :: array(:)
 character(len=SIZE(array))  :: string
 integer                     :: i
-! ----------------------------------------------------------------------------------------------------------------------------------
-   forall( i = 1:size(array)) string(i:i) = array(i)
-! ----------------------------------------------------------------------------------------------------------------------------------
-!  string=transfer(array,string)
+   do concurrent (i = 1:size(array))
+      string(i:i) = array(i)
+   enddo
 end function a2s
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
+!>
+!!##NAME
+!!
+!!    uncouple(3f) - [M_strings:ARRAY] converts between CHARACTER scalar and
+!!    array of single characters
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!
+!!    pure function uncouple(string) result (array)
+!!
+!!     character(len=*),intent(in) :: string
+!!     character(len=1)            :: array(len(string))
+!!
+!!##DESCRIPTION
+!!    UNCOUPLE(3f): function that switches CHARACTER string to an array
+!!    of single characters.
+!!
+!!##EXAMPLES
+!!
+!!  Sample program:
+!!
+!!    program demo_uncouple
+!!    use M_strings, only : uncouple
+!!    character(len=*),parameter   :: string='This is a string'
+!!
+!!     write(*,'(1x,*("[",a,"]":))') string
+!!     ! converted to character array
+!!     write(*,'(1x,*("[",a,"]":))') uncouple(string)
+!!
+!!    end program demo_uncouple
+!!
+!! Results:
+!!
+!!  >  [This is a string]
+!!  >  [T][h][i][s][ ][i][s][ ][a][ ][s][t][r][i][n][g]
+!!
+!!##SEE ALSO
+!!    switch(3), join(3), couple(3), c2s(3), s2c(3)
+!!
+!!##AUTHOR
+!!    John S. Urban
+!!
+!!##LICENSE
+!!    Public Domain
 pure function s2a(string)  RESULT (array)
 
 ! ident_29="@(#) M_strings s2a(3fp) function to copy string(1 Clen(string)) to char array"
@@ -15915,10 +17027,9 @@ pure function s2a(string)  RESULT (array)
 character(len=*),intent(in) :: string
 character(len=1)            :: array(len(string))
 integer                     :: i
-! ----------------------------------------------------------------------------------------------------------------------------------
-   forall(i=1:len(string)) array(i) = string(i:i)
-! ----------------------------------------------------------------------------------------------------------------------------------
-!  array=transfer(string,array)
+   do concurrent (i = 1:len(string))
+      array(i) = string(i:i)
+   enddo
 end function s2a
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -15976,6 +17087,9 @@ end function s2a
 !!    [s  ][i  ][n  ][g  ][l  ][e  ][   ][s  ][t  ][r  ][i  ][n  ][g  ][XXX]
 !!    [115][105][110][103][108][101][ 32][115][116][114][105][110][103][  0]
 !!
+!!##SEE ALSO
+!!    c2s(3), switch(3), join(3), uncouple(3), couple(3)
+!!
 !!##AUTHOR
 !!    John S. Urban
 !!
@@ -16026,6 +17140,9 @@ end function s2c
 !!##EXAMPLES
 !!
 !!
+!!##SEE ALSO
+!!    s2c(3), switch(3), join(3), uncouple(3), couple(3)
+!!
 !!##AUTHOR
 !!    John S. Urban
 !!
@@ -16041,9 +17158,11 @@ use, intrinsic :: iso_c_binding, only: c_ptr,c_f_pointer,c_char,c_null_char
 integer,parameter                             :: max_length=4096
 type(c_ptr), intent(in)                       :: c_string_pointer
 character(len=:), allocatable                 :: f_string
-character(kind=c_char), dimension(:), pointer :: char_array_pointer => null()
+character(kind=c_char), dimension(:), pointer :: char_array_pointer
 character(len=max_length)                     :: aux_string
-integer                                       :: i,length=0
+integer                                       :: i,length
+   length=0
+   char_array_pointer => null()
 
    call c_f_pointer(c_string_pointer,char_array_pointer,[max_length])
    if (.not.associated(char_array_pointer)) then
@@ -16142,8 +17261,8 @@ end function indent
 !!
 !!    function visible(input) result(output)
 !!
-!!     character(len=*),intent(in)           :: input
-!!     character(len=:),allocatable          :: output
+!!     character(len=*),intent(in)  :: input
+!!     character(len=:),allocatable :: output
 !!
 !!##DESCRIPTION
 !!     visible(3f) expands characters to commonly used sequences used
@@ -16265,8 +17384,8 @@ end function visible
 !!    program demo_expand
 !!       ! demonstrate filter to expand C-like escape sequences in input lines
 !!       use M_strings, only : expand
-!!       integer,parameter     :: iwidth=1024
-!!       integer               :: i
+!!       integer,parameter               :: iwidth=1024
+!!       integer                         :: i
 !!       character(len=iwidth),parameter :: input(*)=[ character(len=iwidth) :: &
 !!          '\e[H\e[2J',&   ! home cursor and clear screen on ANSI terminals
 !!          '\tABC\tabc',&  ! write some tabs in the output
@@ -16331,7 +17450,7 @@ integer                               :: iostat
       esc=char(92)
    endif
 
-   EXP: do
+   EXPO: do
       i=i+1
       if(i > lgth)exit
       if(line(i:i) == esc)then
@@ -16341,7 +17460,7 @@ integer                               :: iostat
             BACKSLASH: select case(line(i:i))
             case('a','A','g','G');lineout=lineout//char(  7) ! %a     alert (BEL)
             case('b','B');lineout=lineout//char(  8)         ! %b     backspace
-            case('c','C');exit EXP                           ! %c     suppress further output
+            case('c','C');exit EXPO                          ! %c     suppress further output
             case('d','D')                                    ! %d     Dnnn decimal value
                       thr=line(i+1:)
                    read(thr,'(i3)',iostat=iostat)xxx
@@ -16371,8 +17490,8 @@ integer                               :: iostat
       else
          lineout=lineout//line(i:i)
       endif
-      if(i >= lgth)exit EXP
-   enddo EXP
+      if(i >= lgth)exit EXPO
+   enddo EXPO
 
 end function expand
 !===================================================================================================================================
@@ -16439,9 +17558,9 @@ end function expand
 !!    write(*,*)'['//string//']'
 !!    contains
 !!    subroutine makefile(lun)
-!!    integer :: lun
-!!    integer :: i
-!!    character(len=80),parameter  :: fakefile(*)=[character(len=80) :: &
+!!    integer                     :: lun
+!!    integer                     :: i
+!!    character(len=80),parameter :: fakefile(*)=[character(len=80) :: &
 !!    'col1'//t//'col2' ,&
 !!    'a'//t//'one'     ,&
 !!    'bb'//t//'two'    ,&
@@ -16468,22 +17587,22 @@ elemental impure subroutine notabs(instr,outstr,lgth)
 
 ! ident_35="@(#) M_strings notabs(3f) convert tabs to spaces while maintaining columns remove CRLF chars"
 
-character(len=*),intent(in)            :: instr        ! input line to scan for tab characters
-character(len=*),intent(out),optional  :: outstr       ! tab-expanded version of INSTR produced
-integer,intent(out),optional           :: lgth         ! column position of last character put into output string
+character(len=*),intent(in)           :: instr        ! input line to scan for tab characters
+character(len=*),intent(out),optional :: outstr       ! tab-expanded version of INSTR produced
+integer,intent(out),optional          :: lgth         ! column position of last character put into output string
                                                        ! that is, lgth holds the position of the last non-blank character in OUTSTR
 !===================================================================================================================================
-integer,parameter             :: tabsize=8    ! assume a tab stop is set every 8th column
-integer                       :: ipos         ! position in OUTSTR to put next character of INSTR
-integer                       :: lenin        ! length of input string trimmed of trailing spaces
-integer                       :: lenout       ! number of characters output string can hold
-integer                       :: istep        ! counter that advances thru input string INSTR one character at a time
-character(len=1)              :: c            ! character in input line being processed
-integer                       :: iade         ! ADE (ASCII Decimal Equivalent) of character being tested
+integer,parameter                     :: tabsize=8    ! assume a tab stop is set every 8th column
+integer                               :: ipos         ! position in OUTSTR to put next character of INSTR
+integer                               :: lenin        ! length of input string trimmed of trailing spaces
+integer                               :: lenout       ! number of characters output string can hold
+integer                               :: istep        ! counter that advances thru input string INSTR one character at a time
+character(len=1)                      :: c            ! character in input line being processed
+integer                               :: iade         ! ADE (ASCII Decimal Equivalent) of character being tested
 !===================================================================================================================================
-character(len=:),allocatable  :: outstr_      ! tab-expanded version of INSTR produced
-integer                       :: i
-integer                       :: icount
+character(len=:),allocatable          :: outstr_      ! tab-expanded version of INSTR produced
+integer                               :: i
+integer                               :: icount
    icount=0                                   ! ensure the expanded string is of sufficient length
    do i=1,len(instr)
       if(instr(i:i) == char(9))icount=icount+1
@@ -16871,12 +17990,12 @@ function stretch(line,length,pattern,suffix) result(strout)
 
 ! ident_40="@(#) M_strings stretch(3f) return string padded to at least specified length"
 
-character(len=*),intent(in)                  :: line
-integer,intent(in)                           :: length
-character(len=*),intent(in),optional         :: pattern
-character(len=*),intent(in),optional         :: suffix
+character(len=*),intent(in)                   :: line
+integer,intent(in)                            :: length
+character(len=*),intent(in),optional          :: pattern
+character(len=*),intent(in),optional          :: suffix
 !-!character(len=max(length,len(trim(line)))) :: strout
-character(len=:),allocatable                 :: strout
+character(len=:),allocatable                  :: strout
    if(present(pattern))then
       strout=pad(line,length,pattern)
    else
@@ -17063,7 +18182,6 @@ end function rpad_vector
 !!          write(*,'("[",a,"]")') cpad( valuein=42 , length=7)
 !!          write(*,'("[",a,"]")') cpad( valuein=1.0/9.0 , length=20)
 !!      end program demo_cpad
-!!
 !!
 !!##AUTHOR
 !!    John S. Urban
@@ -17380,11 +18498,11 @@ function zpad_scalar(valuein,length) result(strout)
 
 ! ident_47="@(#) M_strings zpad_vector(3f) return string or argument converted to string zero-padded to at least specified length"
 
-class(*),intent(in)              :: valuein
-integer,intent(in),optional      :: length
-character(len=:),allocatable     :: strout
-character(len=4096)              :: line
-integer                          :: local_length
+class(*),intent(in)          :: valuein
+integer,intent(in),optional  :: length
+character(len=:),allocatable :: strout
+character(len=4096)          :: line
+integer                      :: local_length
    if(present(length))then
       local_length=length
    else
@@ -17418,11 +18536,11 @@ function zpad_vector(valuein,length) result(strout)
 
 ! ident_48="@(#) M_strings zpad_vector(3f) return vector of strings or arguments converted to string zero-padded to at least specified length"
 
-class(*),intent(in)              :: valuein(:)
-integer,intent(in),optional      :: length
-character(len=:),allocatable     :: strout(:)
-integer                          :: i
-integer                          :: mxlen
+class(*),intent(in)          :: valuein(:)
+integer,intent(in),optional  :: length
+character(len=:),allocatable :: strout(:)
+integer                      :: i
+integer                      :: mxlen
    if(present(length))then
       allocate(character(len=length) :: strout(size(valuein) ))
       do i=1,size(valuein)
@@ -17473,7 +18591,7 @@ end function zpad_vector
 !!   right    if true pads string on the right, else on the left
 !!   clip     trim spaces from input string but otherwise retain length.
 !!            Except for simple cases you typically would trim the input
-!!            yourself.
+!!            yourself. Defaults to .false. .
 !!
 !!##RETURNS
 !!   strout  The input string padded to the requested length or
@@ -17519,6 +18637,7 @@ end function zpad_vector
 !!         write(*,g)pad('12345 ',5,'_',right=.false.,clip=.true.)
 !!         write(*,g)pad('12345 ',4,'_',right=.false.)
 !!         write(*,g)pad('12345 ',4,'_',right=.false.,clip=.true.)
+!!
 !!    end program demo_pad
 !!
 !!  Results:
@@ -17764,7 +18883,7 @@ end function merge_str
 !!    function squeeze(STR,CHAR) result (OUTSTR)
 !!
 !!     character(len=*),intent(in)          :: STR
-!!     character(len=*),intent(in),optional :: CHAR
+!!     character(len=1),intent(in),optional :: CHAR
 !!     character(len=len(str))              :: OUTSTR
 !!
 !!##DESCRIPTION
@@ -17783,39 +18902,54 @@ end function merge_str
 !!
 !!   Sample Program:
 !!
-!!    program demo_squeeze
-!!    use M_strings, only : squeeze
-!!    implicit none
-!!    character(len=:),allocatable :: strings(:)
+!!      program demo_squeeze
+!!      use M_strings, only : squeeze
+!!      implicit none
+!!         call printme( '', ' ' )
+!!         call printme('1111  1111   111 111  1117777888',['1','7','X'] )
+!!         call printme(' Mary had a lllittllle lllamb','l')
+!!      contains
+!!      impure elemental subroutine printme(str,chr)
+!!      character(len=*),intent(in) :: str
+!!      character(len=1),intent(in) :: chr
+!!      character(len=:),allocatable :: answer
+!!         write(*,'(a)')repeat('=',42)
+!!         write(*,'("IN:   ",g0)')str
+!!         answer=squeeze(str,chr)
+!!         write(*,'("OUT:  ",g0)')answer
+!!         write(*,'("LENS: ",*(g0,1x))')"from",len(str),"to",len(answer), &
+!!                 & "for a change of",len(str)-len(answer)
+!!         write(*,'("CHAR: ",g0)')chr
+!!      end subroutine printme
+!!      end program demo_squeeze
 !!
-!!    strings=[ character(len=72) :: &
-!!    &'', &
-!!    &'"If I were two-faced,&
-!!    &would I be wearing this one?" --- Abraham Lincoln',  &
-!!    &'..1111111111111111111&
-!!    &111111111111111111111111111111111111111111117777888', &
-!!    &'I never give ''em hell,&
-!!    &I just tell the truth, and they think it''s hell.',&
-!!    &'                                                  &
-!!    & --- Harry S Truman'    &
-!!    &]
-!!       call printme( trim(strings(1)), ' ' )
-!!       call printme( strings(2:4),     ['-','7','.'] )
-!!       call printme( strings(5),       [' ','-','r'] )
-!!    contains
-!!    impure elemental subroutine printme(str,chr)
-!!    character(len=*),intent(in) :: str
-!!    character(len=1),intent(in) :: chr
-!!    character(len=:),allocatable :: answer
-!!       write(*,'(a)')repeat('=',11)
-!!       write(*,'("IN:   <<<",g0,">>>")')str
-!!       answer=squeeze(str,chr)
-!!       write(*,'("OUT:  <<<",g0,">>>")')answer
-!!       write(*,'("LENS: ",*(g0,1x))')"from",len(str),"to",len(answer), &
-!!               & "for a change of",len(str)-len(answer)
-!!       write(*,'("CHAR: ",g0)')chr
-!!    end subroutine printme
-!!    end program demo_squeeze
+!!    Expected output
+!!
+!!     > ==========================================
+!!     > IN:
+!!     > OUT:
+!!     > LENS: from 0 to 0 for a change of 0
+!!     > CHAR:
+!!     > ==========================================
+!!     > IN:   1111  1111   111 111  1117777888
+!!     > OUT:  1  1   1 1  17777888
+!!     > LENS: from 32 to 20 for a change of 12
+!!     > CHAR: 1
+!!     > ==========================================
+!!     > IN:   1111  1111   111 111  1117777888
+!!     > OUT:  1111  1111   111 111  1117888
+!!     > LENS: from 32 to 29 for a change of 3
+!!     > CHAR: 7
+!!     > ==========================================
+!!     > IN:   1111  1111   111 111  1117777888
+!!     > OUT:  1111  1111   111 111  1117777888
+!!     > LENS: from 32 to 32 for a change of 0
+!!     > CHAR: X
+!!     > ==========================================
+!!     > IN:    Mary had a lllittllle lllamb
+!!     > OUT:   Mary had a little lamb
+!!     > LENS: from 29 to 23 for a change of 6
+!!     > CHAR: l
 !!
 !!##AUTHOR
 !!    John S. Urban
@@ -17870,9 +19004,10 @@ end function squeeze
 !!##OPTIONS
 !!    STR     input string to reduce or remove whitespace from
 !!    CHAR    By default the character that replaces adjacent
-!!            whitespace is a space. If the optional CHAR parameter is supplied
-!!            it will be used to replace the whitespace. If a null character is
-!!            supplied for CHAR whitespace is removed.
+!!            whitespace is a space. If the optional CHAR parameter
+!!            is supplied it will be used to replace each region of
+!!            whitespace. If a null character is supplied for CHAR whitespace
+!!            is removed.
 !!
 !!##RETURNS
 !!    OUTSTR  string of same length as input string but with all contiguous
@@ -17914,7 +19049,7 @@ end function squeeze
 !elemental pure function compact(str,char) result (outstr)
 function compact(str,char) result (outstr)
 
-! ident_51="@(#) M_strings compact(3f) Converts white-space to single spaces; removes leading spaces"
+! ident_51="@(#) M_strings compact(3f) Converts stretches of white-space with new separator; removes leading spaces"
 
 character(len=*),intent(in)          :: str
 character(len=*),intent(in),optional :: char
@@ -17927,11 +19062,7 @@ character(len=1)                     :: char_p
 logical                              :: nospace
 if(present(char))then
    char_p=char
-   if(len(char) == 0)then
-      nospace=.true.
-   else
-      nospace=.false.
-   endif
+   nospace= len(char) == 0
 else
    char_p=' '
    nospace=.false.
@@ -18115,6 +19246,7 @@ end function noesc
 !!    be a binary, hexadecimal, or octal value. If the string contains
 !!    commas they are removed. If the string is of the form NN:MMM... or
 !!    NN#MMM then NN is assumed to be the base of the whole number.
+!!    Hexadecimal values may begin with "H" or "U" instead of "Z".
 !!
 !!    If an error occurs in the READ, IOSTAT is returned in IERR and
 !!    value is set to zero. if no error occurs, IERR=0.
@@ -18134,12 +19266,23 @@ end function noesc
 !!    program demo_string_to_value
 !!     use M_strings, only: string_to_value
 !!     implicit none
-!!     real :: value
-!!     integer :: ierr
-!!     character(len=80) :: string
-!!        string=' -40.5e-2 '
-!!        call string_to_value(string,value,ierr)
-!!        write(*,*) 'value of string ['//trim(string)//'] is ',value
+!!     real                          :: value
+!!     integer                       :: i
+!!     integer                       :: ierr
+!!     character(len=80),allocatable :: string(:)
+!!        string=[character(len=80) :: &
+!!                ' -40.5e-2 ',&
+!!                'U+FF      ',&
+!!                '16#ff     ',&
+!!                'zFF       ',&
+!!                '255       ',&
+!!                'hFF       ',&
+!!                'oFF       ']
+!!
+!!        do i=1,size(string)
+!!           call string_to_value(string(i),value,ierr)
+!!           write(*,*) 'value of string ['//trim(string(i))//'] is ',value
+!!        enddo
 !!    end program demo_string_to_value
 !!
 !!##AUTHOR
@@ -18231,7 +19374,7 @@ character(len=3),save        :: nan_string='NaN'
       endif
    else
       select case(local_chars(1:1))
-      case('z','Z','h','H')                                     ! assume hexadecimal
+      case('z','Z','h','H','u','U')                             ! assume hexadecimal
          frmt='(Z'//v2s(len(local_chars))//')'
          read(local_chars(2:),frmt,iostat=ierr,iomsg=iomsg)intg
          valu=dble(intg)
@@ -18737,15 +19880,15 @@ subroutine value_to_string(gval,chars,length,err,fmt,trimz)
 
 ! ident_57="@(#) M_strings value_to_string(3fp) subroutine returns a string from a value"
 
-class(*),intent(in)                      :: gval
-character(len=*),intent(out)             :: chars
-integer,intent(out),optional             :: length
-integer,optional                         :: err
-integer                                  :: err_local
-character(len=*),optional,intent(in)     :: fmt         ! format to write value with
-logical,intent(in),optional              :: trimz
-character(len=:),allocatable             :: fmt_local
-character(len=1024)                      :: iomsg
+class(*),intent(in)                  :: gval
+character(len=*),intent(out)         :: chars
+integer,intent(out),optional         :: length
+integer,optional                     :: err
+integer                              :: err_local
+character(len=*),optional,intent(in) :: fmt         ! format to write value with
+logical,intent(in),optional          :: trimz
+character(len=:),allocatable         :: fmt_local
+character(len=1024)                  :: iomsg
 
 !  Notice that the value GVAL can be any of several types ( INTEGER,REAL,DOUBLEPRECISION,LOGICAL)
 
@@ -18946,8 +20089,8 @@ end function l2s
 !!
 !!    function isnumber(str,msg)
 !!
-!!     character(len=*),intent(in)  :: str
-!!     character(len=:),intent(out),allocatable,optional  :: msg
+!!     character(len=*),intent(in)                       :: str
+!!     character(len=:),intent(out),allocatable,optional :: msg
 !!
 !!##DESCRIPTION
 !!     ISNUMBER(3f) returns a value greater than zero if the string represents
@@ -19368,17 +20511,17 @@ subroutine listout(icurve_lists,icurve_expanded,inums_out,ierr)
 ! ident_64="@(#) M_strings listout(3f) copy icurve_lists to icurve_expanded expanding negative numbers to ranges (1 -10 means 1 thru 10)"
 
 !   Created: 19971231
-integer,intent(in)    :: icurve_lists(:)             ! input array
-integer,intent(out)   :: icurve_expanded(:)          ! output array
-integer,intent(out)   :: inums_out                   ! number of icurve_expanded numbers on output
-integer,intent(out)   :: ierr                        ! status variable
+integer,intent(in)  :: icurve_lists(:)             ! input array
+integer,intent(out) :: icurve_expanded(:)          ! output array
+integer,intent(out) :: inums_out                   ! number of icurve_expanded numbers on output
+integer,intent(out) :: ierr                        ! status variable
 
-character(len=80)     :: temp1
-integer               :: i80, i90
-integer               :: imin, imax
-integer               :: idirection, icount
-integer               :: iin
-integer               :: inums_max
+character(len=80)   :: temp1
+integer             :: i80, i90
+integer             :: imin, imax
+integer             :: idirection, icount
+integer             :: iin
+integer             :: inums_max
 
    ierr=0
    icurve_expanded=0                          ! initialize output array
@@ -19532,7 +20675,11 @@ character(len=20)                    :: local_mode
       quoted_str=str
    endif
 
-   local_mode=merge_str(mode,'DOUBLE',present(mode))
+   if(present(mode))then
+      local_mode=mode
+   else
+      local_mode='DOUBLE'
+   endif
 
    select case(lower(local_mode))
    case('double')
@@ -19706,8 +20853,8 @@ end function unquote
 !!
 !!    pure elemental function edit_distance(str1,str2) result (distance)
 !!
-!!     character(len=*),intent(in)   :: str1, str2
-!!     integer :: distance
+!!     character(len=*),intent(in) :: str1, str2
+!!     integer                     :: distance
 !!
 !!##DESCRIPTION
 !!
@@ -20274,10 +21421,10 @@ end function describe
 !!       program demo_getvals
 !!       use M_strings, only: getvals
 !!       implicit none
-!!       integer,parameter  :: longest_line=256
+!!       integer,parameter           :: longest_line=256
 !!       character(len=longest_line) :: line
-!!       real               :: values(longest_line/2+1)
-!!       integer            :: iostat,icount,ierr
+!!       real                        :: values(longest_line/2+1)
+!!       integer                     :: iostat,icount,ierr
 !!       INFINITE: do
 !!          read(*,'(a)',iostat=iostat) line
 !!          if(iostat /= 0)exit INFINITE
@@ -20558,7 +21705,7 @@ end subroutine string_to_values
 !!
 !!       function s2vs(line[,delim])
 !!
-!!        character(len=*) :: line
+!!        character(len=*)            :: line
 !!        doubleprecision,allocatable :: s2vs(:)
 !!
 !!##DESCRIPTION
@@ -20583,10 +21730,10 @@ end subroutine string_to_values
 !!      program demo_s2vs
 !!      use M_strings, only : s2vs
 !!      implicit none
-!!      character(len=80) :: s=' 10 20e3;3.45 -400.3e-2;1234; 5678 '
-!!      real,allocatable :: values(:)
+!!      character(len=80)   :: s=' 10 20e3;3.45 -400.3e-2;1234; 5678 '
+!!      real,allocatable    :: values(:)
 !!      integer,allocatable :: ivalues(:)
-!!      integer :: ii
+!!      integer             :: ii
 !!
 !!      values=s2vs(s)
 !!      ivalues=int(s2vs(s))
@@ -20660,18 +21807,20 @@ end function s2vs
 !!
 !!    elemental function isprint(onechar)
 !!
-!!     character,intent(in) :: onechar
-!!     logical              :: isprint
+!!     character(len=*),intent(in) :: onechar
+!!     logical                     :: isprint
 !!
 !!##DESCRIPTION
 !!     isprint(3f) returns .true. if character is an ASCII printable character
 !!
 !!##OPTIONS
-!!    onechar  character to test
+!!    onechar  character(s) to test
 !!
 !!##RETURNS
-!!    isprint  logical value returns true if character is a
+!!    isprint  Returns true logical value if character is a
 !!             printable ASCII character else false.
+!!             If a multi-byte string was input .false. is returned if any
+!!             character is not printable. A null string returns .false.
 !!##EXAMPLES
 !!
 !!   Sample Program:
@@ -20680,15 +21829,42 @@ end function s2vs
 !!    use M_strings, only : isprint
 !!    implicit none
 !!    integer                    :: i
+!!    character(len=*),parameter :: g='(*(g0,1x))'
+!!    character(len=*),parameter :: c='(40(g0))'
 !!    character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
-!!       write(*,'(40(a))')'ISPRINT: ',pack( string, isprint(string) )
+!!
+!!       print *
+!!       print g, 'basics'
+!!       print g, isprint('a'),isprint(achar(9))
+!!       print *
+!!       print g, 'elemental'
+!!       print g, isprint(['a','b',char(8),'c','d',char(10)])
+!!       print *
+!!       print g, 'print all the printable characters'
+!!       print c, pack( string, isprint(string) )
+!!       print *
+!!       print g, 'return false if any character is not printable'
+!!       print g, isprint('abcd')
+!!       print g, isprint('ab'//char(0)//'cd')
+!!
 !!    end program demo_isprint
 !!
 !!   Results:
 !!
-!!    ISPRINT:  !"#$%&'()*+,-./0123456789:;<=>?@ABCDEF
-!!    GHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmn
-!!    opqrstuvwxyz{|}~
+!!    > basics
+!!    > T F
+!!    >
+!!    > elemental
+!!    > T T F T T F
+!!    >
+!!    > print all the printable characters
+!!    >  !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFG
+!!    > HIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmno
+!!    > pqrstuvwxyz{|}~
+!!    >
+!!    > strings return false if any character is not printable
+!!    > T
+!!    > F
 !!
 !!##AUTHOR
 !!     John S. Urban
@@ -20699,12 +21875,19 @@ elemental function isprint(onechar)
 
 ! ident_69="@(#) M_strings isprint(3f) indicates if input character is a printable ASCII character"
 
-character,intent(in) :: onechar
-logical              :: isprint
-   select case (onechar)
-      case (' ':'~')   ; isprint=.TRUE.
-      case default     ; isprint=.FALSE.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: isprint
+integer                     :: i
+   isprint=.false.  ! for zero-length string
+   do i=1,len(onechar)
+      select case (onechar(i:i))
+       case (' ':'~')
+         isprint=.TRUE.
+       case default
+         isprint=.FALSE.
+         exit
+      end select
+   enddo
 end function isprint
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -20720,7 +21903,7 @@ end function isprint
 !!
 !!    elemental function isgraph(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: isgraph
 !!
 !!##DESCRIPTION
@@ -20731,8 +21914,10 @@ end function isprint
 !!    onechar   character to test
 !!
 !!##RETURNS
-!!    isgraph   logical value returns true if character is a printable
-!!              non-space character
+!!    isgraph  Returns true logical value if character is a printable
+!!             non-space character. If a multi-byte string was input
+!!             .false. is returned if any character is not a graphical
+!!             character. A null string returns .false.
 !!##EXAMPLES
 !!
 !!   Sample Program:
@@ -20760,14 +21945,19 @@ elemental function isgraph(onechar)
 
 ! ident_70="@(#) M_strings isgraph(3f) indicates if character is printable ASCII character excluding space"
 
-character,intent(in) :: onechar
-logical              :: isgraph
-   select case (iachar(onechar))
-   case (33:126)
-     isgraph=.TRUE.
-   case default
-     isgraph=.FALSE.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: isgraph
+integer                     :: i
+isgraph=.FALSE. ! for zero-length input
+   do i=1,len(onechar)
+      select case (ichar(onechar(i:i)))
+      case (33:126)
+        isgraph=.TRUE.
+      case default
+        isgraph=.FALSE.
+        exit
+      end select
+   enddo
 end function isgraph
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -20783,7 +21973,7 @@ end function isgraph
 !!
 !!   elemental function isalpha(onechar)
 !!
-!!    character,intent(in) :: onechar
+!!    character(len=*),intent(in) :: onechar
 !!    logical              :: isalpha
 !!
 !!##DESCRIPTION
@@ -20794,43 +21984,92 @@ end function isgraph
 !!    onechar  character to test
 !!
 !!##RETURNS
-!!    isalpha  logical value returns .true. if character is a ASCII letter
-!!             or false otherwise.
+!!    isalpha  Returns .true. logical value if character is a ASCII letter
+!!             or false otherwise. If a multi-byte string was input
+!!             .false. is returned if any character is not an ASCII letter. A
+!!             null string returns .false.
 !!##EXAMPLES
 !!
 !!
 !!   Sample program
 !!
-!!     program demo_isalpha
-!!     use M_strings, only : isalpha
-!!     implicit none
-!!     integer                    :: i
-!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
-!!        write(*,'(40(a))')'ISGRAPH: ',pack( string, isalpha(string) )
-!!     end program demo_isalpha
+!!    program demo_isalpha
+!!    use M_strings, only : isalpha
+!!    implicit none
+!!    integer                    :: i
+!!    character(len=*),parameter :: g='(*(g0,1x))'
+!!    character(len=*),parameter :: c='(40(g0))'
+!!    character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
+!!
+!!       print g, 'basics'
+!!       print g, isalpha('a'),isalpha(achar(9))
+!!       print *
+!!       print g, 'elemental'
+!!       print g, isalpha(['a','b',char(8),'c','d',char(10)])
+!!       print *
+!!       print g, 'print all the alphanumeric characters'
+!!       print c, pack( string, isalpha(string) )
+!!       print *
+!!       print g, 'return false if any character is not printable'
+!!       print g,' using ISALPHA(3):'
+!!       print g, isalpha('abcd')
+!!       print g, isalpha('ab'//char(0)//'cd')
+!!
+!!       ALTERNATIVE : block
+!!       ! ALTERNATIVE using VERIFY(3)
+!!       ! the Fortran intrinsic function VERIFY(3) returns a position just
+!!       ! not a logical like C, which can be useful for complex comparisons
+!!       character(len=*),parameter :: low='abcdefghijklmnopqrstuvwxyz'
+!!       character(len=*),parameter :: up='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+!!          print g,' using VERIFY(3):'
+!!          print g, verify('abcd', up//low) == 0
+!!          print g, verify('ab'//char(0)//'cd', up//low) == 0
+!!       endblock ALTERNATIVE
+!!
+!!    end program demo_isalpha
 !!
 !!   Results:
 !!
-!!    ISGRAPH: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm
-!!    nopqrstuvwxyz
+!!    > basics
+!!    > T F
+!!    >
+!!    > elemental
+!!    > T T F T T F
+!!    >
+!!    > print all the alphanumeric characters
+!!    > ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn
+!!    > opqrstuvwxyz
+!!    >
+!!    > return false if any character is not printable
+!!    >  using ISALPHA(3):
+!!    > T
+!!    > F
+!!    >  using VERIFY(3):
+!!    > T
+!!    > F
 !!
 !!##AUTHOR
 !!    John S. Urban
 !!
 !!##LICENSE
 !!    Public Domain
-elemental function isalpha(ch) result(res)
+elemental function isalpha(onechar) result(res)
 
 ! ident_71="@(#) M_strings isalpha(3f) Return .true. if character is a letter and .false. otherwise"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case('A':'Z','a':'z')
-     res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false.
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+       case('A':'Z','a':'z')
+         res=.true.
+       case default
+         res=.false.
+         exit
+      end select
+   enddo
 end function isalpha
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -20846,7 +22085,7 @@ end function isalpha
 !!
 !!    elemental function isxdigit(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: isxdigit
 !!
 !!##DESCRIPTION
@@ -20857,41 +22096,74 @@ end function isalpha
 !!    onechar   character to test
 !!
 !!##RETURNS
-!!    isxdigit  logical value returns true if character is a hexadecimal digit
+!!    isxdigit  Returns true logical value if character is a hexadecimal digit.
+!!              If a multi-byte string was input .false. is returned if any
+!!              character is not a hexadecimal digit. A null string returns .false.
 !!
 !!##EXAMPLES
 !!
 !!   Sample program
 !!
-!!     program demo_isxdigit
-!!     use M_strings, only : isxdigit
-!!     implicit none
-!!     integer                    :: i
-!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
-!!        write(*,'(40(a))')'ISXDIGIT: ',pack( string, isxdigit(string) )
-!!     end program demo_isxdigit
+!!    program demo_isxdigit
+!!    use M_strings, only : isxdigit
+!!    implicit none
+!!    integer                    :: i
+!!    character(len=*),parameter :: g='(*(g0,1x))'
+!!    character(len=*),parameter :: c='(40(g0))'
+!!    character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
+!!
+!!       print g, 'basics'
+!!       print g, isxdigit('a'),isxdigit(g)
+!!       print *
+!!       print g, 'elemental'
+!!       print g, isxdigit(['a','b',char(8),'c','d',char(10)])
+!!       print *
+!!       print g, 'print all the hexadecimal digit characters'
+!!       print c, pack( string, isxdigit(string) )
+!!       print *
+!!       print g, 'strings return false if any character is not in set'
+!!       print g, isxdigit('abcd')
+!!       print g, isxdigit('ab'//char(0)//'cd')
+!!
+!!    end program demo_isxdigit
 !!
 !!   Results:
 !!
-!!    ISXDIGIT: 0123456789ABCDEFabcdef
+!!    > basics
+!!    > T F
+!!    >
+!!    > elemental
+!!    > T T F T T F
+!!    >
+!!    > print all the hexadecimal digit characters
+!!    > 0123456789ABCDEFabcdef
+!!    >
+!!    > strings return false if any character is not in set
+!!    > T
+!!    > F
 !!
 !!##AUTHOR
 !!     John S. Urban
 !!
 !!##LICENSE
 !!     Public Domain
-elemental function isxdigit(ch) result(res)
+elemental function isxdigit(onechar) result(res)
 
 ! ident_72="@(#) M_strings isxdigit(3f) returns .true. if c is a hexadecimal digit (0-9 a-f or A-F)"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case('A':'F','a':'f','0':'9')
-     res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case('A':'F','a':'f','0':'9')
+        res=.true.
+      case default
+        res=.false.
+        exit
+      end select
+   enddo
 end function isxdigit
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -20907,61 +22179,99 @@ end function isxdigit
 !!
 !!    elemental function isdigit(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: isdigit
 !!
 !!##DESCRIPTION
 !!     isdigit(3f) returns .true. if character is a digit (0,1,...,9)
 !!     and .false. otherwise
+!!##OPTIONS
+!!    onechar  character to test
+!!
+!!##RETURNS
+!!    isdigit  Returns true logical value if character is a "digit"
+!!             ( an ASCII-7  character from the set {0,1,..,9}).
+!!             That is, from CHAR(48) to CHAR(57) inclusive.
+!!             If a multi-byte string was input .false. is returned if any
+!!             character is not a digit. A null string returns .false.
 !!
 !!##EXAMPLES
 !!
 !!
 !!  Sample Program:
 !!
-!!     program demo_isdigit
-!!     use M_strings, only : isdigit, isspace, switch
-!!     implicit none
-!!     character(len=10),allocatable :: string(:)
-!!     integer                       :: i
-!!        string=[&
-!!        & '1 2 3 4 5 ' ,&
-!!        & 'letters   ' ,&
-!!        & '1234567890' ,&
-!!        & 'both 8787 ' ]
-!!        ! if string is nothing but digits and whitespace return .true.
-!!        do i=1,size(string)
-!!           write(*,'(a)',advance='no')'For string['//string(i)//']'
-!!           write(*,*) &
-!!            & all(isdigit(switch(string(i))).or.&
-!!            & isspace(switch(string(i))))
-!!        enddo
-!!     end program demo_isdigit
+!!    program demo_isdigit
+!!
+!!    use M_strings, only : isdigit, isspace, switch
+!!    implicit none
+!!    character(len=10),allocatable :: string(:)
+!!    character(len=1),allocatable  :: chars(:)
+!!    character(len=*),parameter    :: g='(*(g0,1x))'
+!!    integer                       :: i
+!!
+!!       string=[&
+!!       & '1 2 3 4 5 ' ,&
+!!       & 'letters   ' ,&
+!!       & '1234567890' ,&
+!!       & 'both 8787 ' ]
+!!
+!!       ! if string is nothing but digits and whitespace return .true.
+!!
+!!       print g,'using ISDIGIT(3) and ISSPACE(3):'
+!!       do i=1,size(string)
+!!          ! convert to array of single characters
+!!          chars=switch(string(i))
+!!          print g, 'For string[',string(i),']', &
+!!          & all( isdigit(chars) .or. isspace(chars) )
+!!       enddo
+!!
+!!       ! ALTERNATIVE using VERIFY(3)
+!!       ! the Fortran intrinsic function VERIFY(3) returns a position just
+!!       ! not a logical like C, which can be useful for complex comparisons
+!!       print g,'using VERIFY(3):'
+!!       do i=1,size(string)
+!!          print g, 'For string[',string(i),']', &
+!!          & verify(string(i), "01234567890 ") == 0
+!!       enddo
+!!
+!!    end program demo_isdigit
+!!
 !!
 !!  Expected output:
 !!
-!!        For string[1 2 3 4 5 ] T
-!!        For string[letters   ] F
-!!        For string[1234567890] T
-!!        For string[both 8787 ] F
+!!    > using ISDIGIT(3) and ISSPACE(3):
+!!    > For string[ 1 2 3 4 5  ] T
+!!    > For string[ letters    ] F
+!!    > For string[ 1234567890 ] T
+!!    > For string[ both 8787  ] F
+!!    > using VERIFY(3):
+!!    > For string[ 1 2 3 4 5  ] T
+!!    > For string[ letters    ] F
+!!    > For string[ 1234567890 ] T
+!!    > For string[ both 8787  ] F
 !!
 !!##AUTHOR
 !!     John S. Urban
 !!
 !!##LICENSE
 !!     Public Domain
-elemental function isdigit(ch) result(res)
+elemental function isdigit(onechar) result(res)
 
-! ident_73="@(#) M_strings isdigit(3f) Returns .true. if ch is a digit (0-9) and .false. otherwise"
+! ident_73="@(#) M_strings isdigit(3f) Returns .true. if onechar is a digit (0-9) and .false. otherwise"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case('0':'9')
-     res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false.
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case('0':'9')
+        res=.true.
+      case default
+        res=.false.
+        exit
+      end select
+   enddo
 end function isdigit
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -20977,7 +22287,7 @@ end function isdigit
 !!
 !!    elemental function isblank(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: isblank
 !!
 !!##DESCRIPTION
@@ -20988,42 +22298,49 @@ end function isdigit
 !!    onechar  character to test
 !!
 !!##RETURNS
-!!    isblank  logical value returns true if character is a "blank"
+!!    isblank  Returns true logical value if character is a "blank"
 !!             ( an ASCII  space or horizontal tab character).
+!!             If a multi-byte string was input .false. is returned if any
+!!             character is not blank. A null string returns .false.
 !!##EXAMPLES
 !!
 !!   Sample program:
 !!
-!!     program demo_isblank
-!!     use M_strings, only : isblank
-!!     implicit none
-!!     integer                    :: i
-!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
-!!        write(*,'(*(g0,1x))')'ISXBLANK: ',&
-!!        & iachar(pack( string, isblank(string) ))
-!!     end program demo_isblank
+!!    program demo_isblank
+!!    use M_strings, only : isblank
+!!    implicit none
+!!    integer                    :: i
+!!    character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
+!!       write(*,'(*(g0,1x))')'ISBLANK: ',&
+!!       & iachar(pack( string, isblank(string) ))
+!!    end program demo_isblank
 !!
 !!   Results:
 !!
-!!    ISXBLANK:  9 32
+!!    ISBLANK:  9 32
 !!
 !!##AUTHOR
 !!     John S. Urban
 !!
 !!##LICENSE
 !!     Public Domain
-elemental function isblank(ch) result(res)
+elemental function isblank(onechar) result(res)
 
 ! ident_74="@(#) M_strings isblank(3f) returns .true. if character is a blank (space or horizontal tab)"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case(' ',char(9))
-     res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case(' ',char(9))
+        res=.true.
+      case default
+        res=.false.
+        exit
+      end select
+   enddo
 end function isblank
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -21039,7 +22356,7 @@ end function isblank
 !!
 !!    elemental function isascii(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: isascii
 !!
 !!##DESCRIPTION
@@ -21050,20 +22367,22 @@ end function isblank
 !!    onechar  character to test
 !!
 !!##RETURNS
-!!    isupper  logical value returns true if character is an ASCII
+!!    isascii  Returns true logical value if character is an ASCII
 !!             character.
+!!             If a multi-byte string was input .false. is returned if any
+!!             character is not ASCII. A null string returns .false.
 !!##EXAMPLES
 !!
 !!  Sample program
 !!
-!!     program demo_isascii
-!!     use M_strings, only : isascii
-!!     implicit none
-!!     integer                    :: i
-!!     character(len=1),parameter :: string(*)=[(char(i),i=0,255)]
-!!        write(*,'(10(g0,1x))')'ISASCII: ', &
-!!        & iachar(pack( string, isascii(string) ))
-!!     end program demo_isascii
+!!    program demo_isascii
+!!    use M_strings, only : isascii
+!!    implicit none
+!!    integer                    :: i
+!!    character(len=1),parameter :: string(*)=[(char(i),i=0,255)]
+!!       write(*,'(10(g0,1x))')'ISASCII: ', &
+!!       & iachar(pack( string, isascii(string) ))
+!!    end program demo_isascii
 !!
 !!  Results:
 !!
@@ -21086,18 +22405,23 @@ end function isblank
 !!
 !!##LICENSE
 !!     Public Domain
-elemental function isascii(ch) result(res)
+elemental function isascii(onechar) result(res)
 
 ! ident_75="@(#) M_strings isascii(3f) returns .true. if character is in the range char(0) to char(127)"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(iachar(ch))
-   case(0:127)
-     res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(iachar(onechar(i:i)))
+      case(0:127)
+        res=.true.
+      case default
+        res=.false.
+        exit
+      end select
+   enddo
 end function isascii
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -21113,7 +22437,7 @@ end function isascii
 !!
 !!    elemental function isspace(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: isspace
 !!
 !!##DESCRIPTION
@@ -21124,7 +22448,9 @@ end function isascii
 !!    onechar  character to test
 !!
 !!##RETURNS
-!!    isspace  returns true if character is ASCII white space
+!!    isspace  Returns true if character is ASCII white space.
+!!             If a multi-byte string was input .false. is returned if any
+!!             character is not whitespace. A null string returns .false.
 !!
 !!##EXAMPLES
 !!
@@ -21148,22 +22474,27 @@ end function isascii
 !!
 !!##LICENSE
 !!     Public Domain
-elemental function isspace(ch) result(res)
+elemental function isspace(onechar) result(res)
 
 ! ident_76="@(#) M_strings isspace(3f) true if null space tab return new line vertical tab or formfeed"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case(' ')                 ! space(32)
-     res=.true.
-   case(char(0))             ! null(0)
-     res=.true.
-   case(char(9):char(13))    ! tab(9), new line(10), vertical tab(11), formfeed(12), carriage return(13),
-     res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case(' ')                 ! space(32)
+        res=.true.
+      case(char(0))             ! null(0)
+        res=.true.
+      case(char(9):char(13))    ! tab(9), new line(10), vertical tab(11), formfeed(12), carriage return(13),
+        res=.true.
+      case default
+        res=.false.
+        exit
+      end select
+   enddo
 end function isspace
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -21179,7 +22510,7 @@ end function isspace
 !!
 !!    elemental function iscntrl(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: iscntrl
 !!
 !!##DESCRIPTION
@@ -21190,20 +22521,23 @@ end function isspace
 !!    onechar  character to test
 !!
 !!##RETURNS
-!!    iscntrl  logical value returns true if character is a control character
+!!    iscntrl  returns true logical value if character is a control
+!!             character.  If a multi-byte string was input .false. is
+!!             returned if any character is not a control character. A null
+!!             string returns .false.
 !!
 !!##EXAMPLES
 !!
 !!  Sample program
 !!
-!!     program demo_iscntrl
-!!     use M_strings, only : iscntrl
-!!     implicit none
-!!     integer                    :: i
-!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
-!!        write(*,'(20(g0,1x))')'ISCNTRL: ', &
-!!        & iachar(pack( string, iscntrl(string) ))
-!!     end program demo_iscntrl
+!!    program demo_iscntrl
+!!    use M_strings, only : iscntrl
+!!    implicit none
+!!    integer                    :: i
+!!    character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
+!!       write(*,'(20(g0,1x))')'ISCNTRL: ', &
+!!       & iachar(pack( string, iscntrl(string) ))
+!!    end program demo_iscntrl
 !!
 !!   Results:
 !!
@@ -21215,18 +22549,23 @@ end function isspace
 !!
 !!##LICENSE
 !!     Public Domain
-elemental function iscntrl(ch) result(res)
+elemental function iscntrl(onechar) result(res)
 
 ! ident_77="@(#) M_strings iscntrl(3f) true if a delete or ordinary control character(0x7F or 0x00-0x1F)"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case(char(127),char(0):char(31))
-     res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case(char(127),char(0):char(31))
+        res=.true.
+      case default
+        res=.false.
+        exit
+      end select
+   enddo
 end function iscntrl
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
@@ -21242,7 +22581,7 @@ end function iscntrl
 !!
 !!    elemental function ispunct(onechar)
 !!
-!!     character,intent(in) :: onechar
+!!     character(len=*),intent(in) :: onechar
 !!     logical              :: ispunct
 !!
 !!##DESCRIPTION
@@ -21253,8 +22592,10 @@ end function iscntrl
 !!    onechar  character to test
 !!
 !!##RETURNS
-!!    ispunct  logical value returns true if character is a printable
-!!             punctuation character.
+!!    ispunct  Returns true logical value if character is a printable
+!!             punctuation character. If a multi-byte string was input
+!!             .false. is returned if any character is not a printable
+!!             punctuation character. A null string returns .false.
 !!
 !!##EXAMPLES
 !!
@@ -21282,23 +22623,279 @@ end function iscntrl
 !!
 !!##LICENSE
 !!     Public Domain
-elemental function ispunct(ch) result(res)
+elemental function ispunct(onechar) result(res)
 
 ! ident_78="@(#) M_strings ispunct(3f) true if a printable punctuation character (isgraph(c)&&!isalnum(c))"
 
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case (char(33):char(47), char(58):char(64), char(91):char(96), char(123):char(126))
-     res=.true.
-!  case(' ','0':'9','A':'Z','a':'z',char(128):)
-!    res=.true.
-!  case(char(0):char(31),char(127))
-!    res=.true.
-   case default
-     res=.false.
-   end select
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case (char(33):char(47), char(58):char(64), char(91):char(96), char(123):char(126))
+        res=.true.
+   !  case(' ','0':'9','A':'Z','a':'z',char(128):)
+   !    res=.true.
+   !  case(char(0):char(31),char(127))
+   !    res=.true.
+      case default
+        res=.false.
+      end select
+   enddo
 end function ispunct
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!     isupper(3f) - [M_strings:COMPARE] returns .true. if character is an
+!!     uppercase letter (A-Z)
+!!     (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!
+!!    elemental function isupper(onechar)
+!!
+!!     character(len=*),intent(in) :: onechar
+!!     logical              :: isupper
+!!
+!!##DESCRIPTION
+!!     isupper(3f) returns .true. if character is an uppercase letter (A-Z)
+!!
+!!##OPTIONS
+!!    onechar  character to test
+!!##RETURNS
+!!    isupper  Returns true logical value if character is an uppercase
+!!             ASCII character else false.
+!!             If a multi-byte string was input .false. is returned if any
+!!             character is not uppercase ASCII. A null string returns .false.
+!!##EXAMPLES
+!!
+!!  Sample program:
+!!
+!!     program demo_isupper
+!!     use M_strings, only : isupper
+!!     implicit none
+!!     integer                    :: i
+!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
+!!        write(*,'(10(g0,1x))')'ISUPPER: ', &
+!!        & iachar(pack( string, isupper(string) ))
+!!        write(*,'(10(g0,1x))')'ISUPPER: ', &
+!!        & pack( string, isupper(string) )
+!!     end program demo_isupper
+!!
+!!  Results:
+!!
+!!     > ISUPPER:  65 66 67 68 69 70 71 72 73
+!!     > 74 75 76 77 78 79 80 81 82 83
+!!     > 84 85 86 87 88 89 90
+!!     > ISUPPER:  A B C D E F G H I
+!!     > J K L M N O P Q R S
+!!     > T U V W X Y Z
+!!
+!!##AUTHOR
+!!     John S. Urban
+!!
+!!##LICENSE
+!!     Public Domain
+pure elemental function isupper(onechar) result(res)
+
+! ident_79="@(#) M_strings isupper(3f) returns true if character is an uppercase letter (A-Z)"
+
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case('A':'Z')
+         res=.true.
+      case default
+         res=.false.
+         exit
+      end select
+   enddo
+end function isupper
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!     islower(3f) - [M_strings:COMPARE] returns .true. if character is a
+!!     miniscule letter (a-z)
+!!     (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!
+!!    elemental function islower(onechar)
+!!
+!!     character(len=*),intent(in) :: onechar
+!!     logical              :: islower
+!!
+!!##DESCRIPTION
+!!     islower(3f) returns .true. if character is a miniscule letter (a-z)
+!!
+!!##OPTIONS
+!!    onechar  character to test
+!!
+!!##RETURNS
+!!    islower  Returns true logical value if character is a lowercase
+!!             ASCII character else false. If a multi-byte string was
+!!             input .false. is returned if any character is not lowercase
+!!             ASCII. A null string returns .false.
+!!##EXAMPLES
+!!
+!!  Sample program
+!!
+!!     program demo_islower
+!!     use M_strings, only : islower
+!!     implicit none
+!!     integer                    :: i
+!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
+!!        write(*,'(15(g0,1x))')'ISLOWER: ', &
+!!        & iachar(pack( string, islower(string) ))
+!!        write(*,'(15(g0,1x))')'ISLOWER: ', &
+!!        & pack( string, islower(string) )
+!!     end program demo_islower
+!!   Results:
+!!
+!!    ISLOWER:  97 98 99 100 101 102 103 104 105 106 107 108 109 110
+!!    111 112 113 114 115 116 117 118 119 120 121 122
+!!    ISLOWER:  a b c d e f g h i j k l m n
+!!    o p q r s t u v w x y z
+!!
+!!##AUTHOR
+!!     John S. Urban
+!!
+!!##LICENSE
+!!     Public Domain
+elemental function islower(onechar) result(res)
+
+! ident_80="@(#) M_strings islower(3f) returns true if character is a miniscule letter (a-z)"
+
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case('a':'z')
+         res=.true.
+      case default
+         res=.false.
+         exit
+      end select
+   enddo
+end function islower
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+!>
+!!##NAME
+!!    isalnum,isalpha,iscntrl,isdigit,isgraph,islower,
+!!    isprint,ispunct,isspace,isupper,
+!!    isascii,isblank,isxdigit(3f) - [M_strings:COMPARE] test membership in
+!!    subsets of ASCII set
+!!    (LICENSE:PD)
+!!
+!!##SYNOPSIS
+!!
+!!    Where "FUNCNAME" is one of the function names in the group, the
+!!    functions are defined by
+!!
+!!     elemental function FUNCNAME(onechar)
+!!     character(len=*),intent(in) :: onechar
+!!     logical              :: FUNC_NAME
+!!##DESCRIPTION
+!!
+!!       These elemental functions test if a character belongs to various
+!!       subsets of the ASCII character set.
+!!
+!!       isalnum    returns .true. if character is a letter (a-z,A-Z)
+!!                  or digit (0-9)
+!!       isalpha    returns .true. if character is a letter and
+!!                  .false. otherwise
+!!       isascii    returns .true. if character is in the range char(0)
+!!                  to char(127)
+!!       isblank    returns .true. if character is a blank (space or
+!!                  horizontal tab).
+!!       iscntrl    returns .true. if character is a delete character or
+!!                  ordinary control character (0x7F or 0x00-0x1F).
+!!       isdigit    returns .true. if character is a digit (0,1,...,9)
+!!                  and .false. otherwise
+!!       isgraph    returns .true. if character is a printable ASCII
+!!                  character excluding space
+!!       islower    returns .true. if character is a miniscule letter (a-z)
+!!       isprint    returns .true. if character is a printable ASCII character
+!!       ispunct    returns .true. if character is a printable punctuation
+!!                  character (isgraph(c) && !isalnum(c)).
+!!       isspace    returns .true. if character is a null, space, tab,
+!!                  carriage return, new line, vertical tab, or formfeed
+!!       isupper    returns .true. if character is an uppercase letter (A-Z)
+!!       isxdigit   returns .true. if character is a hexadecimal digit
+!!                  (0-9, a-f, or A-F).
+!!
+!!##EXAMPLES
+!!
+!!   Sample Program:
+!!
+!!    program demo_isalnum
+!!
+!!    use M_strings, only : isalnum, isspace, switch
+!!    implicit none
+!!    character(len=10),allocatable :: string(:)
+!!    character(len=1),allocatable  :: letters(:)
+!!    integer                       :: i
+!!       string=[&
+!!       & '1 2 3 4 5 ' ,&
+!!       & 'letters   ' ,&
+!!       & '1234567890' ,&
+!!       & '<02468>   ' ,&
+!!       & 'has dot.  ' ,&
+!!       & 'both 8787 ' ]
+!!       ! if string is all letters, digits and whitespace return .true.
+!!       do i=1,size(string)
+!!          letters=switch(string(i))
+!!          write(*,'(*(g0))') 'For string['//string(i)//'] ', &
+!!             all( isalnum(letters) .or. isspace(letters) )
+!!       enddo
+!!
+!!    end program demo_isalnum
+!!
+!!   Expected output:
+!!
+!!    > For string[1 2 3 4 5 ] T
+!!    > For string[letters   ] T
+!!    > For string[1234567890] T
+!!    > For string[<02468>   ] F
+!!    > For string[has dot.  ] F
+!!    > For string[both 8787 ] T
+!!
+!!##AUTHOR
+!!    John S. Urban
+!!##LICENSE
+!!    Public Domain
+elemental function isalnum(onechar) result(res)
+
+! ident_81="@(#) M_strings isalnum(3f) returns true if character is a letter (a-z A-Z) or digit(0-9)"
+
+character(len=*),intent(in) :: onechar
+logical                     :: res
+integer                     :: i
+   res=.false. ! for zero-length input
+   do i=1,len(onechar)
+      select case(onechar(i:i))
+      case('a':'z','A':'Z','0':'9')
+        res=.true.
+      case default
+        res=.false.
+        exit
+      end select
+   enddo
+end function isalnum
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -21327,8 +22924,10 @@ end function ispunct
 !!            trailing spaces are ignored.
 !!
 !!##RETURNS
-!!     LOUT   a logical value indicating if the input string passed or failed
+!!     LOUT   A logical value indicating if the input string passed or failed
 !!            the test to see if it is a valid Fortran name or not.
+!!            If a multi-byte string was input .false. is returned if any
+!!            character is not printable. A null string returns .false.
 !!
 !!##EXAMPLES
 !!
@@ -21368,7 +22967,7 @@ end function ispunct
 !!     Public Domain
 elemental function fortran_name(line) result (lout)
 
-! ident_79="@(#) M_strings fortran_name(3f) Return .true. if name is a valid Fortran name"
+! ident_82="@(#) M_strings fortran_name(3f) Return .true. if name is a valid Fortran name"
 
 ! determine if a string is a valid Fortran name ignoring trailing spaces (but not leading spaces)
 character(len=*),parameter   :: int='0123456789'
@@ -21388,231 +22987,6 @@ logical                      :: lout
       lout = .false.
    endif
 end function fortran_name
-!===================================================================================================================================
-!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
-!===================================================================================================================================
-!>
-!!##NAME
-!!     isupper(3f) - [M_strings:COMPARE] returns .true. if character is an
-!!     uppercase letter (A-Z)
-!!     (LICENSE:PD)
-!!
-!!##SYNOPSIS
-!!
-!!
-!!    elemental function isupper(onechar)
-!!
-!!     character,intent(in) :: onechar
-!!     logical              :: isupper
-!!
-!!##DESCRIPTION
-!!     isupper(3f) returns .true. if character is an uppercase letter (A-Z)
-!!
-!!##OPTIONS
-!!    onechar  character to test
-!!##RETURNS
-!!    isupper  logical value returns true if character is an uppercase
-!!             ASCII character else false.
-!!##EXAMPLES
-!!
-!!  Sample program:
-!!
-!!     program demo_isupper
-!!     use M_strings, only : isupper
-!!     implicit none
-!!     integer                    :: i
-!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
-!!        write(*,'(10(g0,1x))')'ISUPPER: ', &
-!!        & iachar(pack( string, isupper(string) ))
-!!        write(*,'(10(g0,1x))')'ISUPPER: ', &
-!!        & pack( string, isupper(string) )
-!!     end program demo_isupper
-!!
-!!  Results:
-!!
-!!     > ISUPPER:  65 66 67 68 69 70 71 72 73
-!!     > 74 75 76 77 78 79 80 81 82 83
-!!     > 84 85 86 87 88 89 90
-!!     > ISUPPER:  A B C D E F G H I
-!!     > J K L M N O P Q R S
-!!     > T U V W X Y Z
-!!
-!!##AUTHOR
-!!     John S. Urban
-!!
-!!##LICENSE
-!!     Public Domain
-pure elemental function isupper(ch) result(res)
-
-! ident_80="@(#) M_strings isupper(3f) returns true if character is an uppercase letter (A-Z)"
-
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case('A':'Z'); res=.true.
-   case default;  res=.false.
-   end select
-end function isupper
-!===================================================================================================================================
-!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
-!===================================================================================================================================
-!>
-!!##NAME
-!!     islower(3f) - [M_strings:COMPARE] returns .true. if character is a
-!!     miniscule letter (a-z)
-!!     (LICENSE:PD)
-!!
-!!##SYNOPSIS
-!!
-!!
-!!    elemental function islower(onechar)
-!!
-!!     character,intent(in) :: onechar
-!!     logical              :: islower
-!!
-!!##DESCRIPTION
-!!     islower(3f) returns .true. if character is a miniscule letter (a-z)
-!!
-!!##OPTIONS
-!!    onechar  character to test
-!!
-!!##RETURNS
-!!    islower  logical value returns true if character is a lowercase
-!!             ASCII character else false.
-!!##EXAMPLES
-!!
-!!  Sample program
-!!
-!!     program demo_islower
-!!     use M_strings, only : islower
-!!     implicit none
-!!     integer                    :: i
-!!     character(len=1),parameter :: string(*)=[(char(i),i=0,127)]
-!!        write(*,'(15(g0,1x))')'ISLOWER: ', &
-!!        & iachar(pack( string, islower(string) ))
-!!        write(*,'(15(g0,1x))')'ISLOWER: ', &
-!!        & pack( string, islower(string) )
-!!     end program demo_islower
-!!   Results:
-!!
-!!    ISLOWER:  97 98 99 100 101 102 103 104 105 106 107 108 109 110
-!!    111 112 113 114 115 116 117 118 119 120 121 122
-!!    ISLOWER:  a b c d e f g h i j k l m n
-!!    o p q r s t u v w x y z
-!!
-!!##AUTHOR
-!!     John S. Urban
-!!
-!!##LICENSE
-!!     Public Domain
-elemental function islower(ch) result(res)
-
-! ident_81="@(#) M_strings islower(3f) returns true if character is a miniscule letter (a-z)"
-
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case('a':'z'); res=.true.
-   case default;  res=.false.
-   end select
-end function islower
-!===================================================================================================================================
-!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
-!===================================================================================================================================
-!>
-!!##NAME
-!!    isalnum,isalpha,iscntrl,isdigit,isgraph,islower,
-!!    isprint,ispunct,isspace,isupper,
-!!    isascii,isblank,isxdigit(3f) - [M_strings:COMPARE] test membership in
-!!    subsets of ASCII set
-!!    (LICENSE:PD)
-!!
-!!##SYNOPSIS
-!!
-!!    Where "FUNCNAME" is one of the function names in the group, the
-!!    functions are defined by
-!!
-!!     elemental function FUNCNAME(onechar)
-!!     character,intent(in) :: onechar
-!!     logical              :: FUNC_NAME
-!!##DESCRIPTION
-!!
-!!       These elemental functions test if a character belongs to various
-!!       subsets of the ASCII character set.
-!!
-!!       isalnum    returns .true. if character is a letter (a-z,A-Z)
-!!                  or digit (0-9)
-!!       isalpha    returns .true. if character is a letter and
-!!                  .false. otherwise
-!!       isascii    returns .true. if character is in the range char(0)
-!!                  to char(127)
-!!       isblank    returns .true. if character is a blank (space or
-!!                  horizontal tab).
-!!       iscntrl    returns .true. if character is a delete character or
-!!                  ordinary control character (0x7F or 0x00-0x1F).
-!!       isdigit    returns .true. if character is a digit (0,1,...,9)
-!!                  and .false. otherwise
-!!       isgraph    returns .true. if character is a printable ASCII
-!!                  character excluding space
-!!       islower    returns .true. if character is a miniscule letter (a-z)
-!!       isprint    returns .true. if character is a printable ASCII character
-!!       ispunct    returns .true. if character is a printable punctuation
-!!                  character (isgraph(c) && !isalnum(c)).
-!!       isspace    returns .true. if character is a null, space, tab,
-!!                  carriage return, new line, vertical tab, or formfeed
-!!       isupper    returns .true. if character is an uppercase letter (A-Z)
-!!       isxdigit   returns .true. if character is a hexadecimal digit
-!!                  (0-9, a-f, or A-F).
-!!
-!!##EXAMPLES
-!!
-!!   Sample Program:
-!!
-!!    program demo_isdigit
-!!
-!!     use M_strings, only : isdigit, isspace, switch
-!!     implicit none
-!!     character(len=10),allocatable :: string(:)
-!!     integer                       :: i
-!!        string=[&
-!!        & '1 2 3 4 5 ' ,&
-!!        & 'letters   ' ,&
-!!        & '1234567890' ,&
-!!        & 'both 8787 ' ]
-!!        ! if string is nothing but digits and whitespace return .true.
-!!        do i=1,size(string)
-!!           write(*,'(a)',advance='no')'For string['//string(i)//']'
-!!           write(*,*) &
-!!           all(isdigit(switch(string(i))) .or. &
-!!           & isspace(switch(string(i))))
-!!        enddo
-!!
-!!     end program demo_isdigit
-!!
-!!   Expected output:
-!!
-!!    For string[1 2 3 4 5 ] T
-!!    For string[letters   ] F
-!!    For string[1234567890] T
-!!    For string[both 8787 ] F
-!!
-!!##AUTHOR
-!!    John S. Urban
-!!##LICENSE
-!!    Public Domain
-elemental function isalnum(ch) result(res)
-
-! ident_82="@(#) M_strings isalnum(3f) returns true if character is a letter (a-z A-Z) or digit(0-9)"
-
-character,intent(in) :: ch
-logical              :: res
-   select case(ch)
-   case('a':'z','A':'Z','0':'9')
-     res=.true.
-   case default
-     res=.false.
-   end select
-end function isalnum
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
@@ -21654,9 +23028,9 @@ end function isalnum
 !!    program demo_base
 !!    use M_strings, only: base
 !!    implicit none
-!!    integer           :: ba, bd, i
-!!    character(len=40) :: x, y
-!!    character(len=*), parameter :: input(*) = [character(len=80) :: &
+!!    integer                      :: ba, bd, i
+!!    character(len=40)            :: x, y
+!!    character(len=*), parameter  :: input(*) = [character(len=80) :: &
 !!       '10 12345 10', &
 !!       '2 10111 10', &
 !!       '10 12345 20', &
@@ -21835,9 +23209,9 @@ end function base2
 !!    program demo_decodebase
 !!    use M_strings, only : codebase, decodebase
 !!    implicit none
-!!    integer           :: bd, i, r
-!!    character(len=40) :: x
-!!    character(len=*), parameter :: input(*) = [character(len=80) :: &
+!!    integer                      :: bd, i, r
+!!    character(len=40)            :: x
+!!    character(len=*), parameter  :: input(*) = [character(len=80) :: &
 !!       '10  12345',   &
 !!       '2   10111',   &
 !!       '6   12345',   &
@@ -22148,7 +23522,7 @@ end function tobase
 !!
 !!    character(len=*),intent(in)       :: source_string
 !!    integer,intent(in)                :: length
-!!    character(allocatable(len=length)    :: paragraph(:)
+!!    character(allocatable(len=length) :: paragraph(:)
 !!
 !!##DESCRIPTION
 !!    paragraph(3f) breaks a long line into a simple paragraph of specified
@@ -22176,7 +23550,7 @@ end function tobase
 !!    use M_strings, only : paragraph
 !!    implicit none
 !!    character(len=:),allocatable :: paragrph(:)
-!!    character(len=*),parameter    :: string= '&
+!!    character(len=*),parameter   :: string= '&
 !!     &one two three four five &
 !!     &six seven eight &
 !!     &nine ten eleven twelve &
@@ -22396,11 +23770,12 @@ end function setbits64
 !!     function str( g1,g2,g3,g4,g5,g6,g7,g8,g9,g10, &
 !!                 & g11,g12,g13,g14,g15,g16,g17,g18,g19,g20,sep,csv)
 !!
-!!      class(*),intent(in),optional  :: g1,g2,g3,g4,g5,g6,g7,g8,g9,g10
-!!      class(*),intent(in),optional  :: g11,g12,g13,g14,g15,g16,g17,g18,g19,g20
+!!      class(*),intent(in),optional         :: g1,g2,g3,g4,g5,g6,g7,g8,g9,g10
+!!      class(*),intent(in),optional         :: g11,g12,g13,g14,g15,g16,g17
+!!      class(*),intent(in),optional         :: g18,g19,g20
 !!      character(len=*),intent(in),optional :: sep
-!!      logical,intent(in),optional :: csv
-!!      character(len=:),allocatable :: str
+!!      logical,intent(in),optional          :: csv
+!!      character(len=:),allocatable         :: str
 !!
 !!##DESCRIPTION
 !!     str(3f) builds a string from up to twenty scalar values.
@@ -22494,15 +23869,15 @@ function str_scalar(g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14,
 
 ! ident_89="@(#) M_strings str_scalar(3fp) writes a message to a string composed of any standard scalar types"
 
-class(*),intent(in),optional  :: g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20
+class(*),intent(in),optional         :: g1, g2, g3, g4, g5, g6, g7, g8, g9, g10, g11, g12, g13, g14, g15, g16, g17, g18, g19, g20
 character(len=*),intent(in),optional :: sep
-logical,intent(in),optional   :: csv
-character(len=:),allocatable  :: sep_local
-logical                       :: csv_local
-character(len=:), allocatable :: str_scalar
-character(len=4096)           :: line
-integer                       :: ibegin
-integer                       :: increment
+logical,intent(in),optional          :: csv
+character(len=:),allocatable         :: sep_local
+logical                              :: csv_local
+character(len=:), allocatable        :: str_scalar
+character(len=4096)                  :: line
+integer                              :: ibegin
+integer                              :: increment
 
    if(present(csv))then
       csv_local=csv
@@ -22553,9 +23928,6 @@ class(*),intent(in) :: generic
       type is (integer(kind=int64));    write(line(ibegin:),'(i0)') generic
       type is (real(kind=real32));      write(line(ibegin:),'(1pg0)') generic
       type is (real(kind=real64));      write(line(ibegin:),'(1pg0)') generic
-#ifdef FLOAT128
-      type is (real(kind=real128));     write(line(ibegin:),'(1pg0)') generic
-#endif
       !x!type is (real(kind=real256));     write(line(ibegin:),'(1pg0)') generic
       type is (logical);                write(line(ibegin:),'(l1)') generic
       type is (character(len=*))
@@ -22566,6 +23938,7 @@ class(*),intent(in) :: generic
          endif
       type is (complex)
          if(csv_local)then
+            !write(line(ibegin:),'(1pg0,a,1pg0)') generic%re,sep_local,generic%im
             write(line(ibegin:),'(1pg0,a,1pg0)') real(generic),sep_local,aimag(generic)
          else
             write(line(ibegin:),'("(",1pg0,",",1pg0,")")') generic
@@ -22637,7 +24010,7 @@ contains
 !===================================================================================================================================
 subroutine print_generic(generic)
 class(*),intent(in),optional :: generic(:)
-integer :: i
+integer                      :: i
    if(csv_local)then
       select type(generic)
          type is (integer(kind=int8));     write(line(ibegin:),'(*(i0:,","))') generic
@@ -22646,10 +24019,6 @@ integer :: i
          type is (integer(kind=int64));    write(line(ibegin:),'(*(i0:,","))') generic
          type is (real(kind=real32));      write(line(ibegin:),'(*(1pg0:,","))') generic
          type is (real(kind=real64));      write(line(ibegin:),'(*(1pg0:,","))') generic
-#ifdef FLOAT128
-         type is (real(kind=real128));     write(line(ibegin:),'(*(1pg0:,","))') generic
-#endif
-         !x!type is (real(kind=real256));     write(line(ibegin:),'(*(1pg0:,","))') generic
          type is (logical);                write(line(ibegin:),'(*(l1:,","))') generic
          type is (character(len=*));       write(line(ibegin:),'(:*(a:,","))') (quote(trim(generic(i))),i=1,size(generic))
          type is (complex);                write(line(ibegin:),'(*(1pg0,",",1pg0:))') generic
@@ -22664,9 +24033,6 @@ integer :: i
          type is (integer(kind=int64));    write(line(ibegin:),'("[",*(i0:,","))') generic
          type is (real(kind=real32));      write(line(ibegin:),'("[",*(1pg0:,","))') generic
          type is (real(kind=real64));      write(line(ibegin:),'("[",*(1pg0:,","))') generic
-#ifdef FLOAT128
-         type is (real(kind=real128));     write(line(ibegin:),'("[",*(1pg0:,","))') generic
-#endif
          !x!type is (real(kind=real256));     write(line(ibegin:),'("[",*(1pg0:,","))') generic
          type is (logical);                write(line(ibegin:),'("[",*(l1:,","))') generic
          type is (character(len=*));       write(line(ibegin:),'("[",:*(:"""",a,"""":,","))') (trim(generic(i)),i=1,size(generic))
@@ -22769,9 +24135,6 @@ logical                              :: trimit
          type is (integer(kind=int64));    fmt_local='(i0,a)'
          type is (real(kind=real32));      fmt_local='(1pg0,a)'
          type is (real(kind=real64));      fmt_local='(1pg0,a)'
-#ifdef FLOAT128
-         type is (real(kind=real128));     fmt_local='(1pg0,a)'
-#endif
          type is (logical);                fmt_local='(l1,a)'
          type is (character(len=*));       fmt_local='(a,a)'
          type is (complex);                fmt_local='("(",1pg0,",",1pg0,")",a)'
@@ -22796,15 +24159,13 @@ logical                              :: trimit
       type is (integer(kind=int64));    write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
       type is (real(kind=real32));      write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
       type is (real(kind=real64));      write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-#ifdef FLOAT128
-      type is (real(kind=real128));     write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
-#endif
       type is (logical);                write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
       type is (character(len=*));       write(line,fmt_local,iostat=iostat,iomsg=iomsg) generic,null
+                                        trimit=.false.
       type is (complex);
               if(trimit)then
-                 re=fmt(real(generic))
-                 im=fmt(aimag(generic))
+                 re=fmt(real(generic)) ! re=fmt(generic%re)
+                 im=fmt(aimag(generic))! im=fmt(generic%im)
                  call trimzeros_(re)
                  call trimzeros_(im)
                  fmt_local='("(",g0,",",g0,")",a)'
@@ -22815,8 +24176,8 @@ logical                              :: trimit
               endif
       type is (complex(kind=real64));
               if(trimit)then
-                 re=fmt(real(generic))
-                 im=fmt(aimag(generic))
+                 re=fmt(real(generic)) ! re=fmt(generic%re)
+                 im=fmt(aimag(generic))! im=fmt(generic%im)
                  call trimzeros_(re)
                  call trimzeros_(im)
                  fmt_local='("(",g0,",",g0,")",a)'
@@ -22851,12 +24212,12 @@ end function fmt
 !!
 !!    subroutine find_field (string, field, position, delims, delim, found)
 !!
-!!     character*(*),intent(in)           :: string
-!!     character*(*),intent(out)          :: field
-!!     integer,optional,intent(inout)     :: position
-!!     character*(*),optional,intent(in)  :: delims
-!!     character*(*),optional,intent(out) :: delim
-!!     logical,optional,intent(out)       :: found
+!!     character(len=*),intent(in)           :: string
+!!     character(len=*),intent(out)          :: field
+!!     integer,optional,intent(inout)        :: position
+!!     character(len=*),optional,intent(in)  :: delims
+!!     character(len=*),optional,intent(out) :: delim
+!!     logical,optional,intent(out)          :: found
 !!
 !!##DESCRIPTION
 !!
@@ -22886,27 +24247,28 @@ end function fmt
 !!##OPTIONS
 !!    STRING     The string input.
 !!
-!!    FIELD      The returned field. Blank if no field found.
+!!    FIELD     The returned field. Blank if no field found.
 !!
-!!    POSITION   On entry, the starting position for searching for the field.
-!!               Default is 1 if the argument is not present.
-!!               On exit, the starting position of the next field or
-!!               len(string)+1 if there is no following field.
+!!    POSITION  On entry, the starting position for searching for the field.
+!!              Default is 1 if the argument is not present.
+!!              On exit, the starting position of the next field or
+!!              len(string)+1 if there is no following field.
 !!
-!!    DELIMS     String containing the characters to be accepted as delimiters.
-!!               If this includes a blank character, then leading blanks are
-!!               removed from the returned field and the end delimiter may
-!!               optionally be preceded by blanks. If this argument is
-!!               not present, the default delimiter set is a blank.
+!!    DELIMS    String containing the characters to be accepted as delimiters.
+!!              If this includes a blank character, then leading blanks are
+!!              removed from the returned field and the end delimiter may
+!!              optionally be preceded by blanks. If this argument is
+!!              not present, the default delimiter set is a blank.
 !!
-!!    DELIM      Returns the actual delimiter that terminated the field.
-!!               Returns char(0) if the field was terminated by the end of
-!!               the string or if no field was found.
-!!               If blank is in delimiters and the field was terminated
-!!               by one or more blanks, followed by a non-blank delimiter,
-!!               the non-blank delimiter is returned.
+!!    DELIM     Returns the actual delimiter that terminated the field.
+!!              Returns char(0) if the field was terminated by the end of
+!!              the string or if no field was found.
 !!
-!!    FOUND      True if a field was found.
+!!              If blank is in delimiters and the field was terminated
+!!              by one or more blanks, followed by a non-blank delimiter,
+!!              the non-blank delimiter is returned.
+!!
+!!    FOUND     True if a field was found.
 !!
 !!##EXAMPLES
 !!
@@ -22987,16 +24349,16 @@ subroutine find_field (string, field, position, delims, delim, found)
 !-- 15 Nov 90, Richard Maine.
 
 !-------------------- interface.
-character*(*),intent(in)           :: string
-character*(*),intent(out)          :: field
-integer,optional,intent(inout)     :: position
-character*(*),optional,intent(in)  :: delims
-character*(*),optional,intent(out) :: delim
-logical,optional,intent(out)       :: found
+character(len=*),intent(in)           :: string
+character(len=*),intent(out)          :: field
+integer,optional,intent(inout)        :: position
+character(len=*),optional,intent(in)  :: delims
+character(len=*),optional,intent(out) :: delim
+logical,optional,intent(out)          :: found
 !-------------------- local.
-character  :: delimiter*1
-integer    :: pos, field_start, field_end, i
-logical    :: trim_blanks
+character                             :: delimiter*1
+integer                               :: pos, field_start, field_end, i
+logical                               :: trim_blanks
 !-------------------- executable code.
    field = ''
    delimiter = char(0)
@@ -23190,7 +24552,7 @@ end subroutine find_field
 !!
 !! Sample of uses
 !!
-!!    program demo_sort2020
+!!    program demo_split2020
 !!    use M_strings, only : split2020
 !!    implicit none
 !!    character(len=*),parameter :: gen='(*("[",g0,"]":,","))'
@@ -23199,22 +24561,41 @@ end subroutine find_field
 !!     block
 !!       character (len=:), allocatable :: string
 !!       character (len=:), allocatable :: tokens(:)
-!!       character (len=*),parameter :: set = " ,"
+!!       character (len=*),parameter    :: set = " ,"
+!!
+!!     !basics
+!!
+!!       call basics('')
+!!       call basics(' ')
+!!       call basics('  ')
+!!       call basics('G')
+!!       call basics('     G')
+!!       call basics('     G    ')
+!!       call basics('     G    e   ')
+!!       call basics('G    e')
+!!
+!!     ! assigns the value ['first ','second','third ' ] to TOKENS
 !!       string = 'first,second,third'
 !!       call split2020(string, set, tokens )
 !!       write(*,gen)tokens
 !!
-!!     ! assigns the value ['first ','second','third ' ]
-!!     ! to TOKENS.
+!!       string =    'first,second,,fourth'
+!!       call split2020(string, set, tokens )
+!!       write(*,gen)tokens
+!!
+!!       string =    'first,second,,,fifth'
+!!       call split2020(string, set, tokens )
+!!       write(*,gen)tokens
+!!
 !!     endblock
 !!
 !!     ! Execution of BOUNDS form
 !!
 !!     block
 !!       character (len=:), allocatable :: string
-!!       character (len=*),parameter :: set = " ,"
-!!       integer, allocatable        :: first(:), last(:)
-!!       string =    'first,second,,forth'
+!!       character (len=*),parameter    :: set = " ,"
+!!       integer, allocatable           :: first(:), last(:)
+!!       string =    'first,second,,fourth'
 !!       call split2020 (string, set, first, last)
 !!       write(*,gen)first
 !!       write(*,gen)last
@@ -23226,8 +24607,8 @@ end subroutine find_field
 !!     ! Execution of STEP form
 !!     block
 !!       character (len=:), allocatable :: string
-!!       character (len=*),parameter :: set = " ,"
-!!       integer :: p, ibegin, iend
+!!       character (len=*),parameter    :: set = " ,"
+!!       integer                        :: p, ibegin, iend
 !!       string = " one,   last  example  "
 !!       do while (p < len(string))
 !!         ibegin = p + 1
@@ -23238,7 +24619,14 @@ end subroutine find_field
 !!         endif
 !!       enddo
 !!     endblock
-!!    end program demo_sort2020
+!!    contains
+!!    subroutine basics(string)
+!!    character(len=*),intent(in)  :: string
+!!    character(len=:),allocatable :: tokens(:)
+!!       call split2020(string,' ', tokens )
+!!       write(*,gen)string,tokens
+!!    end subroutine basics
+!!    end program demo_split2020
 !!
 !!   Results:
 !!
@@ -23265,10 +24653,12 @@ end subroutine find_field
 !!
 !!##VERSION
 !!    version 0.1.0, copyright 2020, Milan Curcic
-pure subroutine split_tokens(string, set, tokens, separator)
+! pure
+subroutine split_tokens(string, set, tokens, separator)
 ! Splits a string into tokens using characters in set as token delimiters.
 ! If present, separator contains the array of token delimiters.
 character(*), intent(in)                      :: string
+character(len=len(string))                    :: clone
 character(*), intent(in)                      :: set
 character(:), allocatable, intent(out)        :: tokens(:)
 character, allocatable, intent(out), optional :: separator(:)
@@ -23279,7 +24669,7 @@ integer                                       :: imax
 
     call split2020(string, set, first, last)
     ! maxval() of a zero-size array is set to a flag value not zero or length of character string
-    if(size(first).eq.0)then
+    if(size(first) == 0)then
        imax=0
     else
        imax=maxval(last-first)+1
@@ -23299,18 +24689,21 @@ integer                                       :: imax
 
   end subroutine split_tokens
 !===================================================================================================================================
-  pure subroutine split_first_last(string, set, first, last)
+! pure
+  subroutine split_first_last(string, set, first, last)
      ! Computes the first and last indices of tokens in input string, delimited
      ! by the characters in set, and stores them into first and last output
      ! arrays.
-    character(*), intent(in)          :: string
-    character(*), intent(in)          :: set
-    integer, allocatable, intent(out) :: first(:)
-    integer, allocatable, intent(out) :: last(:)
+    character(*), intent(in)            :: string
+    character(*), intent(in)            :: set
+    integer, allocatable, intent(out)   :: first(:)
+    integer, allocatable, intent(out)   :: last(:)
 
-    character                         :: set_array(len(set))
-    logical, dimension(len(string))   :: is_first, is_last, is_separator
-    integer                           :: n, slen
+    character                           :: set_array(len(set))
+    logical, dimension(0:len(string)+1) :: is_first, is_last, is_separator
+    integer                             :: i, n, slen
+    !D!character(len=*),parameter          :: g0='(*(g0))'
+    !D!character(len=*),parameter          :: g1='(*(g0,1x))'
 
     slen = len(string)
 
@@ -23318,31 +24711,47 @@ integer                                       :: imax
       set_array(n) = set(n:n)
     enddo
 
+    is_separator(0)=.true.
+    is_separator(slen+1)=.true.
+
     do concurrent (n = 1:slen)
       is_separator(n) = any(string(n:n) == set_array)
     enddo
+    !D!write(0,g0)'GOT HERE 1:STRING      :',string,':'
+    !D!write(0,g0)'GOT HERE 2:IS_SEPARATOR:',is_separator
 
-    is_first = .false.
-    is_last = .false.
+    is_first=.false.
+    is_first(0)=.true.
+    is_first(slen+1)=.true.
+    is_last=.false.
+    is_last(0)=.true.
+    is_last(slen+1)=.true.
 
-    if (.not. is_separator(1)) is_first(1) = .true.
-
-    do concurrent (n = 2:slen-1)
+    do concurrent (n = 1:slen)
       if (.not. is_separator(n)) then
-        if (is_separator(n - 1)) is_first(n) = .true.
-        if (is_separator(n + 1)) is_last(n) = .true.
-      else
-        if (is_separator(n - 1)) then
-          is_first(n) = .true.
-          is_last(n-1) = .true.
-        endif
+         if (is_separator(n - 1)) is_first(n) = .true.
+         if (is_separator(n + 1)) is_last(n) = .true.
+      endif
+      if ( is_separator(n))then
+         if (is_separator(n-1)) is_first(n) = .true.
+         if (is_separator(n-1)) is_last(n) = .true.
       endif
     enddo
+    !D!write(0,g0)'GOT HERE 3:IS_FIRST    :',is_first
+    !D!write(0,g0)'GOT HERE 4:IS_LAST     :',is_last
 
-    if (.not. is_separator(slen)) is_last(slen) = .true.
-
-    first = pack([(n, n = 1, slen)], is_first)
-    last = pack([(n, n = 1, slen)], is_last)
+    first = pack([(n, n = 1, slen)], is_first(1:slen))
+    last = pack([(n, n = 1, slen)], is_last(1:slen))
+    do i=1,size(last)
+       !D!write(0,g1)'GOT HERE 4:A:DELTA:',last(i)-first(i)
+       if(last(i)-first(i).eq.0)then
+          if(scan(string(first(i):last(i)),set).ne.0)then
+             last(i)=last(i)-1
+          endif
+       endif
+    enddo
+    !D!write(0,g1)'GOT HERE 5:FIRST    :',first
+    !D!write(0,g1)'GOT HERE 6:LAST     :',last
 
   end subroutine split_first_last
 !===================================================================================================================================
@@ -23393,7 +24802,8 @@ integer                                       :: imax
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-pure function string_tokens(string, set) result(tokens)
+! pure
+function string_tokens(string, set) result(tokens)
 ! Splits a string into tokens using characters in set as token delimiters.
 character(*), intent(in)  :: string
 character(*), intent(in)  :: set
@@ -23734,9 +25144,9 @@ end subroutine matching_delimiter
 !!    contains
 !!
 !!    subroutine compare(a,b,answer)
-!!    character(len=*),intent(in) :: a, b, answer
+!!    character(len=*),intent(in)  :: a, b, answer
 !!    character(len=:),allocatable :: match
-!!    character(len=*),parameter :: g='(*(g0))'
+!!    character(len=*),parameter   :: g='(*(g0))'
 !!       match=longest_common_substring(a,b)
 !!       write(*,g) 'comparing "',a,'" and "',b,'"'
 !!       write(*,g) merge('(PASSED) "','(FAILED) "',answer == match), &
@@ -23806,14 +25216,20 @@ end function longest_common_substring
 !!
 !!     function encode_base64(text,width) result(out)
 !!
-!!      character(len=1),intent(in) :: text(*)
-!!      integer,intent(in),optional :: width
+!!      character(len=1),intent(in)  :: text(*)
+!!      integer,intent(in),optional  :: width
 !!      character(len=1),allocatable :: out(:)
 !!
 !!##DESCRIPTION
 !!
 !!    The data is encoded as described for the base64-alphabet-encoding in
 !!    RFC 4648.
+!!
+!!    Base64 is commonly used to embed images directly in HTML or CSS files
+!!    using data URIs. This eliminates the need for separate image files
+!!    and reduces HTTP requests.
+!!
+!!        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..." />
 !!
 !!##OPTIONS
 !!
@@ -23869,7 +25285,7 @@ end function longest_common_substring
 !!       out=decode_base64(out)
 !!       ! store the bytes back into arr1
 !!       arr2=transfer(source=out,mold=[0.0])
-!!       write(*,'(*(g0,1x))') 'are arr1 and arr2 the same?',all(arr1.eq.arr2)
+!!       write(*,'(*(g0,1x))') 'are arr1 and arr2 the same?',all(arr1 == arr2)
 !!    end subroutine other
 !!    end program demo_encode_base64
 !!
@@ -23911,6 +25327,7 @@ integer,parameter            :: rfc4648_linelength=76
 character(len=1),parameter   :: rfc4648_padding='='
 integer                      :: ichars
 integer                      :: outsize
+character(len=1),allocatable :: tmpdata(:)
    if(present(width))then
       wrap=width
    else
@@ -23931,10 +25348,11 @@ integer                      :: outsize
    do i=1,sz,3
          if(i+3<=sz)then                  ! if not last
            chunk=three2four(data(i:i+2))
-         elseif(modulo(sz,3).eq.0)then    ! last was an even multiple of three
+         elseif(modulo(sz,3) == 0)then    ! last was an even multiple of three
            chunk=three2four(data(i:i+2))
          else                             ! end of data but remainder needs padded
-           chunk=three2four([data(i:sz),[(char(0),j=1,3-(sz-i+1))]])
+           tmpdata=[data(i:sz),[(char(0),j=1,3-(sz-i+1))]]
+           chunk=three2four(tmpdata)
            ! replace added data with pad characters
            chunk(5-pad:)=[(rfc4648_padding,j=1,pad)]
          endif
@@ -23944,8 +25362,8 @@ integer                      :: outsize
             column=column+1
            if(wrap.gt.0)then
                if(column.ge.wrap)then
-                       ichars=ichars+1
-                       out(ichars)=new_line('a')
+                  ichars=ichars+1
+                  out(ichars)=new_line('a')
                   column=0
                endif
             endif
@@ -24107,9 +25525,9 @@ integer(kind=int8)           :: iquad(4)
    call  mvbits(i32, 24, 6, o32, 18)
    out=transfer(o32, out)
 
-   if(quad(3).eq.rfc4648_padding)then
+   if(quad(3) == rfc4648_padding)then
       tri=out(3:3)
-   elseif(quad(4).eq.rfc4648_padding)then
+   elseif(quad(4) == rfc4648_padding)then
       tri=out(3:2:-1)
    else
       tri=out(3:1:-1)
@@ -24146,8 +25564,8 @@ integer(kind=int32) :: val
 !!
 !!    pure elemental function atoi (string) result(val)
 !!
-!!     character(len=*),intent(in)      :: string
-!!     integer(kind=int32),intent(out)  :: val
+!!     character(len=*),intent(in)              :: string
+!!     integer(kind=int32),intent(out) :: val
 !!
 !!##DESCRIPTION
 !!    function atoi(3f) converts a string representing an integer value
@@ -24251,8 +25669,8 @@ integer(kind=int64) :: val
 !!
 !!    pure elemental function atol (string) result(val)
 !!
-!!     character(len=*),intent(in)      :: string
-!!     integer(kind=int64),intent(out)  :: val
+!!     character(len=*),intent(in)              :: string
+!!     integer(kind=int64),intent(out) :: val
 !!
 !!##DESCRIPTION
 !!    function atol(3f) converts a string representing an integer value
@@ -24407,7 +25825,6 @@ end function atol
 !!
 !!       end program demo_aton
 !!
-!!
 !!##AUTHOR
 !!    John S. Urban
 !!
@@ -24416,8 +25833,8 @@ end function atol
 logical function ator_real32(str,val,msg)
 use iso_fortran_env, only: wp => real32, ip => int64
 ! Convert ASCII-text to DP and return .TRUE. if OK
-character(len=*),intent(in) :: str
-real(kind=wp) :: val
+character(len=*),intent(in)   :: str
+real(kind=wp)                 :: val
 character(len=:),allocatable,optional,intent(out) :: msg
 integer(kind=byte),parameter  :: upper_e=iachar('E'), lower_e=iachar('e'), upper_d=iachar('D'), lower_d=iachar('d')
 integer(kind=byte),parameter  :: plus_sign=iachar('+'), minus_sign=iachar('-'), decimal=iachar('.')
@@ -24526,8 +25943,8 @@ end function ator_real32
 logical function ator_real64(str,val,msg)
 use iso_fortran_env, only: wp => real64, ip => int64
 ! Convert ASCII-text to DP and return .TRUE. if OK
-character(len=*),intent(in) :: str
-real(kind=wp) :: val
+character(len=*),intent(in)   :: str
+real(kind=wp)                 :: val
 character(len=:),allocatable,optional,intent(out) :: msg
 integer(kind=byte),parameter  :: upper_e=iachar('E'), lower_e=iachar('e'), upper_d=iachar('D'), lower_d=iachar('d')
 integer(kind=byte),parameter  :: plus_sign=iachar('+'), minus_sign=iachar('-'), decimal=iachar('.')
@@ -24904,8 +26321,321 @@ end function atoi_int64
 !===================================================================================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
-end module M_strings
+!>
+!!##NAME
+!!    itri(3f) - [M_strings:CONVERSION] convert INTEGER to CHARACTER with
+!!    value grouped into periods of three digits
+!!    (LICENSE:MIT)
+!!
+!!##SYNOPSIS
+!!
+!!    function itri(in,separator) return(out)
+!!
+!!     integer(kind=**),intent(in)          :: in
+!!     character(len=*),intent(in),optional :: separator
+!!     character(len=:),allocatable         :: out
+!!     ! or
+!!     integer,(kind=**)intent(in)          :: in(:)
+!!     character(len=1),intent(in),optional :: separator
+!!     character(len=:),allocatable         :: out(:)
+!!
+!!##CHARACTERISTICS
+!!   + IN is a scalar or array INTEGER variable
+!!   + SEPARATOR is a character string
+!!   + OUT is a character scalar or array, but the same as IN
+!!
+!!##DESCRIPTION
+!! Separating large numbers into groups of three digits is called "using
+!! periods". Each three-digit group is known as a period (e.g., ones,
+!! thousands, millions). The symbol used to separate these groups is
+!! typically called a thousands separator or digit group separator (commonly
+!! a comma or space). This is sometimes referred to as periodicity.
+!!
+!!    KEY DETAILS
+!!
+!!    Periods: The groups themselves, separated by commas in this case(e.g.,
+!!    123,456,789).
+!!
+!!    Purpose: To make large numbers easier to read and understand based
+!!    on place value.
+!!
+!!    Other Methods: The International System of Units (SI) recommends
+!!    using a small space to separate groups of three instead of commas.
+!!
+!!    Formatting: While English-speaking countries use commas (100,000),
+!!    many other countries use periods (ie. decimal points)  or spaces
+!!    (100.000 or 100 000).
+!!
+!!##OPTIONS
+!!
+!!    + IN :  An INTEGER to convert to a string representing the value
+!!            grouped into periods.
+!!
+!!    + SEPARATOR :  Character to use to separate period groups. Defaults to
+!!                   comma (","). Multibyte characters are only supported
+!!                   if IN is scalar.
+!!
+!!##RETURNS
+!!    + OUT : If IN is a scalar a trimmed string is returned. If IN is an
+!!            array, strings are right-justified in a string long enough
+!!            to hold all values of the kind of the input.
+!!##EXAMPLES
+!!
+!!   Sample program
+!!
+!!     program demo_itri
+!!     use, intrinsic :: iso_fortran_env, only : int8, int16, int32, int64
+!!     use M_strings, only : itri
+!!     implicit none
+!!     integer                      :: i
+!!     integer(kind=int64)          :: ival64
+!!     character(len=*),parameter   :: braces='(*(:"[",g0,"]",1x))'
+!!     character(len=*),parameter   :: brace='(:"[",g0,"]")'
+!!        ival64=1
+!!        ! scalars are returned trimmed of spaces
+!!        do i=1,19
+!!           write(*,braces)itri(ival64),itri(-ival64)
+!!           ival64=ival64*10+mod(i+1,10)
+!!        enddo
+!!        ! arrays are all returned right-justified
+!!        ! and long enough to fit values of that kind
+!!        write(*,brace) itri([10_int64, 123456890_int64, -huge(0_int64)])
+!!        write(*,brace) itri([10, 123456890, -huge(0)])
+!!        write(*,brace) itri([10_int16, 12345_int16, -huge(0_int16)])
+!!        write(*,brace) itri([10_int8, 123_int8, -huge(0_int8)])
+!!
+!!        ival64=-huge(0_int64)
+!!        write(*,brace) &
+!!        & itri(ival64,separator=' '),  &
+!!        & itri(ival64,separator=char(int(z'B7'))) !  CenterDot 183  U+B7
+!!     end program demo_itri
+!!
+!!  Results:
+!!
+!!     > [1] [-1]
+!!     > [12] [-12]
+!!     > [123] [-123]
+!!     > [1,234] [-1,234]
+!!     > [12,345] [-12,345]
+!!     > [123,456] [-123,456]
+!!     > [1,234,567] [-1,234,567]
+!!     > [12,345,678] [-12,345,678]
+!!     > [123,456,789] [-123,456,789]
+!!     > [1,234,567,890] [-1,234,567,890]
+!!     > [12,345,678,901] [-12,345,678,901]
+!!     > [123,456,789,012] [-123,456,789,012]
+!!     > [1,234,567,890,123] [-1,234,567,890,123]
+!!     > [12,345,678,901,234] [-12,345,678,901,234]
+!!     > [123,456,789,012,345] [-123,456,789,012,345]
+!!     > [1,234,567,890,123,456] [-1,234,567,890,123,456]
+!!     > [12,345,678,901,234,567] [-12,345,678,901,234,567]
+!!     > [123,456,789,012,345,678] [-123,456,789,012,345,678]
+!!     > [1,234,567,890,123,456,789] [-1,234,567,890,123,456,789]
+!!     > [                        10]
+!!     > [               123,456,890]
+!!     > [-9,223,372,036,854,775,807]
+!!     > [            10]
+!!     > [   123,456,890]
+!!     > [-2,147,483,647]
+!!     > [     10]
+!!     > [ 12,345]
+!!     > [-32,767]
+!!     > [  10]
+!!     > [ 123]
+!!     > [-127]
+!!     > [-9 223 372 036 854 775 807]
+!!     > [-9·223·372·036·854·775·807]
+!!
+!!##AUTHOR
+!!   + John S. Urban
+!!
+!!##LICENSE
+!!     MIT
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itris_int64(in,separator) result(out)
+integer(kind=int64),intent(in)       :: in(:)
+character(len=*),intent(in),optional :: separator
+character(len=20+6*1)                :: out(size(in))
+character(len=:),allocatable         :: outstr
+character(len=:),allocatable         :: temp
+character(len=19)                    :: line
+character(len=:),allocatable         :: sep
+integer                              :: i
+integer                              :: j
+   sep=','
+   if(present(separator))sep=separator
+   do j=1,size(in)
+      write(line,'(i0)')abs(in(j))
+      temp='  '//trim(line)
+      outstr=''
+      do i=len(temp),3,-3
+         outstr=sep//temp(i-2:i)//outstr
+      enddo
+      out(j)=merge(' ','-',in(j)>0)//adjustl(outstr(2:))
+      out(j)=adjustr(out(j))
+   enddo
+end function itris_int64
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itris_int32(in,separator) result(out)
+integer(kind=int32),intent(in)       :: in(:)
+character(len=*),intent(in),optional :: separator
+character(len=11+3*1)                :: out(size(in))
+character(len=:),allocatable         :: outstr
+character(len=:),allocatable         :: temp
+character(len=10)                    :: line
+character(len=:),allocatable         :: sep
+integer                              :: i
+integer                              :: j
+   sep=','
+   if(present(separator))sep=separator
+   do j=1,size(in)
+      write(line,'(i0)')abs(in(j))
+      temp='  '//trim(line)
+      outstr=''
+      do i=len(temp),3,-3
+         outstr=sep//temp(i-2:i)//outstr
+      enddo
+      out(j)=merge(' ','-',in(j)>0)//adjustl(outstr(2:))
+      out(j)=adjustr(out(j))
+   enddo
+end function itris_int32
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itris_int16(in,separator) result(out)
+integer(kind=int16),intent(in)       :: in(:)
+character(len=*),intent(in),optional :: separator
+character(len=6+1)                   :: out(size(in))
+character(len=:),allocatable         :: outstr
+character(len=:),allocatable         :: temp
+character(len=5)                     :: line
+character(len=:),allocatable         :: sep
+integer                              :: i
+integer                              :: j
+   sep=','
+   if(present(separator))sep=separator
+   do j=1,size(in)
+      write(line,'(i0)')abs(in(j))
+      temp='  '//trim(line)
+      outstr=''
+      do i=len(temp),3,-3
+         outstr=sep//temp(i-2:i)//outstr
+      enddo
+      out(j)=merge(' ','-',in(j)>0)//adjustl(outstr(2:))
+      out(j)=adjustr(out(j))
+   enddo
+end function itris_int16
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itris_int8(in,separator) result(out)
+integer(kind=int8),intent(in)       :: in(:)
+character(len=*),intent(in),optional :: separator
+character(len=4)                     :: out(size(in))
+character(len=:),allocatable         :: outstr
+character(len=:),allocatable         :: temp
+character(len=3)                     :: line
+character(len=:),allocatable         :: sep
+integer                              :: i
+integer                              :: j
+   sep=','
+   if(present(separator))sep=separator
+   do j=1,size(in)
+      write(line,'(i0)')abs(in(j))
+      temp='  '//trim(line)
+      outstr=''
+      do i=len(temp),3,-3
+         outstr=sep//temp(i-2:i)//outstr
+      enddo
+      out(j)=merge(' ','-',in(j)>0)//adjustl(outstr(2:))
+      out(j)=adjustr(out(j))
+   enddo
+end function itris_int8
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itri_int64(in,separator) result(out)
+integer(kind=int64),intent(in)       :: in
+character(len=*),intent(in),optional :: separator
+character(len=:),allocatable         :: out
+character(len=:),allocatable         :: temp
+character(len=:),allocatable         :: sep
+character(len=21)                    :: line
+integer                              :: i
+   sep=','
+   if(present(separator))sep=separator
+   write(line,'(i0)')abs(in)
+   temp='  '//trim(line)
+   out=''
+   do i=len(temp),3,-3
+      out=sep//temp(i-2:i)//out
+   enddo
+   out=trim(adjustl(out(2:)))
+   if(in<0)out='-'//out
+end function itri_int64
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itri_int32(in,separator) result(out)
+integer(kind=int32),intent(in)       :: in
+character(len=*),intent(in),optional :: separator
+character(len=:),allocatable         :: out
+   out=itri_int64(int(in,kind=int64),separator)
+end function itri_int32
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itri_int16(in,separator) result(out)
+integer(kind=int16),intent(in)       :: in
+character(len=*),intent(in),optional :: separator
+character(len=:),allocatable         :: out
+   out=itri_int64(int(in,kind=int64),separator)
+end function itri_int16
+!----------------------------------------------------------------------------------------------------------------------------------=
+function itri_int8(in,separator) result(out)
+integer(kind=int8),intent(in)       :: in
+character(len=*),intent(in),optional :: separator
+character(len=:),allocatable         :: out
+   out=itri_int64(int(in,kind=int64),separator)
+end function itri_int8
+!===================================================================================================================================
+function format_commas(in) result(out)
+! Fortran Function for Thousands Separators
+!
+! This logic converts an integer to a string and walks backward from the
+! right, inserting a comma every three positions.
+!
+! String Conversion: The number is first written to a temporary string
+! using the (i0) format to remove leading spaces.
+!
+! Reverse Parsing: Starting from the end of the string allows you to
+! count "groups of three" from the right, which is how standard digit
+! grouping works.
+!
+! Sign Handling: The logic checks if the preceding character is a
+! minus sign (-) to avoid placing a comma immediately after it (e.g.,
+! preventing -,123).
+!
+integer(kind=int64), intent(in) :: in(:)
+character(len=26)               :: out_str
+character(len=26)               :: out(size(in))
+character(len=26)               :: temp
+integer                         :: i, j, count
 
+do j=1,size(in)
+   ! 1. Convert integer to temporary string
+   write(temp, '(i0)') in(j)
+   temp = adjustl(temp)
+   out_str = ""
+   count = 0
+
+   ! 2. Loop backwards and insert commas
+   do i = len_trim(temp), 1, -1
+      count = count + 1
+      out_str = temp(i:i) // trim(out_str)
+
+      ! Add comma if we've reached 3 digits and aren't at the start
+      if (mod(count, 3) == 0 .and. i > 1 .and. temp(i-1:i-1) /= '-') then
+         out_str = ',' // trim(out_str)
+      endif
+   enddo
+   out(j) = out_str
+enddo
+end function format_commas
+!===================================================================================================================================
+!()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
+!===================================================================================================================================
+end module M_strings
 
 !>>>>> build/dependencies/M_list/src/M_list.f90
 !>
@@ -26705,7 +28435,6 @@ end module M_list
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
 
-
 !>>>>> build/dependencies/M_history/src/M_history.f90
 !>
 !!##NAME
@@ -26930,7 +28659,6 @@ private :: help_                   !  produce help text for redo(3f) usage
 !  add option to read in and replace history file
 
 integer,parameter :: READLEN=1024  ! width of history file
-
 
 integer,save,private       :: stdout=OUTPUT_UNIT
 logical,save               :: debug=.false.
@@ -27587,7 +29315,7 @@ integer                        :: ichr
       dum1(:)=' '
    else
       il=ml
-      ir=min0(mr,maxlengthout)
+      ir=min(mr,maxlengthout)
       dum1=targetline(:il-1)
    endif
    if(len_old == 0)then
@@ -27745,7 +29473,7 @@ logical                     :: linsrt
 integer :: i, j, ic, ichr, iend, lmax, lmx1
 maxscra=len(cline)
    cmod=trim(modi)
-   lmax=min0(len(cline),maxscra)
+   lmax=min(len(cline),maxscra)
    lmx1=lmax-1
    dum2=' '
    linsrt=.false.
@@ -28814,7 +30542,6 @@ end function str_one
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()=
 !===================================================================================================================================
 end module M_history
-
 
 !>>>>> build/dependencies/M_match/src/M_match.f90
 !09/22/1980  15:38:34
@@ -29984,34 +31711,7 @@ end module M_match
 !==================================================================================================================================!
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !==================================================================================================================================!
-
-
 !>>>>> build/dependencies/M_attr/src/M_attr.F90
-!-----------------------------------------------------------------------------------------------------------------------------------
-#define  __INTEL_COMP        1
-#define  __GFORTRAN_COMP     2
-#define  __NVIDIA_COMP       3
-#define  __NAG_COMP          4
-#define  __flang__           5
-#define  __UNKNOWN_COMP   9999
-
-#define FLOAT128
-
-#ifdef __INTEL_COMPILER
-#   define __COMPILER__ __INTEL_COMP
-#elif __GFORTRAN__ == 1
-#   define __COMPILER__ __GFORTRAN_COMP
-#elif __flang__
-#   undef FLOAT128
-#   define __COMPILER__ __LLVM_FLANG_COMP
-#elif __NVCOMPILER
-#   undef FLOAT128
-#   define __COMPILER__ __NVIDIA_COMP
-#else
-#   define __COMPILER__ __UNKNOWN_COMP
-#   warning  NOTE: UNKNOWN COMPILER
-#endif
-!-----------------------------------------------------------------------------------------------------------------------------------
 !>
 !!##NAME
 !!    M_attr(3f) - [M_attr::INTRO] control text attributes on terminals
@@ -30246,7 +31946,6 @@ character(len=*),parameter  :: FG_INTENSE='9'
 character(len=*),parameter  :: BG_INTENSE='10'
 character(len=*),parameter  :: ON=''
 character(len=*),parameter  :: OFF='2'
-
 
 ! foreground colors
 character(len=*),parameter,public :: fg_red      =  CODE_START//FG//RED//CODE_END
@@ -31433,9 +33132,6 @@ class(*),intent(in) :: generic
       type is (integer(kind=int64));    write(line(istart:),'(i0)') generic
       type is (real(kind=real32));      write(line(istart:),'(1pg0)') generic
       type is (real(kind=real64));      write(line(istart:),'(1pg0)') generic
-#ifdef FLOAT128
-      type is (real(kind=real128));     write(line(istart:),'(1pg0)') generic
-#endif
       type is (logical);                write(line(istart:),'(l1)') generic
       type is (character(len=*));       write(line(istart:),'(a)') trim(generic)
       type is (complex);                write(line(istart:),'("(",1pg0,",",1pg0,")")') generic
@@ -31508,10 +33204,6 @@ integer :: i
       type is (integer(kind=int64));    write(line(istart:),'("[",*(i0,1x))') generic
       type is (real(kind=real32));      write(line(istart:),'("[",*(1pg0,1x))') generic
       type is (real(kind=real64));      write(line(istart:),'("[",*(1pg0,1x))') generic
-#ifdef FLOAT128
-      type is (real(kind=real128));     write(line(istart:),'("[",*(1pg0,1x))') generic
-#endif
-      !type is (real(kind=real256));     write(error_unit,'(1pg0)',advance='no') generic
       type is (logical);                write(line(istart:),'("[",*(l1,1x))') generic
       type is (character(len=*));       write(line(istart:),'("[",:*("""",a,"""",1x))') (trim(generic(i)),i=1,size(generic))
       type is (complex);                write(line(istart:),'("[",*("(",1pg0,",",1pg0,")",1x))') generic
@@ -31524,8 +33216,6 @@ end subroutine print_generic
 
 end function msg_one
 end module M_attr
-
-
 !>>>>> ././src/M_expr.f90
 module M_expr
 ! evaluate Fortran-like integer and logical expressions
@@ -32436,7 +34126,6 @@ end subroutine oops
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()!
 !===================================================================================================================================
 end module M_expr
-
 
 !>>>>> app/prep.f90
 !===================================================================================================================================
@@ -33459,15 +35148,15 @@ integer                      :: i
 
                CALL split(G_MAN,array1,delimiters=new_line('N'),nulls='return') ! parse string to an array parsing on delimiters
                if(allocated(array))deallocate(array)
-               allocate(character(len=len(array1)+6) :: array(size(array1)))  ! make room for !! and ##
+               allocate(character(len=len(array1)+8) :: array(size(array1)))  ! make room for !! and ###
                array(:)=array1
                deallocate(array1)
 
-               do i=1,size(array)        ! lines starting with a letter and all uppercase letters is prefixed with "##"
+               do i=1,size(array)        ! lines starting with a letter and all uppercase letters is prefixed with "### "
                   if( upper(array(i)) == array(i) .and. isalpha(array(i)(1:1)).and.lower(array(i)) /= array(i))then
-                     array(i)='##'//trim(array(i))
+                     array(i)='### '//trim(array(i))
                      select case(array(i))
-                     case('##SYNOPSIS','##EXAMPLES','##EXAMPLE')
+                     case('### SYNOPSIS','### EXAMPLES','### EXAMPLE')
                         array(i)=trim(array(i))//new_line('N')//'!'//'!'
                      endselect
                   else
@@ -33494,16 +35183,16 @@ integer                      :: i
                ! array=[character(len=(len(array1)+6)) :: array1] !! pad with trailing spaces
 
                if(allocated(array))deallocate(array)
-               allocate(character(len=len(array1)+6) :: array(size(array1)))  ! make room for !! and ##
+               allocate(character(len=len(array1)+7) :: array(size(array1)))  ! make room for !! and ###
                array(:)=array1
                !========================================================================================
                deallocate(array1)
 
-               do i=1,size(array)        ! lines starting with a letter and all uppercase letters is prefixed with "##"
+               do i=1,size(array)        ! lines starting with a letter and all uppercase letters is prefixed with "### "
                   if( upper(array(i)) == array(i) .and. isalpha(array(i)(1:1)).and.lower(array(i)) /= array(i))then
-                     array(i)='## '//trim(array(i))
+                     array(i)='### '//trim(array(i))
                      select case(array(i))
-                     case('## SYNOPSIS','## EXAMPLES','## EXAMPLE')
+                     case('### SYNOPSIS','### EXAMPLES','### EXAMPLE')
                         array(i)=trim(array(i))//new_line('N')//'!>'
                      endselect
                   else
@@ -33980,7 +35669,6 @@ integer :: stop_value_local
    else
       write(toscreen,'("<ERROR> <G> ",a,1x,a," </G>")')translated,message
    endif
-
 
    toscreen=attr(toscreen)
    call show_state(msg=trim(toscreen))
